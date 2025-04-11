@@ -37,7 +37,18 @@ router.get('/',authMiddelware, MessageController.getAll)
 //     return <Text style={{ fontStyle: 'italic', color: 'gray' }}>Tin nhắn đã bị thu hồi</Text>
 //   }
 //Còn lại bắt sự kiện socket
-  
-router.get('/recall/:code',authMiddelware, MessageController.recall)
+router.post('/recall/:code',authMiddelware, MessageController.recall)
+
+
+//Trả lời tin nhắn 
+// Endpoint: POST /api/message/reply/
+// Body{
+//  "_id": "<id tin nhắn gốc cần reply>",
+// "content": "<nội dung trả lời>"
+// }
+//token được gửi từ sau khi đăng nhập để trong phần header header: {Authorization: <token>
+//Server sẽ emit socket new-message đến các thành viên trong phòng (trừ người gửi).
+//Người gửi nhận về tin nhắn trả lời qua api
+router.post('/reply/',authMiddelware, MessageController.replyTo)
 
 module.exports = router
