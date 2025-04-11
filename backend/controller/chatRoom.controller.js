@@ -7,6 +7,7 @@ const chatRoomController = {};
 chatRoomController.create = async (req, res) => {
   try {
     const { chatRoomName, members } = req.body;
+
     
     const userCreateId = req.user._id 
     const uniqueMembers = [... new Set([... members, userCreateId])] //Set là object mảng chứa những phần tử duy nhất {[a,b,c]}

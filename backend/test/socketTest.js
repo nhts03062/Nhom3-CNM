@@ -25,6 +25,11 @@ socketTest.on("new-message", (message) =>{
   console.log('Tin nhắn tới: ', message)
 })
 
+//Sự kiện thu hồi từ người tạo chat
+socketTest.on("recall",(recallMessage) =>{
+  console.log('Đã thu hồi tin nhắn:', recallMessage)
+} )
+
 socketTest.on("disconnect", () => {
   console.log("Người dùng test đã ngắt kết nối");
 });
