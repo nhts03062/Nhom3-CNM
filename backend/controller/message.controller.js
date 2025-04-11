@@ -18,10 +18,9 @@ messageController.create = async(req,res) =>{
         sendID : userId,
         content
     })
-    console.log(message)
 
     await message.save(); // message sẽ được cập nhật _id và create/update at
-
+    //Ko thể const message = await message.save dc vì nó trả về document nên ko populate dc
 
     const populatedMessage = 
     await Message.findById(message._id).
@@ -73,7 +72,7 @@ messageController.getAll = async(req, res) =>{
     }
 }
 
-//Thu hồi tin nhắn cần cung cấp 
+//Thu hồi tin nhắn 
 messageController.recall = async(req,res) =>{
     try{
         //id của message nhận từ client
@@ -119,6 +118,58 @@ messageController.recall = async(req,res) =>{
         return res.status(500).json({msg: 'Lỗi thu hồi tin nhắn'})
     }
 
+}
+
+//Trả lời tin nhắn: 
+messageController.replyTo = async(req,res) =>{
+    try{
+        //id message cần trả lời
+        const {_id,  content} = req.body
+        const userCreatChatId = req.user._id 
+        if( !_id ){
+            return res.status(400).json({msg: 'Thiếu id của message cần trả lời'})
+        }
+        const messageBeenReply = await Message.findById(_id)
+        if(!messageBeenReply){
+            return res.status(400).json({msg: 'Không tìm thấy tin nhắn với id: ', _id})
+        }
+        const messageReplyTo = new Message ({
+            chatId : messageBeenReply.chatId,
+            sendID:userCreatChatId,
+            replyToMessage: _id,
+            content
+        })
+        await messageReplyTo.save(); 
+
+        const populatedMessage = 
+        await Message.findById(messageReplyTo._id).
+        populate({
+            path: 'chatId',
+            populate: {path: 'members',select: 'name email' }
+        }).
+        populate('sendID', 'name email'). //Tham số thứ 2 chọn trường muốn poppulate
+        populate({
+            path: 'replyToMessage',
+            select: 'content sendID createdAt',
+            populate: {path: 'sendID', select: 'name email'}
+        })
+        const chatRoom = populatedMessage.chatId
+
+        if(chatRoom){
+        chatRoom.members.forEach( userMemId =>{
+            //Vì đã populate members nên h nó là mảng object User
+            if(userMemId._id.toString() !== userCreatChatId.toString()){
+                req.io.to(userMemId._id.toString()).emit('new-message', populatedMessage)
+            }
+        })
+        }
+        res.status(200).json(populatedMessage)
+
+
+    }catch(err){
+        console.log('Lỗi trả lời tin nhắn',err)
+        return res.status(500).json({msg: 'Lỗi trả lời tin nhắn'})
+    }
 }
 
 
