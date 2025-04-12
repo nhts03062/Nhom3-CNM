@@ -1,15 +1,26 @@
 const express = require('express')
 const authMiddelware = require('../middlewales/authMiddleware ')
 const MessageController = require('../controller/message.controller')
+const uploadFileOrMedia = require('../middlewales/uploadMiddleware')
 
 const router = express.Router();
 
 //Tạo tin nhắn mới
 //Cung cấp 
-//body : {chatId: <chatRoomId> , content<Nội dung text>}
+//body : {chatId: <chatRoomId> , 
+// content: {
+//type :<file/media/text>, nếu chỉ text thôi là chỉ gồm text, file gồm file  hoặc file và text tương tự
+//text: text
+//}}
+// Nếu type là "file" hoặc "media" → gửi kèm file upload:
+// file: key cho mảng các tệp đính kèm
+// media: key cho mảng ảnh/video
+
 //token được gửi từ sau khi đăng nhập để trong phần header header: {Authorization: <token>
-//Sau đó trả về cho tất cả ngừời trong phòng nội dung tin nhắn còn người tạo tin nhắn nhận về trong phần gọi api
-router.post('/',authMiddelware, MessageController.create)
+
+// Người gửi tin nhắn: Nhận được tin nhắn đã lưu trong response
+// Tất cả thành viên còn lại trong phòng chat: Sẽ nhận được tin nhắn realtime thông qua socket event new-message
+router.post('/',authMiddelware, uploadFileOrMedia,  MessageController.create)
 
 //Lấy tất cả tin nhắn
 //Cung cấp

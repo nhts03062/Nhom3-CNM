@@ -1,5 +1,7 @@
 const ChatRoom = require('../models/Chatroom')
 const Message = require('../models/Message')
+const {uploadFile} = require("../services/file.services")
+const MessageUtil = require('../utils/message-util')
 
 const messageController = {}
 
@@ -8,39 +10,65 @@ messageController.create = async(req,res) =>{
    try
    { const {chatId , content} = req.body
 
-   if(! chatId){
+   if(!chatId){
         return res.status(400).json({msg: 'Thiếu chatRoom Id'})
    }
     const userId = req.user._id // lấy tự middleware
 
-    const message = new Message({
-        chatId,
-        sendID : userId,
-        content
-    })
+    
+    if(content.type.toString() !== 'text'){
 
-    await message.save(); // message sẽ được cập nhật _id và create/update at
-    //Ko thể const message = await message.save dc vì nó trả về document nên ko populate dc
+        if(content.type.toString() === 'file'){
+            
+            //Không thể sử dụng async trong forEach để sử dụng await vì nó sẽ ko chờ việc lưulưu
+            // let fileArrayURL = [];
+            // req.file.file.forEach( async file =>{ 
+            //     const fileUrl = await uploadFile(file)
+            //     fileArrayURL.push(fileUrl)
+            // })
 
-    const populatedMessage = 
-    await Message.findById(message._id).
-    populate({
-        path: 'chatId',
-        populate: {path: 'members',select: 'name email' }
-    }).
-    populate('sendID', 'name email') //Tham số thứ 2 chọn trường muốn poppulate
-    const chatRoom = populatedMessage.chatId
+            //Dùng optional chaining (?.) để tránh lỗi nếu req.files là undefined.
+            //ví dụ:
+            //Nếu req.files = undefined → req.files.file sẽ gây lỗi nếu không file → 
+            // nhưng req.files?.file sẽ trả về undefined và không lỗi.
+            //Nếu req.files = { file: [file1, file2] } → req.files?.file sẽ trả về mảng [file1, file2]
+            //|| []
+            //Nếu req.files?.file là undefined (tức không có gì được upload) thì trả về mảng rỗng [] để tránh lỗi khi .map()
+            //Promise.all promise là biến gồm 2 trạng thái chờ và đã có kết quả ,all là dảm bảo tất cả kết quả dc dảm bảobảo
+            const fileArrayURL = await Promise.all(
+                (req.files?.file || [] ).map(file => uploadFile(file) )
+            )
+           
 
-    if(chatRoom){
+            const contentfile = {
+                type: content.type,
+                text: content.text,
+                files: fileArrayURL
+            }
 
-    chatRoom.members.forEach( userMemId =>{
-        //Vì đã populate members nên h nó là mảng object User
-        if(userMemId._id.toString() !== userId.toString()){
-            req.io.to(userMemId._id.toString()).emit('new-message', populatedMessage)
+            return MessageUtil.saveMessageAndReturn(chatId,userId,contentfile,req,res)
+
+        }else{
+            // let mediaArrayURL = [];
+            // req.file.media.forEach( async media =>{
+            //     const mediaUrl = await uploadFile(media)
+            //     mediaArrayURL.push(mediaUrl)
+            //     })
+            const mediaArrayURL = await Promise.all(
+                (req.files?.media || [] ).map(media => uploadFile(media) )
+            )
+
+                const contentMedia = {
+                    type: content.type,
+                    text: content.text,
+                    media: mediaArrayURL
+                }
+
+            return MessageUtil.saveMessageAndReturn(chatId,userId,contentMedia,req,res)
         }
-    })
     }
-    res.status(200).json(populatedMessage)
+     return MessageUtil.saveMessageAndReturn(chatId,userId,content,req,res)
+
 }catch(err){
     console.log(err)
     res.status(500).json('Lỗi tạo tin nhắn')
@@ -57,7 +85,10 @@ messageController.getAll = async(req, res) =>{
         if(!chatId){
             return res.status(400).json({msg: 'Thiếu chatRoom Id'})
         }
-        const messages = await Message.find({chatId}) // Chỉ nhận object key value nếu truyền vào chatId = value thoi nên ko dc
+        const messages = await Message.find({chatId}).populate({
+            path: 'replyToMessage',
+            select: 'content sendID createdAt',
+        }) // Chỉ nhận object key value nếu truyền vào chatId = value thoi nên ko dc
         .sort({ createdAt: 1}) //Sắp xếp từ tạo lâu nhất đến mới nhất tăng dần thời gian
         .populate('sendID', 'name email')
 
