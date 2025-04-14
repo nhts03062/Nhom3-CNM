@@ -1,10 +1,11 @@
 import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { Component, inject, OnInit } from '@angular/core';
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, Router, RouterModule } from '@angular/router';
+import { ActivatedRoute, NavigationEnd, Router, RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { ToastrModule, ToastrService } from 'ngx-toastr';
+import { filter } from 'rxjs';
 
 @Component({
   selector: 'app-auth',
@@ -18,6 +19,9 @@ export class AuthComponent implements OnInit {
   private router = inject(Router);
   private fb = inject(FormBuilder);
   private route = inject(ActivatedRoute);
+  isForgotPasswordRoute: boolean = false;
+  isChangePasswordRoute: boolean = false;
+
 
   registerForm = this.fb.group({
     name: ['', [Validators.required]],
@@ -29,6 +33,16 @@ export class AuthComponent implements OnInit {
     email: ['', [Validators.required, Validators.email]],
     password: ['', [Validators.required, Validators.minLength(6)]],
   });
+
+  constructor(){
+    this.router.events
+    .pipe(filter(e => e instanceof NavigationEnd))
+    .subscribe((event: NavigationEnd) => {
+      const url = event.url;
+      this.isForgotPasswordRoute = url.includes('/auth/forgot-password');
+      this.isChangePasswordRoute = url.includes('/auth/change-password');
+    });
+  }
 
   ngOnInit() {
     // Kiểm tra xác thực email từ URL
@@ -64,9 +78,10 @@ export class AuthComponent implements OnInit {
         .subscribe({
           next: (res: any) => {
             if (res.token) {
-              localStorage.setItem("token", res.token);
+              sessionStorage.setItem("token", res.token);
+              sessionStorage.setItem('userId',res.userId);
               alert("✅ Đăng nhập thành công!");
-              this.router.navigateByUrl("/dashboard");
+              this.router.navigateByUrl("/chat");
             } else {
               alert("❌ Lỗi đăng nhập: " + res.message);
             }
@@ -97,5 +112,11 @@ export class AuthComponent implements OnInit {
     } else {
       alert("❌ Form đăng ký không hợp lệ");
     }
+  }
+  onForgotPassWord(){
+    this.router.navigateByUrl('/auth/forgot-password')
+  }
+  onChangePassWord(){
+    this.router.navigateByUrl('/auth/change-password')
   }
 }
