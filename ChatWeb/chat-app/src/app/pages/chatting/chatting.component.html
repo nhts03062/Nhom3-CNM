@@ -1,0 +1,252 @@
+<div class="row">
+  <!-- HEADER -->
+  <div class="header">
+    <div class="search">
+      <div class="searchbar">
+        <i class="fa fa-search" aria-hidden="true"></i>
+        <!-- Search Input -->
+        <input
+          type="text"
+          placeholder="Searching conversation..."
+          [(ngModel)]="searchTerm"
+        />
+
+        <!-- Filtered Conversations -->
+        <div class="search-dropdown"*ngIf="searchTerm && filteredConversations.length > 0">
+          <div
+          *ngFor="let convo of filteredConversations"
+          class="left-section chat-conversation"
+          [class.message-active]="convo.id === selectedConversationId"
+          (click)="selectConversation(convo.id)"
+        >
+          <ng-container *ngIf="getOtherUser(convo) as userChat">
+            <div class="photo" [style.backgroundImage]="'url(' + getUserAvatar(userChat.id) + ')'">
+              <div class="online" *ngIf="userChat.online === true"></div>
+            </div>
+            <div class="desc-contact">
+              <div class="username">
+                <p class="name" [class.unread]="countUnreadMsgs(convo) > 0">{{ userChat.name }}</p>
+                <p *ngIf="countUnreadMsgs(convo) > 0" class="msg-notification-nb">
+                  {{ countUnreadMsgs(convo) }}
+                </p>
+              </div>
+            </div>
+            </ng-container>
+          </div>
+        </div>
+
+
+        <!-- Optional: No matches -->
+        <div class="search-dropdown" *ngIf="searchTerm && filteredConversations.length === 0">
+        <p class="no-results">No matching friends</p>
+        </div>
+
+        
+      </div>
+      <button class="add-friend" (click)="toggleModal()">
+        <i class="fa-solid fa-user-plus create clickable"></i>
+      </button>
+      <app-modal
+        [isOpen]="showModal"
+        (closeModal)="toggleModal()"
+        title="Add Friend"
+      ></app-modal>
+    </div>
+
+    <!-- RIGHT HEADER CHAT INFO -->
+    <div class="header-chat" [ngClass]="{ 'hide-left': !selectedConversationId }">
+      <ng-container *ngIf="activeConversation && getOtherUser(activeConversation) as sender">
+        <div class="photo" [style.backgroundImage]="'url(' + getUserAvatar(sender.id) + ')'">
+          <div class="online" *ngIf="sender.online === true"></div>
+        </div>
+        <div class="username">
+          <p class="name">{{ sender.name }}</p>
+          <p class="last-seen">{{ getLastSeenText(sender.lastSeen) }}</p>
+        </div>
+        <i class="icon clickable fa fa-ellipsis-h right" aria-hidden="true"></i>
+      </ng-container>
+    </div>
+  </div>
+
+  <!-- LEFT CONVERSATION LIST -->
+  <!-- <section class="Left-section">
+    <div
+      *ngFor="let convo of conversations"
+      class="left-section message"
+      [class.message-active]="convo.id === selectedConversationId"
+      (click)="selectConversation(convo.id)"
+    >
+      <ng-container *ngIf="getOtherUser(convo) as userChat">
+        <div class="photo" [style.backgroundImage]="'url(' + getUserAvatar(userChat.id) + ')'">
+          <div class="online" *ngIf="userChat.online === true"></div>
+        </div>
+        <div class="desc-contact">
+          <div class="username">
+            <p class="name" [class.unread]="countUnreadMsgs(convo) > 0">
+              {{ userChat.name }}
+            </p>
+            <p *ngIf="countUnreadMsgs(convo) > 0" class="msg-notification-nb">
+              {{ countUnreadMsgs(convo) }}
+            </p>
+          </div>
+          <p class="message">{{ getLastMessage(convo) }}</p>
+        </div>
+        <div class="timer">
+          {{ getTimeAgo(convo) }}
+        </div>
+      </ng-container>
+    </div>
+
+    <div *ngIf="conversations.length === 0" class="no-conversations">
+      No conversations yet. Start chatting!
+    </div>
+  </section> -->
+
+  <section class="Left-section">
+    <div
+      *ngFor="let room of chatRooms"
+      class="left-section message"
+      [class.message-active]="room._id === chatRoomIdDuocChon"
+      (click)="chatRoomDuocChon(room._id)"
+    >
+      <ng-container *ngIf="layNguoiDungKhac(room) as userChat">
+        <div class="photo" [style.backgroundImage]="'url(https://i1.rgstatic.net/ii/profile.image/1039614412341248-1624874799001_Q512/Meryem-Laval.jpg)'">
+        </div>
+        <div class="desc-contact">
+          <div class="username">
+            <p class="name" *ngIf="room.isGroupChat === false">
+              {{ userChat.name }}
+            </p>
+            <p class="name" *ngIf="room.isGroupChat === true">
+              {{ room.chatRoomName }}
+            </p>
+          </div>
+        </div>
+      </ng-container>
+    </div>
+
+    <div *ngIf="chatRooms.length === 0" class="no-conversations">
+      Không có cuộc hội thoại nào hãy bắt đầu
+    </div>
+  </section>
+
+  <!-- RIGHT CHAT PANEL -->
+  <!-- <section class="Right-section">
+    <div *ngIf="activeConversation && currentUser">
+      <div class="messages-chat"> -->
+        <!-- Date separator -->
+        <!-- <div class="date">
+          <p class="date-text">
+            {{ activeConversation.lastMessage?.timestamp | date: 'fullDate' }}
+          </p>
+        </div> -->
+  <section class="Right-section">
+    <div *ngIf="chatRoomIdDuocChon && idNguoiDungHienTai">
+      <div class="messages-chat">
+          <!-- Date separator -->
+        <!-- <div class="date">
+          <p class="date-text">
+              {{ activeConversation.lastMessage?.timestamp | date: 'fullDate' }}
+          </p>
+        </div> -->
+
+        <!-- Incoming Messages -->
+        <!-- <ng-container *ngFor="let msg of activeConversation.messages; let i = index">
+          <div class="Messages">
+            <div class="message" *ngIf="msg.senderId !== currentUser.id">
+              <div class="photo" [style.backgroundImage]="'url(' + getUserAvatar(msg.senderId) + ')'">
+                <div class="online" *ngIf="getUserOnlineStatus(msg.senderId) === true"></div>
+              </div>
+              <div class="bubble-wrapper">
+                <div class="bubble">
+                  <p class="text">{{ msg.content }}</p>
+                </div>
+                <p class="time">{{ msg.timestamp | date: 'shortTime' }}</p>
+              </div>
+            </div>
+          </div>
+        </ng-container> -->
+
+        <ng-container *ngFor="let msg of messagees; let i = index">
+          <div class="Messages">
+            <div class="message" *ngIf="msg.sendID._id !== idNguoiDungHienTai">
+              <div class="photo" [style.backgroundImage]="'url(https://i1.rgstatic.net/ii/profile.image/1039614412341248-1624874799001_Q512/Meryem-Laval.jpg)'">
+              </div>
+              <div class="bubble-wrapper">
+                <div class="bubble">
+                  <p class="text">{{ msg.content.text }}</p>
+                </div>
+                <p class="time">{{ msg.createdAt | date: 'shortTime' }}</p>
+              </div>
+            </div>
+            <div class="response" *ngIf="msg.sendID._id === idNguoiDungHienTai">
+              <p class="text">{{  msg.content.text  }}</p>
+              <div class="response-time time">
+                {{ msg.createdAt | date: 'shortTime' }}
+              </div>
+            </div>
+          </div>
+        </ng-container>
+
+        <!-- Outgoing Messages -->
+        <!-- <ng-container *ngFor="let msg of activeConversation.messages; let i = index">
+          <div class="Messages">
+            <div class="response" *ngIf="msg.senderId === currentUser.id">
+              <p class="text">{{ msg.content }}</p>
+              <div class="response-time time">
+                {{ msg.timestamp | date: 'shortTime' }}
+                <span class="readBy" *ngIf="!msg.readBy || msg.readBy.length === 0">Delivered</span>
+                <span class="readBy" *ngIf="msg.readBy && msg.readBy.length > 0">Seen</span>
+              </div>
+            </div>
+          </div>
+        </ng-container> -->
+
+        <!-- Footer Input Section -->
+        <div class="footer-chat">
+          <div class="sub-footer">
+            <!-- Emoji Button -->
+            <div class="emoji-wrapper">
+              <div class="icon emoji clickable" (click)="toggleEmojiPicker()">😃</div>
+            </div>
+
+            <!-- Emoji Picker -->
+            <emoji-mart
+              *ngIf="showEmojiPicker"
+              [set]="'google'"
+              [perLine]="8"
+              [emojiTooltip]="true"
+              (emojiSelect)="addEmoji($event)"
+            ></emoji-mart>
+
+            <!-- Message Input -->
+            <input 
+              type="text"
+              class="write-message"
+              [(ngModel)]="messageText"
+              placeholder="Type your message here"
+            />
+
+            <i class="icon attach fa-solid fa-paperclip clickable" (click)="fileInput.click()"></i>
+            <input #fileInput type="file" multiple (change)="trenFilesDaChon($event)" style="display: none;" />
+            <div  *ngFor="let file of filesDaDuocChon; let i = index" class="file-preview">
+               {{ file.name }}
+              <button (click)="loaiFileDaChon(i)">X</button>
+            </div>
+          </div>
+
+          <!-- Send Button -->
+          <i class="icon send fa-solid fa-paper-plane clickable" (click)="createMessage(messageText)"></i>
+        </div>
+      </div>
+    </div>
+
+    <!-- No Conversation Selected -->
+    <!-- <div *ngIf="!selectedConversationId" class="no-chat-selected">
+      <img src="../../../assets/let's-chat.png" class="no-chat-img" />
+    </div> -->
+    <div *ngIf="!chatRoomIdDuocChon" class="no-chat-selected">
+      <img src="../../../assets/let's-chat.png" class="no-chat-img" />
+    </div>
+  </section>
+</div>

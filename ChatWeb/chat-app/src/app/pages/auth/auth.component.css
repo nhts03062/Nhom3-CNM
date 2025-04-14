@@ -192,6 +192,14 @@ i {
 .container #flip {
   display: none;
 }
+.forgotpass a{
+  color: #2e81fd;
+  text-decoration: underline;
+  cursor: pointer;
+  &:hover{
+    color: #4990fa;
+  }
+}
 @media (max-width: 730px) {
   .container .cover {
     display: none;

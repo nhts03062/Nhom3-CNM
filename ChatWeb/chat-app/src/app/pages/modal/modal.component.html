@@ -1,0 +1,34 @@
+<div class="modal-backdrop" *ngIf="isOpen">
+  <div class="modal">
+    <article class="modal-container">
+      <header class="modal-container-header">
+        <h5 class="modal-container-title">          
+          <!-- Tabs -->
+          <div class="modal-tabs">
+            <button [class.active]="activeTab === 'friend'" (click)="setTab('friend')">Add Friend</button>
+            <button [class.active]="activeTab === 'group'" (click)="setTab('group')">Create Group</button>
+          </div>
+        </h5>
+      </header>
+
+
+      <section class="modal-container-body rtf">
+        <ng-container *ngIf="activeTab === 'friend'">
+          <input type="text" class="email-searching" placeholder="Search friend's email" />
+        </ng-container>
+
+        <ng-container *ngIf="activeTab === 'group'">
+          <input type="text" class="email-searching" placeholder="Group name" />
+          <input type="text" class="email-searching" placeholder="Add members' emails" />
+        </ng-container>
+      </section>
+
+      <footer class="modal-container-footer">
+        <button class="button is-ghost" (click)="close()">Cancel</button>
+        <button class="button is-primary">
+          {{ activeTab === 'friend' ? 'Search' : 'Create Group' }}
+        </button>
+      </footer>
+    </article>
+  </div>
+</div>
