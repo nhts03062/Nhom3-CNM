@@ -1,7 +1,7 @@
 const express = require('express')
-const authMiddelware = require('../middlewales/authMiddleware ')
+const authMiddelware = require('../middlewares/authMiddleware')
 const MessageController = require('../controller/message.controller')
-const uploadFileOrMedia = require('../middlewales/uploadMiddleware')
+const uploadFileOrMedia = require('../middlewares/uploadMiddleware')
 
 const router = express.Router();
 
