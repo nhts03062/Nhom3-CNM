@@ -103,9 +103,10 @@ router.post("/login", async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ msg: "Mật khẩu không chính xác" });
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "1h" });
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "24h" });
+    const userId = user._id;
 
-    res.status(200).json({ msg: "Đăng nhập thành công!", redirect: "/dashboard.html", token });
+    res.status(200).json({ msg: "Đăng nhập thành công!", redirect: "/dashboard.html", token,userId});
 
   } catch (error) {
     console.error(error);

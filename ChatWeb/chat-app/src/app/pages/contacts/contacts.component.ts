@@ -5,11 +5,12 @@ import { User } from '../../models/user.model';
 import { sampleUsers } from '../../mock-data/mock-data'; // Assuming this contains an array of User objects
 import { mockAccountOwner } from '../../mock-data/mock-account-owner';
 import { FormsModule } from '@angular/forms';
+import { ModalProfileComponent } from '../profile/modal-profile/modal-profile.component';
 
 @Component({
   standalone: true,
   selector: 'app-contacts',
-  imports: [ModalComponent, CommonModule,FormsModule],
+  imports: [ModalComponent, CommonModule,FormsModule, ModalProfileComponent],
   templateUrl: './contacts.component.html',
   styleUrls: ['./contacts.component.css']
 })
@@ -17,6 +18,7 @@ import { FormsModule } from '@angular/forms';
 export class ContactsComponent implements OnInit {
   users: User[] = [];
   showModal = false;
+  showProfileModal = false;
   selectedTab: number = 0;
   tabTitles: string[] = ['Friends List', 'Group List', 'Requests'];
 
@@ -33,6 +35,9 @@ export class ContactsComponent implements OnInit {
   toggleModal() {
     this.showModal = !this.showModal;
   }
+  toggleProfileModal() {
+    this.showProfileModal = !this.showProfileModal;
+  }
 
   onSelectTab(tab: number) {
     this.selectedTab = tab;
@@ -42,6 +47,14 @@ export class ContactsComponent implements OnInit {
     return mockAccountOwner.friends.length;
   }
 
+  selectedFriend: User | undefined;;
+
+  selectFriend(friend: any): void {
+    this.selectedFriend = friend;
+    if (this.selectedFriend) {
+      this.toggleProfileModal(); // Show the modal
+    }
+  }
   getUserById(userId: string): User | undefined {
     return this.users.find(user => user.id === userId);
   }

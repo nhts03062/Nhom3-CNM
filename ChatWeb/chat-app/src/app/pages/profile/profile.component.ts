@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { mockAccountOwner } from '../../mock-data/mock-account-owner';
 import { User } from '../../models/user.model';
-import { ModalComponent } from './modal/modal.component';
+import { ModalComponent } from './modal-change-pass/modal-change-pass.component';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';

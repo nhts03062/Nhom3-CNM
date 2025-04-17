@@ -1,0 +1,18 @@
+<div *ngIf="isOpen" class="modal">
+  <div class="modal-backdrop">
+    <div class="modal-content">
+  
+      <!-- User Profile Details -->
+      <div *ngIf="user">
+        <h2>{{ user.name }}'s Profile</h2>
+        <div class="photo" [style.backgroundImage]="'url(' + user.avatarUrl + ')'">
+          <div class="online" *ngIf="user.online"></div>
+        </div>
+        <p></p>
+      </div>
+      <footer class="modal-container-footer">
+        <button class="button is-ghost" (click)="close()">Cancel</button>
+      </footer>
+    </div>
+  </div>
+</div>

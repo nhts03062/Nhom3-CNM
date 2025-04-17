@@ -4,6 +4,7 @@ const http = require('http')
 const connectDB = require("./db");
 const {Server} = require('socket.io')
 require("dotenv").config();
+const socketAuthMiddleware = require('./middlewales/socketAuthMiddleware')
 
 const app = express();
 const server = http.createServer(app) //Tạo sever http tử express để có thể xử lý API RESTREST(express) và socket.io
@@ -41,6 +42,10 @@ app.use("/api/auth", require("./routes/auth"));
 app.use('/api/chatroom',require('./routes/chatRoom.route'))
 //Sử dụng API cho message
 app.use('/api/message', require('./routes/message.route'))
+//Sử dụng API cho search
+app.use('/api/search',require('./routes/search.route'))
+//Sử dụng API cho user
+app.use('/api/user', require('./routes/user.route'))
 
 // emit là gửi sự kiện với 2 tham số là tên sự kiện và giá trị gửi di
 //on là nhận sử kiện  với 2 tham số là tên sự kiện và giá trị đã gửi(giá trị nhận được)
@@ -49,6 +54,11 @@ app.use('/api/message', require('./routes/message.route'))
 
 //Mỗi khi một client kết nối tới server qua socket (WebSocket),
 // server tự động phát hiện và gọi callback trong "connection". và disconnect cũng vậyvậy
+
+
+// socketAuthMiddleware(io);
+
+const chatRoomSocket = require('./sockets/chatRoom.socket');
 io.on("connection", (socket) =>{
   console.log('Đã có người tham gia phòng');
 
@@ -57,6 +67,9 @@ io.on("connection", (socket) =>{
     console.log(`User ${userID} đã tham gia vào phòng riêng`)
   })
 
+  // chatRoomSocket(io, socket);
+
+  
   socket.on('disconnect', () =>{
     console.log('Người dùng đã ngắt kết nối')
   })
@@ -64,4 +77,5 @@ io.on("connection", (socket) =>{
 
 // Cấu hình cổng và khởi động server
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+server.listen(PORT, '0.0.0.0', () => console.log(`🚀 Server running on port ${PORT}`));
+

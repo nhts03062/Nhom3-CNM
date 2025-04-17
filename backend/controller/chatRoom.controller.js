@@ -40,7 +40,6 @@ chatRoomController.create = async (req, res) => {
     await chatRoom.save();
 
     uniqueMembers.forEach((userId) => {
-      if (userId.toString() !== userCreateId.toString())
         req.io.to(userId.toString()).emit("new-chatRoom", chatRoom);
     });
 
@@ -85,7 +84,6 @@ chatRoomController.delete = async (req, res) => {
     await ChatRoom.findByIdAndDelete(chatRoomId);
 
     members.forEach((userId) => {
-      if (userId.toString() !== req.user._id.toString())
       req.io.to(userId.toString()).emit("delete-chatRoom", chatRoomId);
     });
 

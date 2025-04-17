@@ -1,4 +1,5 @@
 const { io } = require("socket.io-client");
+const { requestFriend } = require("../controller/user.controller");
 
 //Chạy test bằng:  node socketTest.js phải cd tới test
 const UserIdTest = "67f70dd5dff3a024ca4be7ba";
@@ -29,6 +30,22 @@ socketTest.on("new-message", (message) =>{
 socketTest.on("recall",(recallMessage) =>{
   console.log('Đã thu hồi tin nhắn:', recallMessage)
 } )
+
+//Sự kiện gửi lời mời kết bạn
+socketTest.on("request-friend",(user) =>{
+  console.log('Đã nhận lời mời kết bạn của user : ',user )
+} )
+
+//Sự kiện hủy lời mời kết bạn
+socketTest.on("cancel-request-friend",(user) =>{
+  console.log('Người dùng đã hủy lời mời kết bạn : ',user )
+} )
+
+//Sự kiện đồng ý lời mời kết bạn
+socketTest.on("agree-friend",(user) =>{
+  console.log('người dùng đã đồng ý kết bạn : ',user )
+} )
+
 
 socketTest.on("disconnect", () => {
   console.log("Người dùng test đã ngắt kết nối");
