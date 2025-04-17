@@ -24,6 +24,10 @@ export class SocketService {
     this.socket.on("new-chatRoom",callback)
   }
 
+  onNewRecall(callback : (recallmessage : any) => void) : void{
+    this.socket.on('recall',callback)
+  }
+
 
 }import { from } from 'rxjs';
 

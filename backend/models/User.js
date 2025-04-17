@@ -5,6 +5,15 @@ const UserSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   isVerified: { type: Boolean, default: false },
-});
+  phone: { type: String, default: ""},
+  address: { type: String, default: ""},
+  avatarUrl: { type: String, default: "https://bookvexe.vn/wp-content/uploads/2023/04/chon-loc-25-avatar-facebook-mac-dinh-chat-nhat_2.jpg" },
+  requestfriends: [{
+    userId : {type: mongoose.Schema.Types.ObjectId, ref: 'User',default: null},
+    text: {type: String ,default: null}
+  }],
+  friends: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null}],
+}, { timestamps: true });
+
 
 module.exports = mongoose.model("User", UserSchema);

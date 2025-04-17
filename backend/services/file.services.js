@@ -20,6 +20,7 @@ const FILE_TYPE_MATCH = [
     "application/vnd.openxmlformats-officedocument.presentationml.presentation",
     "application/vnd.rar",
     "application/zip",
+    "text/plain"
   ];
 
   const uploadFile = async file =>{

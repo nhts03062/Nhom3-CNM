@@ -168,10 +168,29 @@
         </ng-container> -->
 
         <ng-container *ngFor="let msg of messagees; let i = index">
-          <div class="Messages">
+            <!-- Nếu message đã bị recall cho tất cả -->
+          <div *ngIf="msg.recall === '2'" class="Messages">
             <div class="message" *ngIf="msg.sendID._id !== idNguoiDungHienTai">
-              <div class="photo" [style.backgroundImage]="'url(https://i1.rgstatic.net/ii/profile.image/1039614412341248-1624874799001_Q512/Meryem-Laval.jpg)'">
+              <div class="photo" [style.backgroundImage]="'url(...)'"></div>
+              <div class="bubble-wrapper">
+                <div class="bubble">
+                  <p class="text"><i>Tin nhắn đã bị thu hồi.</i></p>
+                </div>
+                <p class="time">{{ msg.createdAt | date: 'shortTime' }}</p>
               </div>
+            </div>
+            <div class="response" *ngIf="msg.sendID._id === idNguoiDungHienTai">
+              <p class="text"><i>Tin nhắn đã bị thu hồi.</i></p>
+              <div class="response-time time">{{ msg.createdAt | date: 'shortTime' }}</div>
+            </div>
+          </div>
+
+          <!-- Nếu message chỉ bị recall với chính người gửi -->
+          <!-- Ẩn nếu là người gửi -->
+          <div *ngIf="msg.recall === '1'">
+            <div class="message" *ngIf="msg.sendID._id !== idNguoiDungHienTai">
+              <!-- Người nhận vẫn thấy -->
+              <div class="photo" [style.backgroundImage]="'url(...)'"></div>
               <div class="bubble-wrapper">
                 <div class="bubble">
                   <p class="text">{{ msg.content.text }}</p>
@@ -179,14 +198,171 @@
                 <p class="time">{{ msg.createdAt | date: 'shortTime' }}</p>
               </div>
             </div>
-            <div class="response" *ngIf="msg.sendID._id === idNguoiDungHienTai">
-              <p class="text">{{  msg.content.text  }}</p>
-              <div class="response-time time">
-                {{ msg.createdAt | date: 'shortTime' }}
-              </div>
-            </div>
           </div>
+            <!-- Message bình thường -->
+            <div *ngIf="msg.recall === '0'" class="Messages" (mouseleave)="closeMessageOptions()">
+              <!-- 💬 Tin nhắn từ người khác -->
+              <div class="message" *ngIf="msg.sendID._id !== idNguoiDungHienTai">
+                <div class="photo" [style.backgroundImage]="'url(...)'"></div>
+                <div class="bubble-wrapper">
+                  <div class="bubble">
+                    <div class="reply-preview" *ngIf="msg.replyToMessage">
+                      <p class="reply-info">
+                        Reply to <strong>{{ msg.replyToMessage.sendID.name }}</strong>
+                      </p>
+    
+                      <!-- ✅ Nếu là text -->
+                      <p *ngIf="msg.replyToMessage.content.text" class="reply-text">
+                        "{{ msg.replyToMessage.content.text }}"
+                      </p>
+    
+                      <!-- ✅ Nếu có ảnh -->
+                      <img
+                        *ngIf="msg.replyToMessage.content.media?.length"
+                        [src]="msg.replyToMessage.content.media[0]"
+                        class="reply-image"
+                        alt="replied image"
+                      />
+    
+                      <!-- ✅ Nếu có file -->
+                      <p *ngIf="msg.replyToMessage.content.files?.length" class="reply-file">
+                        📎 {{ msg.replyToMessage.content.files[0].split('/').pop() }}
+                      </p>
+                    </div>
+
+                      <!-- Hiển thị ảnh -->
+                    <div class="image-preview" *ngIf="msg.content.media.length > 1">
+                      <img *ngFor="let img of msg.content.media" [src]="img" class="message-image" />
+                    </div>
+                    <div class="image-preview single" *ngIf="msg.content.media.length === 1">
+                      <img *ngFor="let img of msg.content.media" [src]="img" class="message-image" />
+                    </div>
+                    <!-- Hiển thị file tài liệu -->
+                    <div class="file-preview" *ngIf="msg.content.files?.length">
+                      <div *ngFor="let file of msg.content.files" class="message-file">
+                        <a [href]="file" target="_blank">
+                          <i class="fa-solid fa-file"></i>
+                          {{ file.split('/').pop() }}
+                        </a>
+                      </div>
+                    </div>
+                    <p class="text" *ngIf="msg.content.text">{{ msg.content.text }}</p>
+                  </div>
+                  <p class="time">{{ msg.createdAt | date: 'shortTime' }}</p>
+                </div>
+                <!-- Menu icon -->
+                <i class="fa-solid fa-ellipsis-vertical" (click)="toggleMessageOptions(i)"></i>
+        
+                <!-- Menu tuỳ chọn bên trái -->
+                <div class="message-options left" *ngIf="selectedMessageIndex === i">
+                  <ul>
+                    <li (click)="replyToMessage(i)">Reply to</li>
+                  </ul>
+                </div>
+              </div>
+        
+              <!-- ✅ Tin nhắn của chính mình -->
+              <div class="response" *ngIf="msg.sendID._id === idNguoiDungHienTai">
+           
+                  <!-- Nội dung tin nhắn -->
+                <!-- ✅ Hiển thị khung reply nếu có -->
+                <div class="reply-preview" *ngIf="msg.replyToMessage">
+                  <p class="reply-info">
+                    Reply to <strong>{{ msg.replyToMessage.sendID.name }}</strong>
+                  </p>
+
+                  <!-- ✅ Nếu là text -->
+                  <p *ngIf="msg.replyToMessage.content.text" class="reply-text">
+                    "{{ msg.replyToMessage.content.text }}"
+                  </p>
+
+                  <!-- ✅ Nếu có ảnh -->
+                  <img
+                    *ngIf="msg.replyToMessage.content.media?.length"
+                    [src]="msg.replyToMessage.content.media[0]"
+                    class="reply-image"
+                    alt="replied image"
+                  />
+
+                  <!-- ✅ Nếu có file -->
+                  <p *ngIf="msg.replyToMessage.content.files?.length" class="reply-file">
+                    📎 {{ msg.replyToMessage.content.files[0].split('/').pop() }}
+                  </p>
+                </div>
+
+                  <!-- Hiển thị ảnh -->
+                  <div class="image-preview" *ngIf="msg.content.media.length > 1">
+                    <img *ngFor="let img of msg.content.media" [src]="img" class="message-image" />
+                  </div>
+                  <div class="image-preview single" *ngIf="msg.content.media.length === 1">
+                    <img *ngFor="let img of msg.content.media" [src]="img" class="message-image" />
+                  </div>
+                  <!-- Hiển thị file tài liệu -->
+                  <div class="file-preview" *ngIf="msg.content.files?.length">
+                    <div *ngFor="let file of msg.content.files" class="message-file">
+                      <a [href]="file" target="_blank">
+                        <i class="fa-solid fa-file"></i>
+                        {{ file.split('/').pop() }}
+                      </a>
+                    </div>
+                  </div>
+                  
+                  
+                  <p class="text" *ngIf="msg.content.text">{{ msg.content.text }}</p>
+                  <div class="response-time time">{{ msg.createdAt | date: 'shortTime' }}</div>
+
+                <!-- Biểu tượng menu -->
+                <i 
+                  class="fa-solid fa-ellipsis-vertical" 
+                  (click)="toggleMessageOptions(i)"
+                  [ngClass]="{'has-reply': msg.replyToMessage}">
+                </i>
+
+                <!-- Tuỳ chọn bên phải -->
+                <div class="message-options right" *ngIf="selectedMessageIndex === i">
+                  <ul>
+                    <li (click)="recallMessage(msg._id, i, 1)">Recall only for me</li> 
+                    <li (click)="recallMessage(msg._id, i, 2)">Thu hồi tin nhắn</li> 
+                    <li (click)="replyToMessage(i)">Reply to</li>
+                  </ul>
+                </div>
+              </div>
+
+            
+            </div>
         </ng-container>
+        
+        <!-- 🧷 Khung reply phía dưới input -->
+        <div class="reply-box" *ngIf="replyingTo">
+          <p>
+            Replying to: 
+            {{ replyingTo.sendID._id === idNguoiDungHienTai ? getDisplayName(idNguoiDungHienTai) : replyingTo.sendID.name }}
+          </p>
+
+          <!-- Nếu là text -->
+          <p *ngIf="replyingTo.content.text">
+            "{{ replyingTo.content.text }}"
+          </p>
+
+          <!-- Nếu là ảnh -->
+          <img
+            *ngIf="replyingTo.content.media?.length"
+            [src]="replyingTo.content.media[0]"
+            alt="reply image"
+            style="width: 60px; height: 60px; object-fit: cover; border-radius: 5px; margin-bottom: 5px;"
+          />
+
+          <!-- Nếu là file -->
+          <p *ngIf="replyingTo.content.files?.length">
+            📎 {{ replyingTo.content.files[0].split('/').pop() }}
+          </p>
+
+          <button (click)="cancelReply()" style="width:15%">Cancel</button>
+        </div>
+
+        
+        
+    
 
         <!-- Outgoing Messages -->
         <!-- <ng-container *ngFor="let msg of activeConversation.messages; let i = index">
@@ -227,12 +403,46 @@
               placeholder="Type your message here"
             />
 
-            <i class="icon attach fa-solid fa-paperclip clickable" (click)="fileInput.click()"></i>
-            <input #fileInput type="file" multiple (change)="trenFilesDaChon($event)" style="display: none;" />
-            <div  *ngFor="let file of filesDaDuocChon; let i = index" class="file-preview">
-               {{ file.name }}
-              <button (click)="loaiFileDaChon(i)">X</button>
+            <!-- <i class="icon attach fa-solid fa-paperclip clickable" (click)="fileInput.click()"></i>
+            <input #fileInput type="file" multiple (change)="trenFilesDaChon($event)" style="display: none;" /> -->
+
+            <!-- Icon chọn ảnh -->
+            <i class=" icon attach fa-solid fa-image clickable" (click)="chonHinhAnh()"></i>
+            <input
+              #imageInput
+              type="file"
+              accept="image/*"
+              multiple
+              (change)="xuLyFiles($event, 'image')"
+              style="display: none;"
+            />
+
+            <!-- Icon chọn tài liệu -->
+            <i class="icon attach fa-solid fa-paperclip clickable" (click)="chonTaiLieu()"></i>
+            <input
+              #fileInput
+              type="file"
+              accept=".pdf,.doc,.docx,.txt,.zip,.rar"
+              multiple
+              (change)="xuLyFiles($event, 'doc')"
+              style="display: none;"
+            />
+
+            <!-- Hiển thị ảnh đã chọn -->
+            <div class="image-preview-container">
+              <div *ngFor="let file of imageFiles; let i = index" class="image-preview">
+                {{ file.name }}
+                <button class="cancel-file" (click)="xoaFile('image', i)">❌</button>
+              </div>
             </div>
+
+            <!-- Hiển thị file tài liệu đã chọn -->
+            <div *ngFor="let file of docFiles; let i = index" class="file-preview">
+              {{ file.name }}
+              <button class="cancel-file" (click)="xoaFile('doc', i)">❌</button>
+            </div>
+
+
           </div>
 
           <!-- Send Button -->

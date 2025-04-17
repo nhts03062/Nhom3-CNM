@@ -7,6 +7,7 @@
                 <i class="fa fa-search" aria-hidden="true"></i>
                 <input type="text" placeholder="Search..."/>
               </div>
+              
             <button class="add-friend" (click)="toggleModal()">
               <i class="fa-solid fa-user-plus create clickable"></i></button>
             <app-modal [isOpen]="showModal" (closeModal)="toggleModal()" title="Add Friend"></app-modal>
@@ -43,17 +44,22 @@
 
         <!-- Show only filtered friends -->
         <ng-container *ngFor="let friend of filteredFriends">
-        <div class="left-section friends">
-          <div class="photo" [style.backgroundImage]="'url(' + friend.avatarUrl + ')'">
-            <div class="online" *ngIf="friend.online === true"></div>
-          </div>
-          <div class="desc-contact">
-            <div class="username">
-              <p class="name">{{ friend.name }}</p>
+          <div 
+            class="left-section friends" 
+            [class.active]="selectedFriend?.id === friend.id"
+            (click)="selectFriend(friend)">
+            
+            <div class="photo" [style.backgroundImage]="'url(' + friend.avatarUrl + ')'">
+              <div class="online" *ngIf="friend.online === true"></div>
+            </div>
+            <div class="desc-contact">
+              <div class="username">
+                <p class="name">{{ friend.name }}</p>
+              </div>
             </div>
           </div>
-        </div>
         </ng-container>
+        
 
         <!-- Optional: No matches -->
         <div class="no-results" *ngIf="searchTerm && filteredFriends.length === 0">
@@ -76,3 +82,9 @@
       
     </div>
   </body>
+  <app-modal-profile 
+    [isOpen]="showProfileModal"
+    [user]="selectedFriend"
+    (closeModal)="toggleProfileModal()"
+    title="Profile">
+  </app-modal-profile>

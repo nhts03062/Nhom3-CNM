@@ -27,7 +27,7 @@ router.post('/',authMiddelware, uploadFileOrMedia,  MessageController.create)
 //body: {chatId: <ChatRoomId>}
 //token được gửi từ sau khi đăng nhập để trong phần header header: {Authorization: <token>
 //Trả về cho người dùng tất cả tin nhắn của phòng đó không phần trang
-router.get('/',authMiddelware, MessageController.getAll)
+router.get('/:chatId',authMiddelware, MessageController.getAll)
 
 //Thu hồi tin nhắn
 // Endpoint: POST /api/message/recall/:code
