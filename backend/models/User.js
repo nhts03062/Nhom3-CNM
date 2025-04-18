@@ -8,11 +8,15 @@ const UserSchema = new mongoose.Schema({
   phone: { type: String, default: ""},
   address: { type: String, default: ""},
   avatarUrl: { type: String, default: "https://bookvexe.vn/wp-content/uploads/2023/04/chon-loc-25-avatar-facebook-mac-dinh-chat-nhat_2.jpg" },
-  requestfriends: [{
-    userId : {type: mongoose.Schema.Types.ObjectId, ref: 'User',default: null},
-    text: {type: String ,default: null}
+  requestfriends: [
+     {type: mongoose.Schema.Types.ObjectId, ref: 'User',default: null},
+  ],
+  friendRequestsReceived: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
   }],
   friends: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null}],
+  
 }, { timestamps: true });
 
 
