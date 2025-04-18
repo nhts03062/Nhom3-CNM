@@ -166,10 +166,8 @@ userController.responseFriend = async (req, res) => {
         );
         await userNhanLoiMoiKb.save();
         await userGuiLoiMoiKb.save();
-        //Gửi thông báo cho người gửi lời mời kết bạn
-        req.io.to(userGuiLoiMoiKb._id.toString()).emit("accept-friend-request", {
-          user: UserUtil.locUserRaIdNameAvatar(userDaDangNhap),
-        });
+        
+        
         return res.status(200).json({ msg: 'Đã đồng ý lời mời kết bạn' });
       }  
     } catch (err) {
