@@ -10,9 +10,10 @@ module.exports = (io, socket) => {
   };
 
 //Taọ phòng chat
-socket.on('create-chatRoom', async ({ chatRoomName, members, logInUserId }, callback) => {
+socket.on('create-chatRoom', async ({ chatRoomName, members,  }) => {
     
     try {
+      const logInUserId = socket.user
       const uniqueMembers = [...new Set([...members, logInUserId])];
   
       const users = await User.find({ _id: { $in: uniqueMembers } });
@@ -41,9 +42,10 @@ socket.on('create-chatRoom', async ({ chatRoomName, members, logInUserId }, call
   
       // Gửi tới tất cả thành viên phòng chat mới
       uniqueMembers.forEach(userId => {
-        socket.join(newChatRoomSave._id.toString());
+       const joined = io.to(userId.toString()).socketsJoin(newChatRoomSave._id)
+       console.log('Số người tạo join', joined)
+       io.to(userId.toString()).emit('chatRoom-created', newChatRoomSave);
       });
-      io.to(newChatRoomSave._id.toString()).emit('chatRoom-created', newChatRoom);;
   
       // Trả về thành công cho client vừa gửi yêu cầu
         xuLyCallBack(callback,200,'Tạo phòng thành công')
@@ -66,7 +68,7 @@ socket.on("delete-chatRoom", async({chatRoomId},callback) =>{
           await ChatRoom.findByIdAndDelete(chatRoomId);
 
           members.forEach((memberId) => {
-            socket.to(memberId.toString()).leave(chatRoomId.toString());  // Rời khỏi phòng chat theo chatRoomId
+            io.to(memberId.toString()).leave(chatRoomId.toString());  // Rời khỏi phòng chat theo chatRoomId
             io.to(memberId.toString()).emit("chatRoom-deleted", chatRoomId);  // Gửi sự kiện xóa phòng đến người dùng
         });
           // Trả về thành công cho client vừa gửi yêu cầu

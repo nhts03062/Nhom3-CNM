@@ -11,15 +11,15 @@ module.exports = (io, socket) => {
 
     
       //Taọ message mới
-      socket.on("create-message", async ({ chatId, content, logInUserId }, callback) => {
+      socket.on("create-message", async ({ chatId, content }, callback) => {
         try {
-          const userId = socket.user._id;
-          const message = await MessageUtil.saveMessageAndReturn(chatId, userId, content);
+          const logInUserId = socket.user._id;
+          const message = await MessageUtil.saveMessageAndReturn(chatId, logInUserId, content);
           io.to(chatId).emit("messages-created", message);
-          callback({ status: 200, msg: "Tạo tin nhắn thành công" });
+          xuLyCallBack(callback,200,"Tạo tin nhắn thành công")
         } catch (err) {
           console.error(err);
-          callback({ status: 500, msg: "Lỗi tạo tin nhắn" });
+          socket.emit('error', { msg: 'Lỗi sever tạo tin nhắn' })
         }
       });
       

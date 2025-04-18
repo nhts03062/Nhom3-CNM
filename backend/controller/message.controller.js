@@ -5,6 +5,7 @@ const MessageUtil = require('../utils/message-util')
 
 const messageController = {}
 
+
 //Tạo một tin nhắn text
 messageController.create = async(req,res) =>{
    try
@@ -29,13 +30,8 @@ messageController.create = async(req,res) =>{
 
         if(content.type.toString() === 'file'){
             
-            //Không thể sử dụng async trong forEach để sử dụng await vì nó sẽ ko chờ việc lưulưu
-            // let fileArrayURL = [];
-            // req.file.file.forEach( async file =>{ 
-            //     const fileUrl = await uploadFile(file)
-            //     fileArrayURL.push(fileUrl)
-            // })
-
+            //Không thể sử dụng async trong forEach để sử dụng await vì nó sẽ ko chờ việc lưu
+      
             //Dùng optional chaining (?.) để tránh lỗi nếu req.files là undefined.
             //ví dụ:
             //Nếu req.files = undefined → req.files.file sẽ gây lỗi nếu không file → 
@@ -48,21 +44,15 @@ messageController.create = async(req,res) =>{
                 (req.files?.file || [] ).map(file => uploadFile(file) )
             )
            
-
             const contentfile = {
                 type: content.type,
                 text: content.text,
                 files: fileArrayURL
             }
-
             return MessageUtil.saveMessageAndReturn(chatId,userId,contentfile,req,res)
 
         }else{
-            // let mediaArrayURL = [];
-            // req.file.media.forEach( async media =>{
-            //     const mediaUrl = await uploadFile(media)
-            //     mediaArrayURL.push(mediaUrl)
-            //     })
+
             const mediaArrayURL = await Promise.all(
                 (req.files?.media || [] ).map(media => uploadFile(media) )
             )
@@ -99,7 +89,7 @@ messageController.getAll = async(req, res) =>{
             select: 'content sendID createdAt',
         }) // Chỉ nhận object key value nếu truyền vào chatId = value thoi nên ko dc
         .sort({ createdAt: 1}) //Sắp xếp từ tạo lâu nhất đến mới nhất tăng dần thời gian
-        .populate('sendID', 'name email')
+        .populate('sendID', 'name email avatarUrl')
 
         if(!messages){
             return res.status(404).json({msg: `Lỗi ko tìm thấy phòng chat ${chatId}`})
@@ -124,7 +114,7 @@ messageController.recall = async(req,res) =>{
         //Lấy thông tin message bằng _id của message đã lấy từ body và kiểm tra xem có thuộc về người gọi api này koko
         const messageBelongUserId = await Message.findById(_id).populate({
             path: 'chatId',
-            populate: {path: 'members',select: 'name email' }
+            populate: {path: 'members',select: 'name email avatarUrl' }
         })
         if(!messageBelongUserId){
             return res.status(400).json({msg : 'Tin nhắn này không tồn'})
@@ -147,10 +137,6 @@ messageController.recall = async(req,res) =>{
             
         }else {
             const recallMessage = await Message.findByIdAndUpdate(_id, {content: '' , recall:'2'}, {new: true})
-            const members = messageBelongUserId.chatId.members
-            members.forEach(mem => {
-                    req.io.to(mem._id.toString()).emit('recall',recallMessage)
-            })
             console.log("di qua 2")
             return res.status(200).json(recallMessage)
         }
@@ -187,22 +173,16 @@ messageController.replyTo = async(req,res) =>{
         await Message.findById(messageReplyTo._id).
         populate({
             path: 'chatId',
-            populate: {path: 'members',select: 'name email' }
+            populate: {path: 'members',select: 'name email avatarUrl' }
         }).
-        populate('sendID', 'name email'). //Tham số thứ 2 chọn trường muốn poppulate
+        populate('sendID', 'name email avatarUrl'). //Tham số thứ 2 chọn trường muốn poppulate
         populate({
             path: 'replyToMessage',
             select: 'content sendID createdAt',
-            populate: {path: 'sendID', select: 'name email'}
+            populate: {path: 'sendID', select: 'name email avatarUrl'}
         })
-        const chatRoom = populatedMessage.chatId
 
-        if(chatRoom){
-        chatRoom.members.forEach( userMemId =>{
-            //Vì đã populate members nên h nó là mảng object User
-                req.io.to(userMemId._id.toString()).emit('new-message', populatedMessage)
-        })
-        }
+     
         res.status(200).json(populatedMessage)
 
 
