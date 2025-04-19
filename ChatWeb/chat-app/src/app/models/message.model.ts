@@ -20,7 +20,7 @@ export interface Messagee {
   _id: string;
   chatId: string;
   sendID: string;
-  replyToMessage?: string | null;
+  replyToMessage?: Messagee | null;
   content: {
     type: 'text' | 'file' | 'media';
     text: string;

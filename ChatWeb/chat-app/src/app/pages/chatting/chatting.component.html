@@ -19,7 +19,7 @@
           [class.message-active]="chat._id === chatRoomIdDuocChon"
           (click)="chatRoomDuocChon(chat._id)"
         >
-          <ng-container *ngIf="layNguoiDungKhac(chat) as userChat">
+          <ng-container *ngIf="layNguoiDungKhac(chat,nguoiDung) as userChat">
             <div class="photo" [style.backgroundImage]="'url(' + (userChat.avatarUrl || defaultAvatarUrl) + ')'">
             </div>
             <div class="desc-contact">
@@ -32,7 +32,7 @@
                 </p>
               </div>
               
-            <p class="message">{{ getLastMessage(chat)}}</p>
+            <p class="message">{{chat.latestMessage}}</p>
             </div>
           </ng-container>
           </div>
@@ -58,9 +58,9 @@
 
     <!-- RIGHT HEADER CHAT INFO -->
     <div class="header-chat" [ngClass]="{ 'hide-left': !chatRoomIdDuocChon }" *ngFor="let room of chatRooms">
-      <ng-container *ngIf="chatRoomIdDuocChon && layNguoiDungKhac(room) as userChat">
+      <ng-container *ngIf="chatRoomIdDuocChon && layNguoiDungKhac(room,nguoiDung) as userChat">
         <div class="photo" [style.backgroundImage]="'url(' + (userChat.avatarUrl || defaultAvatarUrl) + ')'">
-          <div class="online" *ngIf="userChat.online === true"></div>
+          <!-- <div class="online" *ngIf="userChat.online === true"></div> -->
         </div>
         <div class="username">
           <p class="name">{{ userChat.name }}</p>
@@ -112,7 +112,7 @@
       [class.message-active]="room._id === chatRoomIdDuocChon"
       (click)="chatRoomDuocChon(room._id)"
     >
-      <ng-container *ngIf="layNguoiDungKhac(room) as userChat">
+      <ng-container *ngIf="layNguoiDungKhac(room,nguoiDung) as userChat">
         <div class="photo" [style.backgroundImage]="'url(' + (userChat.avatarUrl || defaultAvatarUrl) + ')'">
         </div>
         <div class="desc-contact">
@@ -125,7 +125,7 @@
             </p>
           </div>
           
-        <p class="message">{{ getLastMessage(room)}}</p>
+        <p class="message">{{room.latestMessage}}</p>
         </div>
       </ng-container>
     </div>
@@ -175,8 +175,8 @@
         <ng-container *ngFor="let msg of messagees; let i = index">
             <!-- Nếu message đã bị recall cho tất cả -->
           <div *ngIf="msg.recall === '2'" class="Messages">
-            <div class="message" *ngIf="msg.sendID._id !== idNguoiDungHienTai">
-              <div class="photo" [style.backgroundImage]="'url(' + (msg.sendID.avatarUrl || defaultAvatarUrl ) + ')'"></div>
+            <div class="message" *ngIf="msg.sendID !== idNguoiDungHienTai">
+              <div class="photo" [style.backgroundImage]="'url(' + (getUserFromId(msg.sendID)?.avatarUrl  || defaultAvatarUrl) + ')'"></div>
               <div class="bubble-wrapper">
                 <div class="bubble">
                   <p class="text"><i>Tin nhắn đã bị thu hồi.</i></p>
@@ -184,7 +184,7 @@
                 <p class="time">{{ msg.createdAt | date: 'shortTime' }}</p>
               </div>
             </div>
-            <div class="response" *ngIf="msg.sendID._id === idNguoiDungHienTai">
+            <div class="response" *ngIf="msg.sendID === idNguoiDungHienTai">
               <p class="text"><i>Tin nhắn đã bị thu hồi.</i></p>
               <div class="response-time time">{{ msg.createdAt | date: 'shortTime' }}</div>
             </div>
@@ -193,9 +193,9 @@
           <!-- Nếu message chỉ bị recall với chính người gửi -->
           <!-- Ẩn nếu là người gửi -->
           <div *ngIf="msg.recall === '1'">
-            <div class="message" *ngIf="msg.sendID._id !== idNguoiDungHienTai">
+            <div class="message" *ngIf="msg.sendID !== idNguoiDungHienTai">
               <!-- Người nhận vẫn thấy -->
-              <div class="photo" [style.backgroundImage]="'url(' + (msg.sendID.avatarUrl || defaultAvatarUrl) + ')'"></div>
+              <div class="photo" [style.backgroundImage]="'url(' + (getUserFromId(msg.sendID)?.avatarUrl || defaultAvatarUrl) + ')'"></div>
               <div class="bubble-wrapper">
                 <div class="bubble">
                   <p class="text">{{ msg.content.text }}</p>
@@ -207,14 +207,15 @@
             <!-- Message bình thường -->
             <div *ngIf="msg.recall === '0'" class="Messages" (mouseleave)="closeMessageOptions()">
               <!-- 💬 Tin nhắn từ người khác -->
-              <div class="message" *ngIf="msg.sendID._id !== idNguoiDungHienTai">
-                <div class="photo" [style.backgroundImage]="'url(' + (msg.sendID.avatarUrl || defaultAvatarUrl) + ')'"></div>
+              <div class="message" *ngIf="msg.sendID !== idNguoiDungHienTai">
+                <div class="photo" [style.backgroundImage]="'url(' + (getUserFromId(msg.sendID)?.avatarUrl  || defaultAvatarUrl) + ')'"></div>
                 <div class="bubble-wrapper">
                   <div class="bubble">
                     <div class="reply-preview" *ngIf="msg.replyToMessage">
                       <p class="reply-info">
-                        Reply to <strong>{{ msg.replyToMessage.sendID.name }}</strong>
-                      </p>
+                        Reply to <strong>{{ getUserName(msg.replyToMessage.sendID) }}</strong>
+                    </p>
+                    
     
                       <!-- ✅ Nếu là text -->
                       <p *ngIf="msg.replyToMessage.content.text" class="reply-text">
@@ -267,14 +268,15 @@
               </div>
         
               <!-- ✅ Tin nhắn của chính mình -->
-              <div class="response" *ngIf="msg.sendID._id === idNguoiDungHienTai">
+              <div class="response" *ngIf="msg.sendID === idNguoiDungHienTai">
            
                   <!-- Nội dung tin nhắn -->
                 <!-- ✅ Hiển thị khung reply nếu có -->
                 <div class="reply-preview" *ngIf="msg.replyToMessage">
                   <p class="reply-info">
-                    Reply to <strong>{{ msg.replyToMessage.sendID.name }}</strong>
-                  </p>
+                    Reply to <strong>{{ getUserName(msg.replyToMessage.sendID) }}</strong>
+                </p>
+                
 
                   <!-- ✅ Nếu là text -->
                   <p *ngIf="msg.replyToMessage.content.text" class="reply-text">
@@ -341,7 +343,7 @@
         <div class="reply-box" *ngIf="replyingTo">
           <p>
             Replying to: 
-            {{ replyingTo.sendID._id === idNguoiDungHienTai ? getDisplayName(idNguoiDungHienTai) : replyingTo.sendID.name }}
+            {{ replyingTo.sendID === idNguoiDungHienTai ? getDisplayName(idNguoiDungHienTai) : getUserName(replyingTo.sendID) }}
           </p>
 
           <!-- Nếu là text -->
