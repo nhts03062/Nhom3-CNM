@@ -31,10 +31,12 @@ userController.getAllFriend = async (req, res) => {
 userController.updateUser = async (req,res) =>{
   try{
     const userIdDaDangNhap = req.user._id;
-    const {name, avatarUrl} = req.body
+    const {name, avatarUrl,phone,address} = req.body
     const user = await User.findByIdAndUpdate(userIdDaDangNhap,{
       name,
-      avatarUrl
+      avatarUrl,
+      phone,
+      address,
     })
     res.status(200).json(user)
   }catch(err){

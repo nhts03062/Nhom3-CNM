@@ -96,7 +96,7 @@ router.post("/login", async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email }).populate("friends").populate("requestfriends").populate("friendRequestsReceived");
     if (!user) return res.status(400).json({ msg: "Email không tồn tại" });
 
     if (!user.isVerified) return res.status(400).json({ msg: "Email chưa được xác thực" });
@@ -107,6 +107,7 @@ router.post("/login", async (req, res) => {
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "24h" });
     const userId = user._id;
     const userDaLoc = UserUtil.locUserRaIdNameAvatarRequestFriendFriend(user)
+    console.log(userDaLoc)
 
     res.status(200).json({ msg: "Đăng nhập thành công!", redirect: "/dashboard.html", token, userDaLoc});
 

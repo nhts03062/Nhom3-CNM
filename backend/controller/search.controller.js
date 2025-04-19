@@ -9,6 +9,7 @@ const searchController ={}
 //option i không phân biệt chữ hoa hay thường
 searchController.getUserByEmailPhoneNumberEmail = async (req, res) => {
   try {
+    console.log('body', req.body)
     const {searchTerm} = req.body
     const users = await User.find({
       $or: [
