@@ -133,7 +133,7 @@
 
 .modal-content {
 	width: 40%;
-	padding:20px;
+	padding: 10px 20px;
 }
 .modal-container-footer {
 	padding: 5px 2px;
@@ -157,6 +157,12 @@
 	}
 }
 
+.modal-container-header{
+	border-bottom: 1px solid #ddd;
+}
+.online{
+	top:-19px;
+}
 .button {
 	padding: 12px 20px;
 	border-radius: 8px;
@@ -182,7 +188,25 @@
 		}
 	}
 }
+.btn-primary,.btn-success{
+	background-color: #4088c2;
+	border: 1px solid #4088c2;
+	border-radius: 5px;
+}
+.btn-info{
+	background-color: #66abe3;
+	border: 1px solid #66abe3;
+}
 
+.btn-secondary{
+	background-color: #a8a8a8;
+	border: 1px solid #a8a8a8;
+}
+                  
+i {
+	color: #fff;
+	margin-left: 5px;
+}
 .icon-button {
 	padding: 0;
 	border: 0;

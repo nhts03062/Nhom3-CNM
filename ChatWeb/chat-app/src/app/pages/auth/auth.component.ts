@@ -79,7 +79,7 @@ export class AuthComponent implements OnInit {
           next: (res: any) => {
             if (res.token) {
               sessionStorage.setItem("token", res.token);
-              sessionStorage.setItem('userId',res.userId);
+              sessionStorage.setItem('userId',res.UserDaLoc._id);
               alert("✅ Đăng nhập thành công!");
               this.router.navigateByUrl("/chat");
             } else {
