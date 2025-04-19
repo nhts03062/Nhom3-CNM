@@ -1,6 +1,17 @@
 const Message = require('../models/Message')
+const ChatRoom = require('../models/Chatroom')
 
 const messageUtil = {}
+
+async function updateLastMessage(chatRoomId, messageId) {
+    try{
+        const chatRoom = await ChatRoom.findById(chatRoomId)
+        chatRoom.latestMessage = messageId
+        await chatRoom.save()
+    }catch(err){
+        throw new Error(err.message)
+    }
+}
 
 messageUtil.saveMessageAndReturn = async (chatId, userId, content, req, res) =>{
      const message = new Message({
@@ -9,8 +20,7 @@ messageUtil.saveMessageAndReturn = async (chatId, userId, content, req, res) =>{
             content
         })
     
-        await message.save(); // message sẽ được cập nhật _id và create/update at
-        //Ko thể const message = await message.save dc vì nó trả về document nên ko populate dc
+        await message.save(); 
     
         const populatedMessage = 
         await Message.findById(message._id).
@@ -19,19 +29,12 @@ messageUtil.saveMessageAndReturn = async (chatId, userId, content, req, res) =>{
             populate: {path: 'members',select: 'name email' }
         }).
         populate('sendID', 'name email') //Tham số thứ 2 chọn trường muốn poppulate
-        const chatRoom = populatedMessage.chatId
     
-        if(chatRoom){
-    
-        chatRoom.members.forEach( userMemId =>{
-            //Vì đã populate members nên h nó là mảng object User
-            if(userMemId._id.toString() !== userId.toString()){
-                req.io.to(userMemId._id.toString()).emit('new-message', populatedMessage)
-            }
-        })
-        }
+        await updateLastMessage(chatId, populatedMessage._id)
         res.status(200).json(populatedMessage)
 }
+
+
 
 
 module.exports = messageUtil
