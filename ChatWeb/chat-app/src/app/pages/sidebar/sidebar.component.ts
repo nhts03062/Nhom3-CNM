@@ -1,9 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject} from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
-import { mockAccountOwner } from '../../mock-data/mock-account-owner';
 import { Userr } from '../../models/user.model'; 
-import { sampleUsers } from '../../mock-data/mock-data';
 import { UserService } from '../../services/user.service';
 
 @Component({

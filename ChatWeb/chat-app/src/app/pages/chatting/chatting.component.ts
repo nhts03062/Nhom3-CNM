@@ -309,26 +309,7 @@ export class ChattingComponent implements OnInit {
     this.closeMessageOptions();
   }
 
-    
-  // getLastMessage(chatRoom: ChatRoom): string {
-  //   // console.log('chatRoom',chatRoom)
-  //   const messages = chatRoom.messages;
-  //   if (!messages || messages.length === 0) return 'Cant get messages';
 
-  //   const lastMessage = messages[messages.length - 1];
-  //   console.log('lastMessage',lastMessage)
-
-  //   switch (lastMessage.content.type) {
-  //     case 'text':
-  //       return lastMessage.content.text;
-  //     case 'media':
-  //       return 'Upload <i class="fa-solid fa-image"></i>';
-  //     case 'file':
-  //       return lastMessage.content.files[0].split('/').pop() || 'Unknown file';
-  //     default:
-  //       return '';
-  //   }
-  // }
   toggleEmojiPicker(): void {
     this.showEmojiPicker = !this.showEmojiPicker;
   }
@@ -403,6 +384,14 @@ export class ChattingComponent implements OnInit {
         !!user && user.name.toLowerCase().includes(this.searchTerm.toLowerCase())
       );
   }
+  getUserFromId(userId: string): Userr | undefined {
+    return this.nguoiDung.find(user => user._id === userId);
+  }  
+  getUserName(userId: string): string {
+    const user = this.getUserFromId(userId);
+    return user ? user.name : 'Unknown User';
+  }
+  
   
 }    
 
