@@ -79,9 +79,10 @@ export class AuthComponent implements OnInit {
           next: (res: any) => {
             if (res.token) {
               sessionStorage.setItem("token", res.token);
-              sessionStorage.setItem('userId',res.UserDaLoc._id);
+              sessionStorage.setItem('userId',res.userDaLoc._id);
               alert("✅ Đăng nhập thành công!");
               this.router.navigateByUrl("/chat");
+              console.log(res.UserDaLoc._id);
             } else {
               alert("❌ Lỗi đăng nhập: " + res.message);
             }
