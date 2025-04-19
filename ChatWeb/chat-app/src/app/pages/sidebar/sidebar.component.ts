@@ -2,8 +2,9 @@ import { CommonModule } from '@angular/common';
 import { Component, inject} from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
 import { mockAccountOwner } from '../../mock-data/mock-account-owner';
-import { User } from '../../models/user.model';
+import { Userr } from '../../models/user.model'; 
 import { sampleUsers } from '../../mock-data/mock-data';
+import { UserService } from '../../services/user.service';
 
 @Component({
   selector: 'app-sidebar',
@@ -16,11 +17,13 @@ import { sampleUsers } from '../../mock-data/mock-data';
 export class SidebarComponent {
   router = inject(Router);
   activeIndex = 0;
-  user!: User;
+  user!: Userr;
+  userId: string = sessionStorage.getItem('userId')!;
+  defaultAvatarUrl = 'https://i1.rgstatic.net/ii/profile.image/1039614412341248-1624874799001_Q512/Meryem-Laval.jpg';
 
   ngOnInit() {
     const currentUrl = this.router.url;
-    this.loadUserData();
+    this.loadUserData(this.userId!);
 
     if (currentUrl.includes('/profile')) {
       this.activeIndex = 0;
@@ -33,6 +36,8 @@ export class SidebarComponent {
       this.activeIndex = 3;
     }
   }
+    constructor(private userService: UserService) {
+    }
 
   onNavigate(index: number) {
     this.activeIndex = index;
@@ -47,13 +52,16 @@ export class SidebarComponent {
       this.router.navigateByUrl('/auth', { replaceUrl: true });
     }
   }
-  loadUserData(): void {
-    this.user = {
-      ...mockAccountOwner,
-      online: false,
-      lastSeen: new Date()
-    };
-    console.log('User data loaded:', this.user);
+  loadUserData(userId: string): void {
+    // this.userService.getUserById(userId).subscribe({
+    //   next: (res: Userr) => {
+    //     this.user = res;
+    //     console.log('User data loaded:', this.user);
+    //   },
+    //   error: (err: any) => {
+    //     console.error('Failed to load user:', err);
+    //   }
+    // });
   }
 }
 

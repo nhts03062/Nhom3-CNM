@@ -3,19 +3,16 @@ import { Component, OnInit,ElementRef, ViewChild  } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { formatDistanceToNow } from 'date-fns';
-import { sampleUsers, sampleConversations } from '../../mock-data/mock-data';
-import { Conversation } from '../../models/conversation.model';
-import { Message } from '../../models/message.model';
-import { User } from '../../models/user.model';
 import { ModalComponent } from '../modal/modal.component';
 import { PickerComponent } from '@ctrl/ngx-emoji-mart';
-import { mockAccountOwner } from '../../mock-data/mock-account-owner';
 import { HttpClient, HttpHeaders, HttpClientModule } from '@angular/common/http';
 
-import { ChatRoom } from '../../models/realModel/chatRoom.model';
-import { Userr } from '../../models/realModel/user.model';
-import { Messagee } from '../../models/realModel/message.model';
+import { ChatRoom } from '../../models/chatRoom.model';
+import { Messagee } from '../../models/message.model';
 import { SocketService } from '../../socket.service';
+import { UserService } from '../../services/user.service';
+import { ChatRoomService } from '../../services/chatRoom.service';
+import { Userr } from '../../models/user.model';
 
 @Component({
   selector: 'app-chatting',
@@ -28,16 +25,23 @@ export class ChattingComponent implements OnInit {
   @ViewChild('imageInput') imageInput!: ElementRef<HTMLInputElement>;
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
 
+  defaultAvatarUrl = 'https://i1.rgstatic.net/ii/profile.image/1039614412341248-1624874799001_Q512/Meryem-Laval.jpg';
+  defaulGrouptAvatarUrl= 'https://static.vecteezy.com/system/resources/previews/026/019/617/original/group-profile-avatar-icon-default-social-media-forum-profile-photo-vector.jpg';
   idNguoiDungHienTai: string | null  = sessionStorage.getItem('userId')
   chatRooms: ChatRoom [] = [];
   messagees : Messagee [] = [];
   messageText: string = '';
-  constructor(private http :HttpClient, private socketService : SocketService ){};
   chatRoomIdDuocChon: string | null = null;
   imageFiles: File[] = [];
   docFiles: File[] = [];
   nguoiDung:Userr [] =[];
+  showEmojiPicker: boolean = false;
+  showModal = false;
+  searchTerm: string = '';
 
+  constructor(private http :HttpClient, private socketService : SocketService , 
+    private userService : UserService, private chatRoomService: ChatRoomService){};
+  
   ngOnInit(): void {
     this.getChatRoom();
 
@@ -56,20 +60,28 @@ export class ChattingComponent implements OnInit {
     })
     
   }
-
+  toggleModal(): void {
+    this.showModal = !this.showModal;
+  }
+  
   getHeaders(): HttpHeaders {
     const token = sessionStorage.getItem('token');
     return new HttpHeaders({ 'Authorization': `${token}` });
   }
 
-  layNguoiDungKhac(room : ChatRoom): Userr | undefined {
-    return room.members.find(mem => mem._id !== this.idNguoiDungHienTai);
+  // layNguoiDungKhac(room : ChatRoom): Userr | undefined {
+  //   return room.members.find(mem => mem._id !== this.idNguoiDungHienTai);
+  // }
+
+  layNguoiDungKhac(room: ChatRoom, allUsers: Userr[]): Userr | undefined {
+    const otherId = room.members.find(id => id !== this.idNguoiDungHienTai);
+    return allUsers.find(u => u._id === otherId);
   }
+  
   getMessageById(id: string): Messagee | undefined {
     return this.messagees.find(m => m._id === id);
   }
   
-
 
   getChatRoom(): void{
     this.http.get('http://localhost:5000/api/chatroom', { headers: this.getHeaders() }).subscribe({
@@ -131,138 +143,8 @@ export class ChattingComponent implements OnInit {
       this.docFiles.splice(index, 1);
     }
   }
-
   
-  // createMessage(content: string): void {
-  //   const chatRoomId = this.chatRoomIdDuocChon 
-  //   const userId = this.idNguoiDungHienTai
-  //   if( !chatRoomId || !userId)
-  //     return
 
-  //   const newMessage: any = {
-  //     chatId: chatRoomId,
-  //     sendID: userId,
-  //     content: {
-  //       type: 'text',
-  //       text: content,
-  //     },
-  //   };
-  //   this.http.post<Messagee>(`http://localhost:5000/api/message/`,newMessage,{
-  //     headers: this.getHeaders()
-  //   }).subscribe({
-  //     next: (res: Messagee) => {
-  //       console.log('tin nhắn vừa tạo xong: ', res);
-  //       this.messagees.push(res)
-  //     },
-  //     error: err => {
-  //       console.log(err);
-  //     }
-  //   });
-  //   this.messageText = ''
-  // }
-
-  // createMessage(text: string): void {
-  //   const chatRoom = this.chatRoomIdDuocChon; // Đây phải là một đối tượng ChatRoom
-  //   const user = this.idNguoiDungHienTai; // Đây phải là một đối tượng Userr
-
-  //   // Kiểm tra nếu thiếu thông tin cần thiết
-  //   if (!chatRoom || !user) {
-  //     console.warn("Chat room or user information is missing.");
-  //     return;
-  //   }
-
-  //   if (this.replyingTo){
-  //     const newReplyMessage : any = {
-  //       _id : this.replyingTo._id,
-  //       content: {
-  //         type: "text",
-  //         text: text,
-  //         media: [],
-  //         files: [],
-  //       },
-  //     }
-  //     this.http.post<Messagee>(`http://localhost:5000/api/message//reply/`, newReplyMessage,{
-  //       headers : this.getHeaders()
-  //     }).subscribe({
-  //       next: (res :Messagee) =>{
-  //         console.log("Tin nhắn vừa trả lời: ", res);
-  //         this.messagees.push(res);
-  //         this.replyingTo = null;
-  //         this.messageText = "";
-  //       }
-  //     })
-  //   }else{
-  //      // Tạo dữ liệu tin nhắn mới
-  //   const newMessage: any = {
-  //     chatId: chatRoom, // Gán đối tượng ChatRoom
-  //     sendID: user, // Gán đối tượng Userr
-  //     content: {
-  //       type: "text",
-  //       text: text,
-  //       media: [],
-  //       files: [],
-  //     },
-  //     replyToMessage: this.replyingTo || null,
-  //   };
-  //   console.log("newMessage",newMessage);
-  
-  //   // Gửi tin nhắn đến API
-  //   this.http.post<Messagee>(`http://localhost:5000/api/message/`, newMessage, {
-  //     headers: this.getHeaders(),
-  //   }).subscribe({
-  //     next: (res: Messagee) => {
-  //       console.log("Tin nhắn vừa tạo xong: ", res);
-  
-  //       // Đẩy tin nhắn mới vào danh sách tin nhắn hiện tại
-  //       this.messagees.push(res);
-  
-  //       // Xóa trạng thái trả lời (replyingTo) sau khi gửi
-  //       this.replyingTo = null;
-  
-  //       // Xóa nội dung input
-  //       this.messageText = "";
-  //     },
-  //     error: (err) => {
-  //       console.error("Lỗi khi tạo tin nhắn: ", err);
-  //     },
-  //   });
-  //   }
-   
-  // }
-  
-  // recallMessage(idMsg : string, index : number, code : number):void{
-
-  //   const msg = this.messagees[index];
-  //   console.log(code)
-  //   if(code === 2){
-  //     this.http.post<Messagee>(`http://localhost:5000/api/message/recall/${code}`, {_id :idMsg}, {
-  //       headers : this.getHeaders()}).subscribe({
-  //         next : (res : Messagee) =>{
-  //             console.log('Tin nhắn đẵ thu hồi voi code là 2', res)
-  //             msg.recall = '2'
-  //             msg.content.text= ''
-  //             msg.content.files= []
-  //             msg.content.media= []
-  //           console.log('2')
-  //         }
-  //       })
-        
-  //   }else if (code === 1){
-  //     this.http.post<Messagee>(`http://localhost:5000/api/message/recall/${code}`, {_id :idMsg}, {
-  //       headers : this.getHeaders()}).subscribe({
-  //         next : (res : Messagee) =>{
-  //             console.log('Tin nhắn đẵ thu hồi với code là 1', res)
-  //             msg.recall = '1'
-  //             msg.content.text= ''
-  //             msg.content.files= []
-  //             msg.content.media= []
-  //         }
-  //       })
-  //       console.log('1')
-  //   }
-
-  //   this.closeMessageOptions();
-  // }
   createMessage(text: string): void {
     const chatRoom = this.chatRoomIdDuocChon; // Đây phải là một đối tượng ChatRoom
     const user = this.idNguoiDungHienTai; // Đây phải là một đối tượng Userr
@@ -362,10 +244,7 @@ export class ChattingComponent implements OnInit {
           this.messagees.push(res);
           this.replyingTo = null;
           this.messageText = "";
-          this.imageFiles = []
-          this.docFiles = []
         }
-        
       })
     }else{
     // Gửi tin nhắn đến API
@@ -383,9 +262,8 @@ export class ChattingComponent implements OnInit {
   
         // Xóa nội dung input
         this.messageText = "";
-
-        this.imageFiles = []
-        this.docFiles = []
+        this.imageFiles = [];
+        this.docFiles =[];
       },
       error: (err) => {
         console.error("Lỗi khi tạo tin nhắn: ", err);
@@ -431,151 +309,26 @@ export class ChattingComponent implements OnInit {
     this.closeMessageOptions();
   }
 
+    
+  // getLastMessage(chatRoom: ChatRoom): string {
+  //   // console.log('chatRoom',chatRoom)
+  //   const messages = chatRoom.messages;
+  //   if (!messages || messages.length === 0) return 'Cant get messages';
 
+  //   const lastMessage = messages[messages.length - 1];
+  //   console.log('lastMessage',lastMessage)
 
-  /**
-   * ---------------------------------------------------------
-   */
-
-  users: User[] = sampleUsers;
-  conversations: Conversation[] = sampleConversations;
-  selectedConversationId: string | null = null;
-  // messageText: string = '';
-  showEmojiPicker: boolean = false;
-  showModal = false;
-
-  currentUserId: string = this.users.length > 0 ? this.users[0].id : '';
-
-  get currentUser(): User | undefined {
-    return this.users.find(user => user.id === this.currentUserId);
-  }
-
-  get activeConversation(): Conversation | undefined {
-    return this.conversations.find(c => c.id === this.selectedConversationId);
-  }
-
-  toggleModal(): void {
-    this.showModal = !this.showModal;
-  }
-
-  selectConversation(id: string): void {
-    this.selectedConversationId = id;
-
-    const convo = this.activeConversation;
-    const user = this.currentUser;
-    if (convo && user) {
-      convo.messages.forEach(msg => {
-        if (msg.senderId !== user.id && !msg.readBy.includes(user.id)) {
-          msg.readBy.push(user.id);
-        }
-      });
-    }
-  }
-
-  // sendMessage(content: string): void {
-  //   const user = this.currentUser;
-  //   const convo = this.activeConversation;
-
-  //   if (!content.trim() || !user || !convo) return;
-
-  //   const newMessage: Message = {
-  //     id: `msg_${Date.now()}`,
-  //     senderId: user.id,
-  //     content,
-  //     type: 'text',
-  //     timestamp: new Date(),
-  //     readBy: []
-  //   };
-  //   // Log the new message to the console
-  //   console.log('New message:', newMessage);
-
-  //   convo.messages.push(newMessage);
-  //   convo.lastMessage = newMessage;
-  //   this.messageText = '';
+  //   switch (lastMessage.content.type) {
+  //     case 'text':
+  //       return lastMessage.content.text;
+  //     case 'media':
+  //       return 'Upload <i class="fa-solid fa-image"></i>';
+  //     case 'file':
+  //       return lastMessage.content.files[0].split('/').pop() || 'Unknown file';
+  //     default:
+  //       return '';
+  //   }
   // }
-
-  getUserAvatar(userId: string): string |null| undefined {
-    const user = this.users.find(u => u.id === userId);
-    return user?.avatarUrl;
-  }
-  
-
-  getUserOnlineStatus(userId: string): boolean {
-    const user = this.users.find(u => u.id === userId);
-    return !!user?.online;
-  }
-  getUserName(userId: string): boolean {
-    const user = this.users.find(u => u.id === userId);
-    return !!user?.name;
-  }
-  getDisplayName(userId: string): string {
-    const user = this.users.find(u => u.id === userId);
-    if (!user) {
-      return 'Me';
-    } else{
-      return user.name;}
-}
-
-
-  getUserLastSeen(userId: string): Date {
-    const user = this.users.find(u => u.id === userId);
-    return user?.lastSeen ? new Date(user.lastSeen) : new Date();
-  }
-  
-  
-  getLastMessage(convo: Conversation): string {
-    const last = convo.messages[convo.messages.length - 1];
-    return last ? last.content : '';
-  }
-
-  // getTimeAgo(convo: Conversation): string {
-  //   return convo.lastMessage
-  //     ? formatDistanceToNow(new Date(convo.lastMessage.timestamp), { addSuffix: true })
-  //     : '';
-  // }
-
-  getTimeAgo(convo: Conversation): string {
-    if (!convo.lastMessage) return '';
-  
-    const messageDate = new Date(convo.lastMessage.timestamp);
-    const now = new Date();
-    const diffMs = now.getTime() - messageDate.getTime();
-    const diffSec = Math.floor(diffMs / 1000);
-    const diffMin = Math.floor(diffSec / 60);
-    const diffHr = Math.floor(diffMin / 60);
-  
-    const isYesterday =
-      messageDate.getDate() === now.getDate() - 1 &&
-      messageDate.getMonth() === now.getMonth() &&
-      messageDate.getFullYear() === now.getFullYear();
-  
-    if (diffSec < 60) return 'just now';
-    if (diffMin < 60) return `${diffMin} min ago`;
-    if (diffHr < 24) return `${diffHr} hr ago`;
-    if (isYesterday) return 'yesterday';
-  
-    const diffDay = Math.floor(diffHr / 24);
-    return `${diffDay}d`;
-  }  
-  
-
-  getLastSeenText(date: Date): string {
-    return formatDistanceToNow(date, { addSuffix: true });
-  }
-
-  countUnreadMsgs(convo: Conversation): number {
-    const user = this.currentUser;
-    if (!user) return 0;
-    return convo.messages.filter(
-      msg => msg.senderId !== user.id && !msg.readBy.includes(user.id)
-    ).length;
-  }
-
-  isLastOfSenderGroup(index: number, messages: Message[]): boolean {
-    if (!messages || index >= messages.length - 1) return true;
-    return messages[index].senderId !== messages[index + 1].senderId;
-  }
-
   toggleEmojiPicker(): void {
     this.showEmojiPicker = !this.showEmojiPicker;
   }
@@ -584,53 +337,157 @@ export class ChattingComponent implements OnInit {
     this.messageText += emoji;
     this.showEmojiPicker = false;
     }
-
-  getOtherUser(convo: Conversation): User | undefined {
-    return this.users.find(u => u.id !== this.currentUserId && convo.participantIds.includes(u.id));
+  getDisplayName(userId: string): string {
+    const user = this.nguoiDung.find(u => u._id === userId);
+    if (!user) {
+      return 'Me';
+    } else{
+      return user.name;}
   }
-  getUserById(userId: string): User | undefined {
-    return this.users.find(user => user.id === userId);
+  selectedMessageIndex: number | null = null;
+  replyingTo: Messagee | null = null;
+
+  toggleMessageOptions(index: number): void {
+    this.selectedMessageIndex = this.selectedMessageIndex === index ? null : index;
   }
 
-  get friends(): User[] {
-    return mockAccountOwner.friends
-      .map(friendId => this.getUserById(friendId))
-      .filter((user): user is User => user !== undefined); // Filter out undefined values
+  closeMessageOptions(): void {
+    this.selectedMessageIndex = null;
   }
 
-  searchTerm: string = '';
 
-  get filteredConversations(): Conversation[] {
-    return this.conversations.filter(convo => {
-      const otherUser = this.getOtherUser(convo);
-      return (
-        otherUser &&
-        otherUser.name.toLowerCase().includes(this.searchTerm.toLowerCase())
-      );
+
+  replyToMessage(index: number): void {
+    this.replyingTo = this.messagees[index];
+    console.log("Đang reply đến:", this.replyingTo);
+    this.closeMessageOptions();
+  }
+
+  cancelReply(): void {
+    this.replyingTo = null;
+  }
+
+  // get filteredChats(): ChatRoom[] {
+  //   return this.chatRooms.filter(chatRoom => {
+  //     return chatRoom.members.some((member:Userr) =>
+  //       member.name.toLowerCase().includes(this.searchTerm.toLowerCase())
+  //       );
+  //     })  
+  //   }
+  //   getUserFromChats(chatRoomId: string): Userr[] {
+  //     const chatRoom = this.chatRooms.find(room => room._id === chatRoomId);
+    
+  //     if (!chatRoom) return [];
+    
+  //     return chatRoom.members.filter((member: Userr) =>
+  //       member.name.toLowerCase().includes(this.searchTerm.toLowerCase())
+  //     );
+  //   }
+  get filteredChats(): ChatRoom[] {
+    return this.chatRooms.filter(chatRoom => {
+      return chatRoom.members.some((memberId: string) => {
+        const user = this.nguoiDung.find(u => u._id === memberId);
+        return user?.name.toLowerCase().includes(this.searchTerm.toLowerCase());
+      });
     });
-}
+  }
+  
+  getUserFromChats(chatRoomId: string): Userr[] {
+    const chatRoom = this.chatRooms.find(room => room._id === chatRoomId);
+  
+    if (!chatRoom) return [];
+  
+    return chatRoom.members
+      .map((memberId: string) => this.nguoiDung.find(u => u._id === memberId))
+      .filter((user): user is Userr =>
+        !!user && user.name.toLowerCase().includes(this.searchTerm.toLowerCase())
+      );
+  }
+  
+}    
 
-selectedMessageIndex: number | null = null;
-replyingTo: Messagee | null = null;
 
-toggleMessageOptions(index: number): void {
-  this.selectedMessageIndex = this.selectedMessageIndex === index ? null : index;
-}
-
-closeMessageOptions(): void {
-  this.selectedMessageIndex = null;
-}
+  
 
 
 
-replyToMessage(index: number): void {
-  this.replyingTo = this.messagees[index];
-  console.log("Đang reply đến:", this.replyingTo);
-  this.closeMessageOptions();
-}
+  /**
+   * ---------------------------------------------------------
+   */
+  // users: User[] = sampleUsers;
+  // conversations: Conversation[] = sampleConversations;
+  // currentUserId: string = this.users.length > 0 ? this.users[0].id : '';
+  // selectedConversationId: string | null = null;
+  // messageText: string = '';
 
-cancelReply(): void {
-  this.replyingTo = null;
-}
 
-}
+
+
+  // selectConversation(id: string): void {
+  //   this.selectedConversationId = id;
+
+  //   const convo = this.activeConversation;
+  //   const user = this.currentUser;
+  //   if (convo && user) {
+  //     convo.messages.forEach(msg => {
+  //       if (msg.senderId !== user.id && !msg.readBy.includes(user.id)) {
+  //         msg.readBy.push(user.id);
+  //       }
+  //     });
+  //   }
+  // }
+
+
+
+  // getUserLastSeen(userId: string): Date {
+  //   const user = this.users.find(u => u.id === userId);
+  //   return user?.lastSeen ? new Date(user.lastSeen) : new Date();
+  // }
+  
+  // getOtherUser(convo: Conversation): User | undefined {
+  //   return this.users.find(u => u.id !== this.currentUserId && convo.participantIds.includes(u.id));
+  // }
+
+  // getTimeAgo(convo: Conversation): string {
+  //   if (!convo.lastMessage) return '';
+  
+  //   const messageDate = new Date(convo.lastMessage.timestamp);
+  //   const now = new Date();
+  //   const diffMs = now.getTime() - messageDate.getTime();
+  //   const diffSec = Math.floor(diffMs / 1000);
+  //   const diffMin = Math.floor(diffSec / 60);
+  //   const diffHr = Math.floor(diffMin / 60);
+  
+  //   const isYesterday =
+  //     messageDate.getDate() === now.getDate() - 1 &&
+  //     messageDate.getMonth() === now.getMonth() &&
+  //     messageDate.getFullYear() === now.getFullYear();
+  
+  //   if (diffSec < 60) return 'just now';
+  //   if (diffMin < 60) return `${diffMin} min ago`;
+  //   if (diffHr < 24) return `${diffHr} hr ago`;
+  //   if (isYesterday) return 'yesterday';
+  
+  //   const diffDay = Math.floor(diffHr / 24);
+  //   return `${diffDay}d`;
+  // }  
+  
+
+  // getLastSeenText(date: Date): string {
+  //   return formatDistanceToNow(date, { addSuffix: true });
+  // }
+
+  // countUnreadMsgs(convo: Conversation): number {
+  //   const user = this.currentUser;
+  //   if (!user) return 0;
+  //   return convo.messages.filter(
+  //     msg => msg.senderId !== user.id && !msg.readBy.includes(user.id)
+  //   ).length;
+  // }
+
+  // isLastOfSenderGroup(index: number, messages: Message[]): boolean {
+  //   if (!messages || index >= messages.length - 1) return true;
+  //   return messages[index].senderId !== messages[index + 1].senderId;
+  // }
+
+

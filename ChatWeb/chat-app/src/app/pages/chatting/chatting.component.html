@@ -12,32 +12,35 @@
         />
 
         <!-- Filtered Conversations -->
-        <div class="search-dropdown"*ngIf="searchTerm && filteredConversations.length > 0">
+        <div class="search-dropdown"*ngIf="searchTerm && filteredChats.length > 0">
           <div
-          *ngFor="let convo of filteredConversations"
+          *ngFor="let chat of filteredChats"
           class="left-section chat-conversation"
-          [class.message-active]="convo.id === selectedConversationId"
-          (click)="selectConversation(convo.id)"
+          [class.message-active]="chat._id === chatRoomIdDuocChon"
+          (click)="chatRoomDuocChon(chat._id)"
         >
-          <ng-container *ngIf="getOtherUser(convo) as userChat">
-            <div class="photo" [style.backgroundImage]="'url(' + getUserAvatar(userChat.id) + ')'">
-              <div class="online" *ngIf="userChat.online === true"></div>
+          <ng-container *ngIf="layNguoiDungKhac(chat) as userChat">
+            <div class="photo" [style.backgroundImage]="'url(' + (userChat.avatarUrl || defaultAvatarUrl) + ')'">
             </div>
             <div class="desc-contact">
               <div class="username">
-                <p class="name" [class.unread]="countUnreadMsgs(convo) > 0">{{ userChat.name }}</p>
-                <p *ngIf="countUnreadMsgs(convo) > 0" class="msg-notification-nb">
-                  {{ countUnreadMsgs(convo) }}
+                <p class="name" *ngIf="chat.isGroupChat === false">
+                  {{ userChat.name }}
+                </p>
+                <p class="name" *ngIf="chat.isGroupChat === true">
+                  {{ chat.chatRoomName }}
                 </p>
               </div>
+              
+            <p class="message">{{ getLastMessage(chat)}}</p>
             </div>
-            </ng-container>
+          </ng-container>
           </div>
         </div>
 
 
         <!-- Optional: No matches -->
-        <div class="search-dropdown" *ngIf="searchTerm && filteredConversations.length === 0">
+        <div class="search-dropdown" *ngIf="searchTerm && filteredChats.length === 0">
         <p class="no-results">No matching friends</p>
         </div>
 
@@ -54,14 +57,14 @@
     </div>
 
     <!-- RIGHT HEADER CHAT INFO -->
-    <div class="header-chat" [ngClass]="{ 'hide-left': !selectedConversationId }">
-      <ng-container *ngIf="activeConversation && getOtherUser(activeConversation) as sender">
-        <div class="photo" [style.backgroundImage]="'url(' + getUserAvatar(sender.id) + ')'">
-          <div class="online" *ngIf="sender.online === true"></div>
+    <div class="header-chat" [ngClass]="{ 'hide-left': !chatRoomIdDuocChon }" *ngFor="let room of chatRooms">
+      <ng-container *ngIf="chatRoomIdDuocChon && layNguoiDungKhac(room) as userChat">
+        <div class="photo" [style.backgroundImage]="'url(' + (userChat.avatarUrl || defaultAvatarUrl) + ')'">
+          <div class="online" *ngIf="userChat.online === true"></div>
         </div>
         <div class="username">
-          <p class="name">{{ sender.name }}</p>
-          <p class="last-seen">{{ getLastSeenText(sender.lastSeen) }}</p>
+          <p class="name">{{ userChat.name }}</p>
+          <!-- <p class="last-seen">{{ getLastSeenText(sender.lastSeen) }}</p> -->
         </div>
         <i class="icon clickable fa fa-ellipsis-h right" aria-hidden="true"></i>
       </ng-container>
@@ -110,7 +113,7 @@
       (click)="chatRoomDuocChon(room._id)"
     >
       <ng-container *ngIf="layNguoiDungKhac(room) as userChat">
-        <div class="photo" [style.backgroundImage]="'url(https://i1.rgstatic.net/ii/profile.image/1039614412341248-1624874799001_Q512/Meryem-Laval.jpg)'">
+        <div class="photo" [style.backgroundImage]="'url(' + (userChat.avatarUrl || defaultAvatarUrl) + ')'">
         </div>
         <div class="desc-contact">
           <div class="username">
@@ -121,6 +124,8 @@
               {{ room.chatRoomName }}
             </p>
           </div>
+          
+        <p class="message">{{ getLastMessage(room)}}</p>
         </div>
       </ng-container>
     </div>
@@ -171,7 +176,7 @@
             <!-- Nếu message đã bị recall cho tất cả -->
           <div *ngIf="msg.recall === '2'" class="Messages">
             <div class="message" *ngIf="msg.sendID._id !== idNguoiDungHienTai">
-              <div class="photo" [style.backgroundImage]="'url(...)'"></div>
+              <div class="photo" [style.backgroundImage]="'url(' + (msg.sendID.avatarUrl || defaultAvatarUrl ) + ')'"></div>
               <div class="bubble-wrapper">
                 <div class="bubble">
                   <p class="text"><i>Tin nhắn đã bị thu hồi.</i></p>
@@ -190,7 +195,7 @@
           <div *ngIf="msg.recall === '1'">
             <div class="message" *ngIf="msg.sendID._id !== idNguoiDungHienTai">
               <!-- Người nhận vẫn thấy -->
-              <div class="photo" [style.backgroundImage]="'url(...)'"></div>
+              <div class="photo" [style.backgroundImage]="'url(' + (msg.sendID.avatarUrl || defaultAvatarUrl) + ')'"></div>
               <div class="bubble-wrapper">
                 <div class="bubble">
                   <p class="text">{{ msg.content.text }}</p>
@@ -203,7 +208,7 @@
             <div *ngIf="msg.recall === '0'" class="Messages" (mouseleave)="closeMessageOptions()">
               <!-- 💬 Tin nhắn từ người khác -->
               <div class="message" *ngIf="msg.sendID._id !== idNguoiDungHienTai">
-                <div class="photo" [style.backgroundImage]="'url(...)'"></div>
+                <div class="photo" [style.backgroundImage]="'url(' + (msg.sendID.avatarUrl || defaultAvatarUrl) + ')'"></div>
                 <div class="bubble-wrapper">
                   <div class="bubble">
                     <div class="reply-preview" *ngIf="msg.replyToMessage">
@@ -429,17 +434,18 @@
             />
 
             <!-- Hiển thị ảnh đã chọn -->
-            <div class="image-preview-container">
+            <div class="preview-container">
               <div *ngFor="let file of imageFiles; let i = index" class="image-preview">
                 {{ file.name }}
                 <button class="cancel-file" (click)="xoaFile('image', i)">❌</button>
               </div>
             </div>
-
-            <!-- Hiển thị file tài liệu đã chọn -->
-            <div *ngFor="let file of docFiles; let i = index" class="file-preview">
-              {{ file.name }}
-              <button class="cancel-file" (click)="xoaFile('doc', i)">❌</button>
+            <div class="preview-container">
+              <!-- Hiển thị file tài liệu đã chọn -->
+              <div *ngFor="let file of docFiles; let i = index" class="file-preview">
+                {{ file.name }}
+                <button class="cancel-file" (click)="xoaFile('doc', i)">❌</button>
+              </div>
             </div>
 
 
