@@ -17,14 +17,14 @@ router.get('/allfriend', authMiddelware, UserController.getAllFriend)
 //update thông tin người dùng
 // cung cấp
 //token
-//body : {name, avatar}
+//body : {name, avatar, phone, address}
 router.put('/updateuser', authMiddelware, UserController.updateUser)
 
 //Lấy thông tin người dùng theo id
 // cung cấp
 //token
 //params : {userId}
-router.get('/user/:userId', authMiddelware, UserController.getUserById)
+router.get('/:userId', authMiddelware, UserController.getUserById)
 
 //Gửi lời mời kết bạn
 // cung cấp
