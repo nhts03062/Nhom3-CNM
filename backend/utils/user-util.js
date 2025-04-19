@@ -15,7 +15,8 @@ userUtil.locUserRaIdNameAvatar = (user) => {
       name: user.name,
       avatarUrl: user.avatarUrl,
       requestfriends: user.requestfriends,
-      friends: user.friends
+      friends: user.friends,
+      friendRequestsReceived: user.friendRequestsReceived,
     };
   };
   
