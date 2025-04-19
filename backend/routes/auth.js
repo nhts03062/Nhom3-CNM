@@ -4,6 +4,7 @@ const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 const User = require("../models/User");
 require("dotenv").config();
+const UserUtil = require('../utils/user-util')
 
 const router = express.Router();
 
@@ -51,7 +52,7 @@ router.post("/register", async (req, res) => {
       html: `
         <h3>Chào ${name},</h3>
         <p>Nhấn vào link dưới đây để xác thực tài khoản:</p>
-        <a href="http://localhost:5000/api/auth/verify?token=${encodeURIComponent(token)}">Xác thực tài khoản</a>
+        <a href="chat.fff3l.click/api/auth/verify?token=${encodeURIComponent(token)}">Xác thực tài khoản</a>
       `,
     };
 
@@ -95,7 +96,7 @@ router.post("/login", async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email }).populate("friends").populate("requestfriends").populate("friendRequestsReceived");
     if (!user) return res.status(400).json({ msg: "Email không tồn tại" });
 
     if (!user.isVerified) return res.status(400).json({ msg: "Email chưa được xác thực" });
@@ -103,9 +104,12 @@ router.post("/login", async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ msg: "Mật khẩu không chính xác" });
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "1h" });
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "24h" });
+    const userId = user._id;
+    const userDaLoc = UserUtil.locUserRaIdNameAvatarRequestFriendFriend(user)
+    console.log(userDaLoc)
 
-    res.status(200).json({ msg: "Đăng nhập thành công!", redirect: "/dashboard.html", token });
+    res.status(200).json({ msg: "Đăng nhập thành công!", redirect: "/dashboard.html", token, userDaLoc});
 
   } catch (error) {
     console.error(error);

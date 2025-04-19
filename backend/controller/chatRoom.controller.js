@@ -6,12 +6,13 @@ const chatRoomController = {};
 //Tạo phòng chat
 chatRoomController.create = async (req, res) => {
   try {
-    const { chatRoomName, members } = req.body;
+    const { chatRoomName, members, image } = req.body;
 
     
     const userCreateId = req.user._id 
     const uniqueMembers = [... new Set([... members, userCreateId])] //Set là object mảng chứa những phần tử duy nhất {[a,b,c]}
 
+    //Kiểm tra xem user có trong bảng user lưu trên mongodb 
     const users = await User.find({ _id: { $in: uniqueMembers } });
     if (users.length !== uniqueMembers.length) {
       return res
@@ -31,36 +32,48 @@ chatRoomController.create = async (req, res) => {
 
     const isGroup = users.length > 2;
 
-    const chatRoom = new ChatRoom({
-      isGroup: isGroup,
-      chatRoomName: chatRoomName ? chatRoomName : null,
-      members: uniqueMembers,
-    });
-
-    await chatRoom.save();
-
-    uniqueMembers.forEach((userId) => {
-      if (userId.toString() !== userCreateId.toString())
-        req.io.to(userId.toString()).emit("new-chatRoom", chatRoom);
-    });
-
-    res.status(200).json(chatRoom);
+    if(!isGroup){
+      const chatRoom = new ChatRoom({
+        isGroupChat: isGroup,
+        chatRoomName: chatRoomName ? chatRoomName : null,
+        members: uniqueMembers,
+      });
+      const chatRoomSave = await chatRoom.save();
+      const populateChatRoom = await ChatRoom.findById(chatRoomSave._id)
+      .populate('members', 'name avatarUrl ')
+      res.status(200).json(populateChatRoom);
+    }
+    else
+    {
+        const chatRoom = new ChatRoom({
+          isGroupChat: isGroup,
+          chatRoomName: chatRoomName,
+          members: uniqueMembers,
+          image: image ? image : 'https://static.vecteezy.com/system/resources/previews/026/019/617/original/group-profile-avatar-icon-default-social-media-forum-profile-photo-vector.jpg',
+          admin: userCreateId
+        });
+        const chatRoomSave = await chatRoom.save();
+        const populateChatRoom = await ChatRoom.findById(chatRoomSave._id)
+        .populate('members', 'name avatarUrl ')
+        .populate('admin', 'name avatarUrl ')
+        res.status(200).json(populateChatRoom);
+    }
+   
   } catch (err) {
     console.log('Lỗi tạo phòng', err);
     res.status(500).json({ msg: "Lõi tạo phòng chat" });
   }
 };
 
-
 //Lấy tất cả phòng chat của người dùng
 
-chatRoomController.getAll = async (req, res) => {
+chatRoomController.getAllChatRoomByUserId = async (req, res) => {
   try {
     //Tim phong chat ma nguoi dung la thanh vienv
     const chatRooms = await ChatRoom.find({ members: req.user._id })
-      .populate("members",  'name email') // điền đầy các trường bên trong nó mà là Object id trong members
-      .exec(); // trả về proomise
-
+      .populate("members",  'name email avatarUrl') // điền đầy các trường bên trong nó mà là Object id trong members
+      .populate('latestMessage')
+      .sort({ 'latestMessage.createdAt': -1 })
     res.status(200).json(chatRooms);
   } catch (err) {
     console.log('Lỗi khi lấy tất cả phòng',err)
@@ -70,7 +83,7 @@ chatRoomController.getAll = async (req, res) => {
 
 //Xóa phòng chat
 
-chatRoomController.delete = async (req, res) => {
+chatRoomController.deleteByChatRoomId = async (req, res) => {
   try {
     const { chatRoomId } = req.params;
     const chatRoom = await ChatRoom.findById(chatRoomId);
@@ -80,16 +93,14 @@ chatRoomController.delete = async (req, res) => {
         .status(404)
         .json({ msg: `Lỗi không tìm thấy phòng chat: ${chatRoomId}` });
     }
-    const members = chatRoom.members;
+    if(chatRoom.admin.toString() !== req.user._id.toString() && chatRoom.isGroupChat){
+      return res.status(403).json({msg: 'Chỉ có admin mới có thể xoa phòng chat'})
+    }
 
     await ChatRoom.findByIdAndDelete(chatRoomId);
+    return res.status(200).json({msg: 'phòng chat đã xóa'})
 
-    members.forEach((userId) => {
-      if (userId.toString() !== req.user._id.toString())
-      req.io.to(userId.toString()).emit("delete-chatRoom", chatRoomId);
-    });
 
-    res.status(200).json(chatRoomId);
   } catch (err) {
     console.log('Lỗi khi xóa phòng',err);
     res.status(500).json({ msg: "Lỗi xóa phòng chat" });
@@ -98,9 +109,9 @@ chatRoomController.delete = async (req, res) => {
 
 //Tìm một phòng chat
 
-chatRoomController.getOne = async(req, res) =>{
+chatRoomController.getOneChatRoomById = async(req, res) =>{
   try{
-    const {chatRoomId} = await req.params;
+    const {chatRoomId} = req.params;
     const chatRoom = await ChatRoom.findById(chatRoomId).populate('members', 'name email').exec();
     
     if(!chatRoom){
@@ -115,6 +126,65 @@ chatRoomController.getOne = async(req, res) =>{
     res.status(500).json({msg: 'Lỗi xóa phòng chat'})
   }
 };
+
+//Mời vào phòng chat
+chatRoomController.inviteToGroupChat = async(req,res) =>{
+  try{
+    const {userId,chatRoomId} = req.body //userId của nguời cần mời vào
+    const chatRoom = await ChatRoom.findById(chatRoomId)
+    if(!chatRoom){
+      return res.status(404).json({msg : 'Không tìm thấy phòng chat'})
+    }
+    if(!chatRoom.members.includes(userId)){
+      chatRoom.members.push(userId);
+      const chatRoomSave = await chatRoom.save()
+      return res.status(200).json(chatRoomSave)
+    }
+    else
+    {
+      return res.status(400).json({msg: 'Người dùng đã có trong phòng chat'})
+
+    }
+
+  }catch(err){
+    console.log('Lỗi mời vào phòng chat', err)
+    res.status(500).json({msg: 'Lỗi mời vào phòng chat'})
+  }
+}
+
+//Cập nhật phòng chat
+
+chatRoomController.updateChatRoom = async(req,res) => {
+  try{
+    const {chatRoomId,chatRoomName,members,image,newAdminId} = req.body
+
+      const chatRoom = await ChatRoom.findById(chatRoomId)
+
+    if(!chatRoom){
+      return res.status(404).json('Không tim thấy phòng chat')
+    }
+    if(chatRoom.admin.toString() !== req.user._id.toString()){
+      return res.status(403).json({msg: 'Chỉ người tạo phòng mới có quuyền cập nhật'})
+    }
+    chatRoom.chatRoomName = chatRoomName || chatRoom.chatRoomName
+    chatRoom.members = members || chatRoom.members
+    chatRoom.image = image ||  chatRoom.image
+    if(newAdminId){
+      chatRoom.admin = newAdminId
+    }
+
+    const chatRoomSave = await chatRoom.save();
+    const populateChatRoom = await ChatRoom.findById(chatRoomSave._id)
+    .populate('members', 'name avatarUrl ')
+    .populate('admin', 'name avatarUrl ')
+
+    return res.status(200).json(populateChatRoom);
+
+  }catch(err)
+  { console.log('Lỗi update chat Room', err)
+    res.status(500).json({msg: 'Lỗi update chat Room'})}
+}
+
 
 
 module.exports = chatRoomController;
