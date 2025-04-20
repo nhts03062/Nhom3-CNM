@@ -1,0 +1,93 @@
+<div class="modal-backdrop" *ngIf="isOpen">
+  <div class="modal">
+    <article class="modal-container">
+      <!-- Header -->
+      <header class="modal-container-header">
+        <h5 class="modal-container-title">
+          <div class="modal-tabs">
+            <button [class.active]="activeTab === 'friend'" (click)="setTab('friend')">Add Friend</button>
+            <button [class.active]="activeTab === 'group'" (click)="setTab('group')">Create Group</button>
+          </div>
+        </h5>
+      </header>
+
+      <!-- Body -->
+      <section class="modal-container-body">
+        <!-- Add Friend Tab -->
+        <ng-container *ngIf="activeTab === 'friend'">
+          <input
+            type="text"
+            class="email-searching"
+            placeholder="Search friend email"
+            [(ngModel)]="searchTerm"
+            (keyup.enter)="searchFriend()"
+          />
+          <div *ngIf="isSearching" class="loading">Searching...</div>
+          <p class="error" *ngIf="searchError">{{ searchError }}</p>
+
+          <ul class="search-results" *ngIf="searchResults.length > 0">
+            <li *ngFor="let user of searchResults">
+              {{ user.email }} ({{ user.name || user.username }})
+              <button class="add-friend-btn" (click)="sendFriendRequest(user._id)">Add Friend</button>
+            </li>
+          </ul>
+        </ng-container>
+
+        <!-- Create Group Tab -->
+        <ng-container *ngIf="activeTab === 'group'">
+          <input
+            type="text"
+            class="email-searching"
+            placeholder="Group name"
+            [(ngModel)]="groupName"
+          />
+          <input
+            type="text"
+            class="email-searching"
+            placeholder="Search member email"
+            [(ngModel)]="groupSearchTerm"
+            (keyup.enter)="searchGroupMember()"
+          />
+          <div *ngIf="isGroupSearching" class="loading">Searching...</div>
+          <p class="error" *ngIf="groupSearchError">{{ groupSearchError }}</p>
+
+          <ul class="search-results" *ngIf="groupSearchResults.length > 0">
+            <li *ngFor="let user of groupSearchResults">
+              {{ user.email }} ({{ user.name || user.username }})
+              <button class="add-friend-btn" (click)="addGroupMember(user)">Add to Group</button>
+            </li>
+          </ul>
+
+          <div class="group-members" *ngIf="groupMembers.length > 0">
+            <h6>Selected Members:</h6>
+            <ul>
+              <li *ngFor="let member of groupMembers">
+                {{ member.email }} ({{ member.name || member.username }})
+                <button class="remove-btn" (click)="removeGroupMember(member._id)">Remove</button>
+              </li>
+            </ul>
+          </div>
+        </ng-container>
+      </section>
+
+      <!-- Footer -->
+      <footer class="modal-container-footer">
+        <button class="button is-ghost" (click)="close()">Cancel</button>
+        <button
+          class="button is-primary"
+          *ngIf="activeTab === 'friend'"
+          (click)="searchFriend()"
+        >
+          Search
+        </button>
+        <button
+          class="button is-primary"
+          *ngIf="activeTab === 'group'"
+          (click)="createGroup()"
+        >
+          Create Group
+        </button>
+      </footer>
+    </article>
+  </div>
+</div>
