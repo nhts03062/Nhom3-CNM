@@ -6,11 +6,14 @@ import {
     TouchableOpacity,
     Image,
     ScrollView,
-    Platform
+    Platform,
+    Alert
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from '../../../contexts/AuthContext';
+import axios from 'axios';
 
 const personalOptions = [
     { icon: 'cloud-outline', label: 'zCloud', desc: 'Không gian lưu trữ dữ liệu trên đám mây' },
@@ -23,6 +26,7 @@ const personalOptions = [
 ];
 
 const PersonalScreen = () => {
+    const { user, token, logout } = useAuth();
     const navigation = useNavigation();
     const [userData, setUserData] = useState({
         name: '',
@@ -33,21 +37,56 @@ const PersonalScreen = () => {
     });
     const [loading, setLoading] = useState(true);
 
+    const handleLogout = async () => {
+        Alert.alert(
+            'Đăng xuất',
+            'Bạn có chắc muốn đăng xuất?',
+            [
+                { text: 'Hủy', style: 'cancel' },
+                {
+                    text: 'Đăng xuất',
+                    onPress: async () => {
+                        try {
+                            await logout();
+                            navigation.replace('Auth');
+                        } catch (error) {
+                            console.error('Logout error:', error);
+                            Alert.alert('Lỗi', 'Không thể đăng xuất. Vui lòng thử lại sau.');
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
     // Function to fetch user data from AsyncStorage
     const fetchUserData = useCallback(async () => {
         try {
             setLoading(true);
             const userDataString = await AsyncStorage.getItem('user');
             if (userDataString) {
-                const parsedUserData = JSON.parse(userDataString);
-                console.log("Retrieved user data:", parsedUserData); // Debug log
-                setUserData({
-                    name: parsedUserData.name || 'User',
-                    email: parsedUserData.email || '',
-                    phone: parsedUserData.phone || '',
-                    address: parsedUserData.address || '',
-                    avatarUrl: parsedUserData.avatarUrl || null,
-                });
+                try {
+                    const parsedUserData = JSON.parse(userDataString);
+                    console.log("Retrieved user data:", parsedUserData); // Debug log
+                    setUserData({
+                        name: parsedUserData.name || 'User',
+                        email: parsedUserData.email || '',
+                        phone: parsedUserData.phone || '',
+                        address: parsedUserData.address || '',
+                        avatarUrl: parsedUserData.avatarUrl || null,
+                    });
+                } catch (parseError) {
+                    console.error('Error parsing user data:', parseError);
+                    // If data is corrupted, remove it and use default values
+                    await AsyncStorage.removeItem('user');
+                    setUserData({
+                        name: 'User',
+                        email: '',
+                        phone: '',
+                        address: '',
+                        avatarUrl: null,
+                    });
+                }
             }
         } catch (error) {
             console.error('Error fetching user data:', error);
@@ -70,7 +109,58 @@ const PersonalScreen = () => {
     );
 
     const handleSettingsPress = () => {
-        navigation.navigate('AccountSettingsScreen');
+        navigation.navigate('AccountSettingsScreen', {
+            userData: userData,
+            onUpdateProfile: updateUserProfile
+        });
+    };
+
+    const updateUserProfile = async (updatedData) => {
+        try {
+            console.log("Sending update data:", updatedData);
+            const API_URL = require('../../../services/api');
+
+            const response = await axios.put(
+                `${API_URL}/user/updateuser`,
+                updatedData,
+                {
+                    headers: {
+                        'Authorization': token,
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+
+            if (response.status === 200) {
+                // Update local user data
+                const updatedUserData = {
+                    ...userData,
+                    ...updatedData
+                };
+
+                // Save to AsyncStorage
+                await AsyncStorage.setItem('user', JSON.stringify(updatedUserData));
+
+                // Update state
+                setUserData(updatedUserData);
+                Alert.alert('Success', 'Profile updated successfully');
+
+                // Refresh data
+                fetchUserData();
+            }
+        } catch (error) {
+            console.error('Error updating profile:', error);
+
+            // Better error handling
+            if (error.response) {
+                console.error('Server error response:', error.response.data);
+                Alert.alert('Update Failed', `Server error: ${error.response.status}`);
+            } else if (error.request) {
+                Alert.alert('Update Failed', 'No response from server. Check your connection.');
+            } else {
+                Alert.alert('Update Failed', error.message);
+            }
+        }
     };
 
     // Use either the avatarUrl or generate a name-based avatar
@@ -78,7 +168,7 @@ const PersonalScreen = () => {
         if (userData.avatarUrl) {
             return { uri: userData.avatarUrl };
         } else {
-            return { uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.name)}&background=0999fa&color=fff` };
+            return { uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.name || 'User')}&background=0999fa&color=fff` };
         }
     };
 
@@ -108,12 +198,17 @@ const PersonalScreen = () => {
                 {personalOptions.map((item, index) => (
                     <TouchableOpacity key={index} style={styles.optionRow}>
                         <Ionicons name={item.icon} size={20} color="#0999fa" style={{ marginRight: 12 }} />
-                        <View>
+                        <View style={{ flex: 1 }}>
                             <Text style={styles.optionLabel}>{item.label}</Text>
                             {item.desc && <Text style={styles.optionDesc}>{item.desc}</Text>}
                         </View>
                     </TouchableOpacity>
                 ))}
+
+                <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+                    <Ionicons name="log-out-outline" size={20} color="#ff3b30" style={{ marginRight: 12 }} />
+                    <Text style={[styles.optionLabel, { color: '#ff3b30' }]}>Đăng xuất</Text>
+                </TouchableOpacity>
             </ScrollView>
 
             <View style={styles.tabBar}>
@@ -151,6 +246,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         backgroundColor: '#0999fa',
         height: 80,
+        paddingTop: Platform.OS === 'ios' ? 40 : 20,
     },
     settingsIcon: { backgroundColor: '#0999fa', padding: 8, borderRadius: 8 },
     profileRow: {
@@ -179,7 +275,14 @@ const styles = StyleSheet.create({
         borderBottomColor: '#eee',
     },
     optionLabel: { fontSize: 15, fontWeight: '500' },
-    optionDesc: { fontSize: 13, color: '#888', marginTop: 2, maxWidth: '90%' },
+    optionDesc: { fontSize: 13, color: '#888', marginTop: 2 },
+    logoutButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 14,
+        marginTop: 10,
+        marginBottom: 20,
+    },
     tabBar: {
         flexDirection: 'row',
         backgroundColor: '#FFFFFF',
