@@ -144,7 +144,8 @@ const AccountSettingsScreen = () => {
             console.log('Sending update data:', updateData);
 
             // Make API call to update user data
-            const response = await fetch(`${API_URL}/api/user/updateuser`, {
+            // Fix: Using the correct API endpoint without duplicate '/api'
+            const response = await fetch(`${API_URL}/user/updateuser`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -153,14 +154,22 @@ const AccountSettingsScreen = () => {
                 body: JSON.stringify(updateData)
             });
 
-            const data = await response.json();
-
             if (!response.ok) {
-                if (data.msg && data.msg.includes('Email')) {
-                    throw new Error('This email is already in use. Please use a different email.');
+                const responseText = await response.text();
+                console.error('Server response:', responseText);
+
+                try {
+                    const data = JSON.parse(responseText);
+                    if (data.msg && data.msg.includes('Email')) {
+                        throw new Error('This email is already in use. Please use a different email.');
+                    }
+                    throw new Error(data.msg || 'Failed to update profile');
+                } catch (parseError) {
+                    throw new Error(`Server error: ${response.status}`);
                 }
-                throw new Error(data.msg || 'Failed to update profile');
             }
+
+            const data = await response.json();
 
             // Update local storage with the new data
             const currentUserData = JSON.parse(await AsyncStorage.getItem('user'));

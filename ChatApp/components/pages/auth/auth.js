@@ -17,11 +17,13 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Feather } from "@expo/vector-icons";
 import axios from 'axios';
+import { useAuth } from '../../../contexts/AuthContext';
 
 const { width, height } = Dimensions.get("window");
 const API_BASE_URL = require('../../../services/api');
 
 const AuthScreen = ({ navigation, route }) => {
+  const { login } = useAuth();
   const pageFlip = useRef(new Animated.Value(0)).current;
   const [isFlipped, setIsFlipped] = useState(false);
 
@@ -52,27 +54,32 @@ const AuthScreen = ({ navigation, route }) => {
     }
   }, [route.params]);
 
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const token = await AsyncStorage.getItem('token');
-        if (token) {
-          console.log('Verifying token:', token);
-          // Pass token as a query parameter instead of in the Authorization header
-          const response = await axios.get(`${API_BASE_URL}/auth/verify?token=${token}`);
-          console.log('Token verification response:', response.data);
-          if (response.status === 200) {
-            navigation.replace('ChatRoomListScreen');
-          }
+  const checkAuth = async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (token) {
+        console.log('Verifying token:', token);
+        const response = await axios.get(`${API_BASE_URL}/api/chatroom`, {
+          headers: {
+            Authorization: token,
+          },
+        });
+        if (response.status === 200) {
+          navigation.replace('ChatRoomListScreen');
+        } else {
+          await AsyncStorage.removeItem('token');
+          await AsyncStorage.removeItem('user');
         }
-      } catch (error) {
-        console.error('Token verification failed:', error.response || error);
-        await AsyncStorage.removeItem('token');
-        await AsyncStorage.removeItem('user');
+
+        // If we get here, the token is valid
+        navigation.replace('ChatRoomListScreen');
       }
-    };
-    checkAuth();
-  }, [navigation]);
+    } catch (error) {
+      console.error('Token verification failed:', error.response || error);
+      await AsyncStorage.removeItem('token');
+      await AsyncStorage.removeItem('user');
+    }
+  };
 
   const frontPageStyle = {
     transform: [
@@ -201,40 +208,11 @@ const AuthScreen = ({ navigation, route }) => {
     if (validateLogin()) {
       try {
         setIsLoading(true);
-        const response = await axios.post(`${API_BASE_URL}/auth/login`, {
-          email,
-          password,
-        });
-
-        console.log('Login response:', response.data);
-
-        if (!response.data.token || !response.data.userDaLoc) {
-          throw new Error('Invalid response: Token or user data missing');
-        }
-
-        const token = response.data.token;
-        const user = response.data.userDaLoc;
-
-        console.log('Storing token:', token);
-        console.log('Storing user:', user);
-
-        await AsyncStorage.setItem('token', token);
-        await AsyncStorage.setItem('user', JSON.stringify(user));
-
-        if (rememberMe) {
-          await AsyncStorage.setItem('rememberMe', 'true');
-          await AsyncStorage.setItem('savedEmail', email);
-        } else {
-          await AsyncStorage.removeItem('rememberMe');
-          await AsyncStorage.removeItem('savedEmail');
-        }
-
+        await login(email, password, rememberMe);
         Alert.alert('Success', '✅ Login successful!');
-        navigation.setOptions({ gestureEnabled: false });
         navigation.replace('ChatRoomListScreen');
       } catch (error) {
         const errorMessage = error.response?.data?.msg || 'Login failed. Please try again.';
-        console.error('Login error:', error);
         Alert.alert('Login Error', `❌ ${errorMessage}`);
       } finally {
         setIsLoading(false);

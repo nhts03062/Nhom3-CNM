@@ -9,26 +9,55 @@ import {
     StatusBar,
     TextInput,
     Platform,
+    Alert,
 } from 'react-native';
 import { Ionicons, Feather, FontAwesome } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import axios from 'axios';
+import { useAuth } from '../../../contexts/AuthContext';
 
 const ChatRoomListScreen = () => {
+    const { token, logout } = useAuth();
     const navigation = useNavigation();
     const [chatRooms, setChatRooms] = useState([]);
     const [searchText, setSearchText] = useState('');
     const [menuVisible, setMenuVisible] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
     const API_URL = require('../../../services/api');
 
     const fetchChatRooms = async () => {
         try {
-            const response = await axios.get(`${API_URL}/api/chatroom`);
+            setLoading(true);
+            const response = await axios.get(`${API_URL}/chatroom`, {
+                headers: {
+                    Authorization: token
+                }
+            });
             setChatRooms(response.data);
-            console.log(response.data)
+            setError(null);
         } catch (error) {
             console.error('Error fetching chat rooms:', error);
+            setError('Không thể tải danh sách phòng chat');
+
+            if (error.response?.status === 401) {
+                Alert.alert(
+                    'Phiên đăng nhập hết hạn',
+                    'Vui lòng đăng nhập lại.',
+                    [
+                        {
+                            text: 'OK',
+                            onPress: async () => {
+                                await logout();
+                                navigation.replace('Auth');
+                            }
+                        }
+                    ]
+                );
+            }
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -46,7 +75,6 @@ const ChatRoomListScreen = () => {
         navigation.navigate('CreateGroupScreen');
     };
 
-
     const handleChatRoomPress = (chatRoom) => {
         navigation.navigate('ChatScreen', { chatRoom });
     };
@@ -54,6 +82,23 @@ const ChatRoomListScreen = () => {
     const getChatRoomName = (chatRoom) => {
         if (chatRoom.chatRoomName) return chatRoom.chatRoomName;
         return 'Nhóm chat';
+    };
+
+    const handleLogout = async () => {
+        Alert.alert(
+            'Đăng xuất',
+            'Bạn có chắc muốn đăng xuất?',
+            [
+                { text: 'Hủy', style: 'cancel' },
+                {
+                    text: 'Đăng xuất',
+                    onPress: async () => {
+                        await logout();
+                        navigation.replace('Auth');
+                    }
+                }
+            ]
+        );
     };
 
     const renderChatRoomItem = ({ item }) => {
@@ -163,6 +208,8 @@ const ChatRoomListScreen = () => {
                         </TouchableOpacity>
                     </View>
                 }
+                refreshing={loading}
+                onRefresh={fetchChatRooms}
             />
 
             {/* Tab Bar */}
@@ -197,6 +244,7 @@ const ChatRoomListScreen = () => {
 };
 
 const styles = StyleSheet.create({
+    // Giữ nguyên styles hiện tại
     container: {
         flex: 1,
         backgroundColor: '#FFFFFF',
