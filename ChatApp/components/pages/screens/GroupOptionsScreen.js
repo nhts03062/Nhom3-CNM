@@ -6,23 +6,21 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 const GroupOptionsScreen = () => {
     const navigation = useNavigation();
     const route = useRoute();
-    const group = route.params?.group;
+    const chatRoom = route.params?.chatRoom;
 
-    const [members, setMembers] = useState(group?.members || []);
-
-    useEffect(() => {
-        if (route.params?.newMembers) {
-            setMembers((prev) => {
-                const newList = [...prev];
-                route.params.newMembers.forEach((member) => {
-                    if (!newList.find((m) => m.id === member.id)) {
-                        newList.push(member);
-                    }
-                });
-                return newList;
-            });
-        }
-    }, [route.params?.newMembers]);
+    if (!chatRoom) {
+        return (
+            <View style={styles.errorContainer}>
+                <Text>Không tìm thấy thông tin nhóm</Text>
+                <TouchableOpacity
+                    style={styles.backButton}
+                    onPress={() => navigation.goBack()}
+                >
+                    <Text style={styles.backButtonText}>Quay lại</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    }
 
     return (
         <ScrollView style={styles.container}>
@@ -34,8 +32,11 @@ const GroupOptionsScreen = () => {
             </View>
 
             <View style={styles.groupInfo}>
-                <Image source={require('../../../assets/cloud.png')} style={styles.groupAvatar} />
-                <Text style={styles.groupName}>{group?.name}</Text>
+                <Image
+                    source={{ uri: chatRoom.image || 'https://static.vecteezy.com/system/resources/previews/026/019/617/original/group-profile-avatar-icon-default-social-media-forum-profile-photo-vector.jpg' }}
+                    style={styles.groupAvatar}
+                />
+                <Text style={styles.groupName}>{chatRoom.chatRoomName}</Text>
             </View>
 
             <View style={styles.actions}>
@@ -45,7 +46,7 @@ const GroupOptionsScreen = () => {
                 </TouchableOpacity>
                 <TouchableOpacity
                     style={styles.actionButton}
-                    onPress={() => navigation.navigate('AddGroupMembersScreen', { members })}
+                    onPress={() => navigation.navigate('AddGroupMembersScreen', { chatRoom })}
                 >
                     <Ionicons name="person-add-outline" size={20} />
                     <Text style={styles.actionText}>Thêm thành viên</Text>
@@ -62,9 +63,11 @@ const GroupOptionsScreen = () => {
 
             <TouchableOpacity
                 style={styles.section}
-                onPress={() => navigation.navigate('GroupMembersScreen', { members })}
+                onPress={() => navigation.navigate('GroupMembersScreen', { members: chatRoom.members })}
             >
-                <Text style={styles.sectionText}>Xem thành viên ({members.length})</Text>
+                <Text style={styles.sectionText}>
+                    Xem thành viên ({chatRoom.members ? chatRoom.members.length : 0})
+                </Text>
             </TouchableOpacity>
 
         </ScrollView>
@@ -72,7 +75,10 @@ const GroupOptionsScreen = () => {
 };
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#fff' },
+    container: {
+        flex: 1,
+        backgroundColor: '#fff'
+    },
     header: {
         backgroundColor: '#0999fa',
         paddingTop: 50,
@@ -81,10 +87,26 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
     },
-    headerTitle: { color: 'white', fontSize: 20, fontWeight: 'bold', marginLeft: 16 },
-    groupInfo: { alignItems: 'center', marginVertical: 20 },
-    groupAvatar: { width: 70, height: 70, borderRadius: 35, marginBottom: 10 },
-    groupName: { fontSize: 18, fontWeight: 'bold' },
+    headerTitle: {
+        color: 'white',
+        fontSize: 20,
+        fontWeight: 'bold',
+        marginLeft: 16
+    },
+    groupInfo: {
+        alignItems: 'center',
+        marginVertical: 20
+    },
+    groupAvatar: {
+        width: 70,
+        height: 70,
+        borderRadius: 35,
+        marginBottom: 10
+    },
+    groupName: {
+        fontSize: 18,
+        fontWeight: 'bold'
+    },
     actions: {
         flexDirection: 'row',
         justifyContent: 'space-around',
@@ -92,15 +114,38 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: '#eee',
     },
-    actionButton: { alignItems: 'center' },
-    actionText: { marginTop: 6 },
+    actionButton: {
+        alignItems: 'center'
+    },
+    actionText: {
+        marginTop: 6
+    },
     section: {
         paddingVertical: 16,
         paddingHorizontal: 20,
         borderBottomWidth: 1,
         borderBottomColor: '#eee',
     },
-    sectionText: { fontSize: 16 },
+    sectionText: {
+        fontSize: 16
+    },
+    errorContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20
+    },
+    backButton: {
+        marginTop: 20,
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        backgroundColor: '#0999fa',
+        borderRadius: 5
+    },
+    backButtonText: {
+        color: 'white',
+        fontWeight: 'bold'
+    }
 });
 
 export default GroupOptionsScreen;

@@ -17,7 +17,7 @@ import axios from 'axios';
 import { useAuth } from '../../../contexts/AuthContext';
 
 const ChatRoomListScreen = () => {
-    const { token, logout } = useAuth();
+    const { token, logout, user } = useAuth();
     const navigation = useNavigation();
     const [chatRooms, setChatRooms] = useState([]);
     const [searchText, setSearchText] = useState('');
@@ -26,6 +26,8 @@ const ChatRoomListScreen = () => {
     const [error, setError] = useState(null);
 
     const API_URL = require('../../../services/api');
+
+
 
     const fetchChatRooms = async () => {
         try {
@@ -80,8 +82,78 @@ const ChatRoomListScreen = () => {
     };
 
     const getChatRoomName = (chatRoom) => {
+        // Nếu có tên nhóm thì hiển thị tên nhóm
         if (chatRoom.chatRoomName) return chatRoom.chatRoomName;
+
+        // Nếu không phải nhóm chat (chat 1-1), hiển thị tên người còn lại
+        if (!chatRoom.isGroupChat && chatRoom.members) {
+            const otherMember = chatRoom.members.find(member => member._id !== user._id);
+            return otherMember ? otherMember.name : 'Người dùng';
+        }
+
         return 'Nhóm chat';
+    };
+
+    const getAvatarSource = (chatRoom) => {
+        if (chatRoom.image) {
+            return { uri: chatRoom.image };
+        }
+
+        if (!chatRoom.isGroupChat && chatRoom.members) {
+            const otherMember = chatRoom.members.find(member => member._id !== user._id);
+            if (otherMember && otherMember.avatarUrl) {
+                return { uri: otherMember.avatarUrl };
+            }
+        }
+
+        const chatName = getChatRoomName(chatRoom);
+        return { uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(chatName)}&background=0999fa&color=fff` };
+    };
+
+    const getLastMessageText = (chatRoom) => {
+        if (!chatRoom.latestMessage) {
+            return 'Bắt đầu cuộc trò chuyện';
+        }
+
+        const { content, sendID } = chatRoom.latestMessage;
+        const isOwnMessage = sendID?._id === user._id;
+        const prefix = isOwnMessage ? 'Bạn: ' : '';
+
+        if (content?.type === 'text') {
+            return `${prefix}${content.text || 'Tin nhắn mới'}`;
+        }
+
+        const typeMap = {
+            file: '[Tệp đính kèm]',
+            media: '[Hình ảnh/Video]',
+        };
+
+        return `${prefix}${typeMap[content?.type] || 'Tin nhắn mới'}`;
+    };
+
+    const formatMessageTime = (timestamp) => {
+        if (!timestamp) return '';
+
+        const messageDate = new Date(timestamp);
+        const today = new Date();
+
+        // Nếu là tin nhắn của hôm nay, chỉ hiển thị giờ:phút
+        if (messageDate.toDateString() === today.toDateString()) {
+            return messageDate.toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+            });
+        }
+
+        // Nếu là tuần này, hiển thị tên thứ
+        const diffDays = Math.floor((today - messageDate) / (1000 * 60 * 60 * 24));
+        if (diffDays < 7) {
+            const weekdays = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+            return weekdays[messageDate.getDay()];
+        }
+
+        // Nếu cũ hơn, hiển thị ngày/tháng
+        return `${messageDate.getDate()}/${messageDate.getMonth() + 1}`;
     };
 
     const handleLogout = async () => {
@@ -113,7 +185,7 @@ const ChatRoomListScreen = () => {
                         </View>
                     ) : (
                         <Image
-                            source={{ uri: 'https://ui-avatars.com/api/?name=' + encodeURIComponent(chatName) }}
+                            source={getAvatarSource(item)}
                             style={styles.avatar}
                         />
                     )}
@@ -122,18 +194,13 @@ const ChatRoomListScreen = () => {
                 <View style={styles.chatInfo}>
                     <Text style={styles.chatName}>{chatName}</Text>
                     <Text style={styles.lastMessage} numberOfLines={1}>
-                        {item.lastMessage?.content?.text || 'Bắt đầu cuộc trò chuyện'}
+                        {getLastMessageText(item)}
                     </Text>
                 </View>
 
                 <View style={styles.timeContainer}>
                     <Text style={styles.timeText}>
-                        {item.lastMessage?.createdAt
-                            ? new Date(item.lastMessage.createdAt).toLocaleTimeString([], {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                            })
-                            : ''}
+                        {formatMessageTime(item.latestMessage?.createdAt)}
                     </Text>
                     {item.unreadCount > 0 && (
                         <View style={styles.unreadBadge}>
