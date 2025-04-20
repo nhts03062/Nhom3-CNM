@@ -1,2 +1,2 @@
-const BASE_API_URL = 'http://192.168.111.104:5000';
+const BASE_API_URL = 'http://chat.fff3l.click';
 module.exports = `${BASE_API_URL}/api`;

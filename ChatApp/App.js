@@ -13,6 +13,7 @@ import GroupMembersScreen from './components/pages/screens/GroupMembersScreen';
 import AddGroupMembersScreen from './components/pages/screens/AddGroupMembersScreen';
 import PersonalScreen from './components/pages/screens/PersonalScreen';
 import AccountSettingsScreen from './components/pages/screens/AccountSettingsScreen';
+import UserProfileScreen from './components/pages/screens/UserProfileScreen';
 
 
 const Stack = createStackNavigator();
@@ -23,6 +24,7 @@ const App = () => {
         <Stack.Navigator initialRouteName="Auth" screenOptions={{ headerShown: false }}>
           <Stack.Screen name="Auth" component={Auth} />
           <Stack.Screen name="ChatRoomListScreen" component={ChatRoomListScreen} />
+          <Stack.Screen name="UserProfileScreen" component={UserProfileScreen} />
           <Stack.Screen name="ChatScreen" component={ChatScreen} />
           <Stack.Screen name="ContactListScreen" component={ContactListScreen} />
           <Stack.Screen name="CreateGroupScreen" component={CreateGroupScreen} />
