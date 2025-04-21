@@ -16,9 +16,7 @@ export class UserService{
 
   getHeaders(): HttpHeaders {
     const token = sessionStorage.getItem('token');
-    console.log('tokenn', token)
     return new HttpHeaders({ 'Authorization': `${token}` });
-    
   }
   getUsers(): Observable<Userr[]> {
     return this.http.get<Userr[]>(`${this.apiUrl}/alluser`, {
@@ -31,36 +29,41 @@ export class UserService{
       headers: this.getHeaders()
     });
   }
-  updateUser(userData: Partial<Userr>): Observable<Userr> {
-    return this.http.put<Userr>(`${this.apiUrl}/updateuser`, userData, {
+  updateUser(): Observable<Userr[]> {
+    return this.http.put<Userr[]>(`${this.apiUrl}/updateuser`, {
       headers: this.getHeaders()
     });
   }
-
   
-  getUserById(userId: string): Observable<Userr> {
+  getUserById(userId:string): Observable<Userr> {
     return this.http.get<Userr>(`${this.apiUrl}/${userId}`, {
       headers: this.getHeaders()
-    });
+    });    
   }
 
   addFriend(userId: string): Observable<Userr> {
-    return this.http.post<Userr>(`${this.apiUrl}/sendreqfriend`, { userId }, {
-      headers: this.getHeaders()
-    });
-  }
-
-  requestResponse(code: string, userId: string): Observable<any> {
-    return this.http.post<any>(`${this.apiUrl}/resfriend/${code}`, { userId }, {
+    const body = { userId };
+    return this.http.post<Userr>(`${this.apiUrl}/sendreqfriend`, body, {
       headers: this.getHeaders()
     });
   }
   
 
-  unFriendRequest(): Observable<Userr[]> {
-    return this.http.delete<Userr[]>(`${this.apiUrl}/unfriend`, {
+  requestResponse(code: string, userId:string): Observable<Userr[]> {
+    const body = { userId };
+    return this.http.post<Userr[]>(`${this.apiUrl}/resfriend/${code}`,body, {
       headers: this.getHeaders()
     });
   }
+
+  unFriendRequest(friendId: string): Observable<Userr> {
+    const options = {
+      headers: this.getHeaders(),
+      body: { friendId }  // Ensure the body is passed correctly
+    };
+    return this.http.delete<Userr>(`${this.apiUrl}/unfriend`, options);
+  }
+  
+  
 }
 

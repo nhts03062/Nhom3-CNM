@@ -1,217 +1,159 @@
-import { SearchService } from './../../services/search.service';
-import { Component, EventEmitter, Input, Output, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { SocketService } from '../../socket.service';
-import { ChatRoomService } from '../../services/chatRoom.service';
+import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
 import { UserService } from '../../services/user.service';
+import { FormsModule } from '@angular/forms';
+import { forkJoin, map, Observable } from 'rxjs';
+import { ModalProfileComponent } from '../profile/modal-profile/modal-profile.component';
+import { Userr } from '../../models/user.model';
+import { ChatRoomService } from '../../services/chatRoom.service';
+import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-modal',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, ModalProfileComponent,FormsModule],
   templateUrl: './modal.component.html',
   styleUrls: ['./modal.component.css']
 })
 export class ModalComponent implements OnInit {
+
   @Input() isOpen = false;
   @Input() title = '';
-  @Input() userId: string | null = sessionStorage.getItem('userId');
   @Output() closeModal = new EventEmitter<void>();
+  // selectedEmail: string | null = null;
+  showProfileModal: boolean = false;
+  users!:Userr[];
+  defaultAvatarUrl = 'https://i1.rgstatic.net/ii/profile.image/1039614412341248-1624874799001_Q512/Meryem-Laval.jpg';
+  defaulGrouptAvatarUrl= 'https://static.vecteezy.com/system/resources/previews/026/019/617/original/group-profile-avatar-icon-default-social-media-forum-profile-photo-vector.jpg';
+  user: Userr | undefined;
 
   activeTab: 'friend' | 'group' = 'friend';
+  searchTerm: string = '';
 
-  idNguoiDungHienTai: string | null  = sessionStorage.getItem('userId')
-
-  // Friend tab
-  searchTerm = '';
-  searchResults: any[] = [];
-  searchError: string | null = null;
-  friendRequests: any[] = [];
-  isSearching = false;
-
-  // Group tab
-  groupName = '';
-  groupSearchTerm = '';
-  groupSearchResults: any[] = [];
-  groupSearchError: string | null = null;
-  isGroupSearching = false;
-  groupMembers: any[] = [];
-
-  constructor(private http: HttpClient, private socketService: SocketService,
-    private chatRoomService: ChatRoomService, private searchService: SearchService, private userService: UserService) {}
+  constructor(private userService : UserService,
+    private chatRoomService: ChatRoomService,
+    private router: Router){}
 
   ngOnInit(): void {
-    if (this.userId) this.socketService.joinRoom(this.userId);
-
-    this.socketService.onFriendRequested((data: any) => {
-      this.friendRequests.push(data.user);
-      console.log('Yêu cầu kết bạn từ:', data.user);
-    });
-
-    this.socketService.onFriendRequestCanceled((data: any) => {
-      this.friendRequests = this.friendRequests.filter(req => req._id !== data.user._id);
-      console.log('Yêu cầu kết bạn bị hủy:', data.user);
-    });
-
-    this.socketService.onAgreeFriend((friend: any) => {
-      console.log('Đã trở thành bạn bè với:', friend);
-    });
-  }
-
-  isFriend(friends: string[]): boolean {
-    return friends.includes(this.idNguoiDungHienTai || '');
-  }
-  isFiendRequestsReceived(friendRequestsReceived: string[]): boolean {
-    return friendRequestsReceived.includes(this.idNguoiDungHienTai || '');
+    this.loadFriends();
   }
 
   close() {
     this.closeModal.emit();
-    this.resetForm();
+    this.searchTerm='';
   }
 
   setTab(tab: 'friend' | 'group') {
     this.activeTab = tab;
-    this.resetForm();
   }
-
-  private getHeaders(): HttpHeaders {
-    const token = sessionStorage.getItem('token');
-    return new HttpHeaders({ 'Authorization': `${token}` });
+  toggleProfileModal() {
+    this.showProfileModal = !this.showProfileModal;
   }
+  
 
-  // --- FRIEND ---
-  searchFriend() {
-    if (!this.searchTerm) {
-      this.searchError = 'Vui lòng nhập email để tìm kiếm';
-      return;
-    }
+  friendsList: Userr[] = [];
 
-    this.isSearching = true;
-    this.searchService.search( this.searchTerm)
-      .subscribe({
-        next: (res: any) => {
-          res.filter
-          this.searchResults = res
-          .filter((u: any) => u._id !== this.idNguoiDungHienTai) // loại bỏ chính mình
-          .slice(0, 5); // chỉ lấy 5 người đầu tiên
-          this.searchError = res.length === 0 ? 'Không tìm thấy người dùng' : null;
-          this.isSearching = false;
-        },
-        error: () => {
-          this.searchError = 'Lỗi khi tìm kiếm người dùng';
-          this.isSearching = false;
-        }
-      });
-  }
-
-  sendFriendRequest(friendId: string) {
-    if (!this.userId) {
-      this.searchError = 'Người dùng chưa đăng nhập';
-      return;
-    }
-
-    this.userService.addFriend(friendId)
-      .subscribe({
-        next: () => {
-          this.searchError = null;
-          this.searchResults = [];
-          this.searchTerm = '';
-        },
-        error: (err) => {
-          this.searchError = err.error.msg || 'Lỗi khi gửi yêu cầu kết bạn';
-        }
-      });
-
-    this.socketService.getSocket().emit('request-friend', { userId: friendId, text: '' }, (res: any) => {
-      if (res.code !== 1) {
-        this.searchError = 'Lỗi khi gửi yêu cầu kết bạn qua Socket.IO';
+  loadFriends(): void {
+    this.userService.getFriends().subscribe({
+      next: (friends: Userr[]) => {
+        this.friendsList = friends;
+      },
+      error: (err) => {
+        console.error('❌ Failed to load friends:', err);
       }
     });
   }
+  
 
-  // --- GROUP ---
-  searchGroupMember() {
-    if (!this.groupSearchTerm) {
-      this.groupSearchError = 'Vui lòng nhập email';
-      return;
-    }
-    // { searchTerm: this.groupSearchTerm }
+  foundUser?: Userr;
 
-    this.isGroupSearching = true;
-    
-      this.searchService.search( this.groupSearchTerm).subscribe({
-        next: (res: any) => {
-          this.groupSearchResults = res.filter((u: any) => !this.groupMembers.find(m => m._id === u._id));
-          this.groupSearchError = res.length === 0 ? 'Không tìm thấy người dùng' : null;
-          this.isGroupSearching = false;
-        },
-        error: () => {
-          this.groupSearchError = 'Lỗi tìm kiếm người dùng';
-          this.isGroupSearching = false;
+  onSearchFriend() {
+    this.userService.getUsers().subscribe({
+      next: users => {
+        const found = users.find(u => u.email === this.searchTerm);
+        if (found) {
+          this.foundUser = found;
+          console.log('Found User:', this.foundUser);
+          this.showProfileModal = true; // open modal
+        } else {
+          console.log('No user found.');
         }
-      });
-  }
-
-  addGroupMember(user: any) {
-    if (!this.groupMembers.find(m => m._id === user._id)) {
-      this.groupMembers.push(user);
-    }
-    this.groupSearchResults = [];
-    this.groupSearchTerm = '';
-  }
-
-  removeGroupMember(userId: string) {
-    this.groupMembers = this.groupMembers.filter(m => m._id !== userId);
-  }
-
-  createGroup() {
-    if (!this.groupName || this.groupName.trim().length === 0) {
-      this.groupSearchError = 'Vui lòng nhập tên nhóm';
-      return;
-    }
-
-    if (this.groupMembers.length < 2) {
-      this.groupSearchError = 'Cần ít nhất 2 thành viên (không bao gồm bạn)';
-      return;
-    }
-
-    const memberIds = this.groupMembers.map(m => m._id);
-    const body = {
-      name: this.groupName.trim(),
-      members: memberIds
-    };
-
-    this.chatRoomService.createChatRoom(body.members, body.name) 
-      .subscribe({
-        next: (res) => {
-          console.log('Tạo nhóm thành công:', res);
-          this.close(); // đóng modal
-        },
-        error: (err) => {
-          this.groupSearchError = err.error.msg || 'Lỗi khi tạo nhóm';
-        }
-      });
-
-    // Gửi qua socket để realtime nếu cần
-    this.socketService.getSocket().emit('create-chatRoom', body, (res: any) => {
-      console.log('Socket phản hồi tạo nhóm:', res);
+      },
+      error: err => {
+        console.error('Failed to fetch users:', err);
+      }
     });
   }
+  
+  
+  get filteredFriends(): Userr[] {
+    return this.friendsList.filter(friend =>
+      friend.name.toLowerCase().includes(this.searchTerm.toLowerCase())
+    );
+  }
 
-  private resetForm() {
-    this.searchTerm = '';
-    this.searchResults = [];
-    this.searchError = null;
-    this.isSearching = false;
+  selectedFriends: string[] = [];
 
-    this.groupName = '';
-    this.groupSearchTerm = '';
-    this.groupSearchResults = [];
-    this.groupSearchError = null;
-    this.isGroupSearching = false;
-    this.groupMembers = [];
+  toggleFriendSelection(friendId: string): void {
+    if (this.selectedFriends.includes(friendId)) {
+      this.selectedFriends = this.selectedFriends.filter(id => id !== friendId);
+    } else {
+      this.selectedFriends.push(friendId);
+    }
+  }
+
+  createGroup(friendIds: string[]): void {
+    const currentUserId = sessionStorage.getItem('userId'); ;
+    if (friendIds.length < 2) {
+      alert("Please select at least 2 friends");
+      return;
+    }
+    if (!currentUserId) {
+      console.error("⚠️ Cannot start chat: user._id is undefined");
+      return;
+    }
+    console.log("📦 Creating room with:", {
+      currentUserId,
+      friendIds
+    });
+    
+    const roomData = {
+      members: [...friendIds],
+      chatRoomName: '', // để trống nếu là phòng 2 người
+      image:this.defaulGrouptAvatarUrl
+    };
+    
+    console.log("🚀 ~ ModalComponent ~ createGroup ~ roomData:", roomData)
+    this.chatRoomService.getChatRooms().subscribe({
+      next: (chatRooms) => {
+        // Check if a chat room already exists with the friend
+        const existingRoom = chatRooms.find(room => 
+          room.members.some(id => friendIds.includes(id))  // Check if any friend is already in the room
+        );
+        
+        if (existingRoom) {
+          console.log('Chat Room Exists:', existingRoom);
+          this.navigateToChatRoom(existingRoom._id);
+          // Navigate to the existing chat room or handle it as needed
+        } else {
+          this.chatRoomService.createChatRoom(roomData).subscribe({
+            next: (newRoom) => {
+              console.log('Chat Room Created:', newRoom);
+              this.navigateToChatRoom(newRoom._id);
+              // Navigate to the new chat room or handle it accordingly
+            },
+            error: (err) => console.error('Failed to create chat room:', err)
+          });
+        }
+      },
+      error: (err) => console.error('Error fetching chat rooms:', err)
+    });
+  }
+  navigateToChatRoom(chatRoomId: string): void {
+    console.log("Navigating to chat room with ID:", chatRoomId);
+    //navigate to chat page
+    this.router.navigate([`/chat`], { queryParams: { roomId: chatRoomId } });
+    
   }
 }
+

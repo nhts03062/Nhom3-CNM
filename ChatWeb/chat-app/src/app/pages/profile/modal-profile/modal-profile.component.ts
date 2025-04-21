@@ -5,6 +5,9 @@ import { ChatRoom } from '../../../models/chatRoom.model';
 import { UserService } from '../../../services/user.service';
 import { Userr } from '../../../models/user.model';
 import { Observable } from 'rxjs';
+import { Router } from '@angular/router';
+import { Messagee } from '../../../models/message.model';
+import { MessageService } from '../../../services/message.service';
 
 @Component({
   selector: 'app-modal-profile',
@@ -18,17 +21,40 @@ export class ModalProfileComponent {
   @Input() user: Userr | undefined; 
   @Output() closeModal: EventEmitter<void> = new EventEmitter<void>();
   chatRoom: ChatRoom | undefined;
-
-
-  constructor(private chatRoomService : ChatRoomService, private userService: UserService){}
-  isFriend:boolean = true;
+  currentUserId: string | null  = sessionStorage.getItem('userId')
+  isFriend:boolean = false;
   requestSent: boolean = false;
+  defaulGroupAvatarUrl= 'https://static.vecteezy.com/system/resources/previews/026/019/617/original/group-profile-avatar-icon-default-social-media-forum-profile-photo-vector.jpg';
+  messagees : Messagee [] = [];
+
+  constructor(private chatRoomService : ChatRoomService, 
+    private userService: UserService,
+    private router: Router,
+    private messageService : MessageService  
+  ){}
 
   close() {
     this.closeModal.emit();
   }
 
+  friendIds: string[] = [];
+
+  ngOnInit(): void {
+    this.checkProfile();
+
+  }
+
+  
   startChat(friendId: string): void {
+    if (!this.user || !this.user._id) {
+      console.error("⚠️ Cannot start chat: user._id is undefined");
+      return;
+    }
+    const roomData = {
+      members: [this.user?._id, friendId],
+      chatRoomName: '', // để trống nếu là phòng 2 người
+      image:this.defaulGroupAvatarUrl
+    };
     this.chatRoomService.getChatRooms().subscribe({
       next: (chatRooms) => {
         // Check if a chat room already exists with the friend
@@ -36,11 +62,13 @@ export class ModalProfileComponent {
         
         if (existingRoom) {
           console.log('Chat Room Exists:', existingRoom);
+          this.navigateToChatRoom(existingRoom._id);
           // Navigate to the existing chat room or handle it as needed
         } else {
-          this.chatRoomService.createChatRoom([friendId],'','').subscribe({
+          this.chatRoomService.createChatRoom(roomData).subscribe({
             next: (newRoom) => {
               console.log('Chat Room Created:', newRoom);
+              this.navigateToChatRoom(newRoom._id);
               // Navigate to the new chat room or handle it accordingly
             },
             error: (err) => console.error('Failed to create chat room:', err)
@@ -50,31 +78,64 @@ export class ModalProfileComponent {
       error: (err) => console.error('Error fetching chat rooms:', err)
     });
   }
+  navigateToChatRoom(chatRoomId: string): void {
+    console.log("Navigating to chat room with ID:", chatRoomId);
+    //navigate to chat page
+    this.router.navigate([`/chat`], { queryParams: { roomId: chatRoomId } });
+    
+  }
+
   
 
-  friendIds: string[] = [];
-
-  ngOnInit(): void {
-    const userId = sessionStorage.getItem('userId');
-    if (userId) {
-      this.loadFriendsAndCheck(userId);
+  
+  checkProfile(){
+    if (!this.user) {
+      const userId = sessionStorage.getItem('userId');
+      if (userId) {
+        // this.loadUserData(userId);
+        this.loadFriendsAndCheck(userId);
+      }
+    }
+    if (this.user) {
+      this.requestSent = this.checkIfSentRequest(this.user._id);
+      
     }
   }
-  
+
+  // loadUserData(userId: string): void {
+  //   this.userService.getUserById(userId).subscribe({
+  //     next: (res: Userr) => {
+  //       this.user = res;
+  //       if (this.currentUserId) {
+  //         this.requestSent = this.checkIfSentRequest(this.currentUserId);
+  //       }
+  //     },
+  //     error: err => {
+  //       console.error('Failed to load user:', err);
+  //     }
+  //   });
+  // }
+
   loadFriendsAndCheck(userId: string): void {
     this.userService.getFriends().subscribe({
       next: (friends: Userr[]) => {
         this.friendIds = friends.map(friend => friend._id);
-        this.isFriend = this.checkIfFriend(userId);
+        this.isFriend = !this.checkIfFriend(userId);
+        console.log('Is friend:', this.isFriend);
       },
       error: err => {
         console.error('Failed to fetch friends:', err);
       }
     });
+    
   }
   
   checkIfFriend(userId: string): boolean {
     return this.friendIds.includes(userId);
+  }
+
+  checkIfSentRequest(id:string): boolean{
+    return this.user?.requestfriends?.includes(id) ?? false;
   }
   
 
@@ -91,9 +152,14 @@ export class ModalProfileComponent {
     });
   }
   
-  // requestResponse(code: string): Observable<any> {
-  //   return this.userService.requestResponse(code);
+  // cancelFriendRequest(friendId: string): void {
+  //   if (!this.user) return;
+  
+  //   this.user.requestfriends = this.user.requestfriends.filter(id => id !== friendId);
+  //   this.requestSent = false;
+  //   console.log('Friend request canceled:', friendId);
   // }
+  
 
   sendRequest(friendId:string) {
     if (this.isFriend) return;
@@ -101,13 +167,13 @@ export class ModalProfileComponent {
     if (!this.requestSent) {
       // Send request logic here
       this.sendAddFriend(friendId);
-      this.requestSent = true;
-      console.log("Friend request sent");
+      this.checkProfile();
+      console.log("Friend request sent", friendId);
     } else {
       // Cancel request logic here
-      // this.requestResponse('0');
+      // this.cancelFriendRequest(friendId);
       this.requestSent = false;
-      console.log("Friend request canceled");
+      console.log("Friend request canceled",friendId);
     }
   }
   

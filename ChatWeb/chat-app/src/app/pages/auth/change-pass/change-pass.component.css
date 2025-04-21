@@ -1,5 +1,5 @@
 /* Google Font Link */
-@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@200;300;400;500;600;700&display=swap");
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@200;300;400;500;600;700&display=swap');
 
 * {
   margin: 0;
@@ -12,15 +12,15 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #79b3e2;
+  background: #79B3E2;
   padding: 30px;
 }
 i {
-  font-family: "Font Awesome 6 Free" !important;
-  font-weight: 900 !important;
-  display: inline-block;
-}
-
+    font-family: "Font Awesome 6 Free" !important;
+    font-weight: 900 !important;
+    display: inline-block;
+  }
+  
 .container {
   position: relative;
   width: 30%;
@@ -43,13 +43,13 @@ i {
   color: #333;
 }
 .form-content .title:before {
-  content: "";
+  content: '';
   position: absolute;
   left: 0;
   bottom: 0;
   height: 3px;
   width: 25px;
-  background: #79b3e2;
+  background: #79B3E2;
 }
 
 .form-content .input-boxes {
@@ -77,11 +77,11 @@ i {
 
 .form-content .input-box input:focus,
 .form-content .input-box input:valid {
-  border-color: #79b3e2;
+  border-color: #79B3E2;
 }
 .form-content .input-box i {
   position: absolute;
-  color: #79b3e2;
+  color: #79B3E2;
   font-size: 17px;
 }
 .form-content .text {
@@ -89,20 +89,20 @@ i {
   font-weight: 500;
   color: #333;
 }
-.error {
+.error{
   color: #ee2a2a;
   margin-left: 5px;
 }
-.box-container {
+.box-container{
   display: flex;
   flex-direction: column;
 }
 .form-content .btn {
   color: #fff;
-  background: #79b3e2;
+  background: #79B3E2;
   border-radius: 6px;
   margin-top: 20px;
-  padding: 10px 50px;
+  padding: 10px 50px ;
   cursor: pointer;
   transition: all 0.4s ease;
   width: 100%;
@@ -135,7 +135,7 @@ i {
 ::ng-deep .custom-spinner svg {
   stroke: white !important;
 }
-.modal-dialog {
+.modal-dialog{
   background-color: #fff;
 }
 
