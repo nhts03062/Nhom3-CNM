@@ -28,16 +28,25 @@
           <ul class="search-results" *ngIf="searchResults.length > 0">
             <li *ngFor="let user of searchResults">
 
-              <ng-container *ngIf="isFriend(user.friends); else notFriend">
+              <ng-container *ngIf="isFriend(user.friends); else checkRequest">
                 {{ user.email }} ({{ user.name || user.username }})
                 <p>Đã là bạn bè</p>
               </ng-container>
               
-              <!-- Nếu chưa là bạn bè -->
+              <!-- checkRequest sẽ xử lý else if -->
+                <ng-template #checkRequest>
+                  <ng-container *ngIf="isFiendRequestsReceived(user.friendRequestsReceived); else notFriend">
+                    {{ user.email }} ({{ user.name || user.username }})
+                    <p>Đã gửi lời mời kết bạn</p>
+                  </ng-container>
+                </ng-template>
+
+              <!-- notFriend là else cuối cùng -->
               <ng-template #notFriend>
                 {{ user.email }} ({{ user.name || user.username }})
                 <button class="add-friend-btn" (click)="sendFriendRequest(user._id)">Add Friend</button>
               </ng-template>
+
 
             </li>
           </ul>
