@@ -122,61 +122,115 @@ userController.sendRequestFriend = async (req, res) => {
 //     return res.status(500).json("Lỗi hủy yêu cầu kết bạn");
 //     }
 // };
-userController.responseFriend = async (req, res) => {
-    try {
-      const { code } = req.params; // 0: từ chối, 1: đồng ý
-      const { userId } = req.body; // userId người gửi lời mời
-      const userDaDangNhap = req.user;
+// userController.responseFriend = async (req, res) => {
+//     try {
+//       const { code } = req.params; // 0: từ chối, 1: đồng ý
+//       const { userId } = req.body; // userId người gửi lời mời
+//       const userDaDangNhap = req.user;
 
-      //Tim user nhan lời mời kết bạn
-      const userNhanLoiMoiKb = await User.findById(userDaDangNhap._id);
-      // Tìm user gửi lời mời
-      const userGuiLoiMoiKb = await User.findById(userId);
-      if (!userGuiLoiMoiKb) {
-        return res.status(404).json({ msg: 'Không tìm thấy người gửi lời mời kết bạn' });
-      }
+//       //Tim user nhan lời mời kết bạn
+//       const userNhanLoiMoiKb = await User.findById(userDaDangNhap._id);
+//       // Tìm user gửi lời mời
+//       const userGuiLoiMoiKb = await User.findById(userId);
+//       if (!userGuiLoiMoiKb) {
+//         return res.status(404).json({ msg: 'Không tìm thấy người gửi lời mời kết bạn' });
+//       }
   
-      if (code.toString() === '0') {
+//       if (code.toString() === '0') {
+//         // Trường hợp từ chối kết bạn
+//         //Xóa yêu cầu kết bạn trong danh sách yêu cầu của người nhận
+//         userNhanLoiMoiKb.friendRequestsReceived = userNhanLoiMoiKb.friendRequestsReceived.filter(
+//           (id) => id.toString() !== userId.toString()
+//         );
+//         //Xóa lời mời kết bạn đã nhân5 trong danh sách yêu cầu kết bạn của người gửigửi
+//         userGuiLoiMoiKb.requestfriends = userGuiLoiMoiKb.requestfriends.filter(
+//           (id) => id.toString() !== userDaDangNhap._id.toString()
+//         );
+//         await userNhanLoiMoiKb.save();
+//         await userGuiLoiMoiKb.save();
+  
+//         return res.status(200).json({ msg: 'Đã từ chối lời mời kết bạn' });
+//       } 
+//       else {
+//         // Trường hợp đồng ý kết bạn
+//         //Thêm bạn bè vào danh sách bạn bè của người nhận
+//         userNhanLoiMoiKb.friends.push(userId.toString());
+//         //Thêm bạn bè vào danh sách bạn bè của người gửi
+//         userGuiLoiMoiKb.friends.push(userDaDangNhap._id.toString());
+
+//         //Xóa yêu cầu kết bạn trong danh sách yêu cầu của người nhận
+//         userNhanLoiMoiKb.friendRequestsReceived = userNhanLoiMoiKb.friendRequestsReceived.filter(
+//           (id) => id.toString() !== userId.toString()
+//         );
+//         //Xóa yêu cầu kết bạn trong danh sách yêu cầu của người gửi
+//         userGuiLoiMoiKb.requestfriends = userGuiLoiMoiKb.requestfriends.filter(
+//           (id) => id.toString() !== userDaDangNhap._id.toString()
+//         );
+//         await userNhanLoiMoiKb.save();
+//         await userGuiLoiMoiKb.save();
+        
+        
+//         return res.status(200).json({ msg: 'Đã đồng ý lời mời kết bạn' });
+//       }  
+//     } catch (err) {
+//       console.error(" Lỗi xử lý đồng ý/từ chối kết bạn:", err);
+//       return res.status(500).json({ msg: "Lỗi server khi xử lý kết bạn" });
+//     }
+//   };
+userController.responseFriend = async (req, res) => {
+  try {
+    const { code } = req.params; // 0: từ chối, 1: đồng ý
+    const { userId } = req.body; // userId người gửi lời mời
+    const userDaDangNhap = req.user;
+
+    console.log(userId);
+
+    // Tìm user nhận lời mời kết bạn
+    const userNhanLoiMoiKb = await User.findById(userDaDangNhap._id);
+    // Tìm user gửi lời mời
+    const userGuiLoiMoiKb = await User.findById(userId);
+    if (!userGuiLoiMoiKb) {
+      return res.status(404).json({ msg: 'Không tìm thấy người gửi lời mời kết bạn' });
+    }
+
+    // Cập nhật tài liệu nếu code === '0' (từ chối) hoặc '1' (đồng ý)
+    const updateFriendRequest = async (code) => {
+      if (code === '0') {
         // Trường hợp từ chối kết bạn
-        //Xóa yêu cầu kết bạn trong danh sách yêu cầu của người nhận
         userNhanLoiMoiKb.friendRequestsReceived = userNhanLoiMoiKb.friendRequestsReceived.filter(
           (id) => id.toString() !== userId.toString()
         );
-        //Xóa lời mời kết bạn đã nhân5 trong danh sách yêu cầu kết bạn của người gửigửi
         userGuiLoiMoiKb.requestfriends = userGuiLoiMoiKb.requestfriends.filter(
           (id) => id.toString() !== userDaDangNhap._id.toString()
         );
-        await userNhanLoiMoiKb.save();
-        await userGuiLoiMoiKb.save();
-  
-        return res.status(200).json({ msg: 'Đã từ chối lời mời kết bạn' });
-      } 
-      else {
+      } else {
         // Trường hợp đồng ý kết bạn
-        //Thêm bạn bè vào danh sách bạn bè của người nhận
         userNhanLoiMoiKb.friends.push(userId.toString());
-        //Thêm bạn bè vào danh sách bạn bè của người gửi
         userGuiLoiMoiKb.friends.push(userDaDangNhap._id.toString());
 
-        //Xóa yêu cầu kết bạn trong danh sách yêu cầu của người nhận
         userNhanLoiMoiKb.friendRequestsReceived = userNhanLoiMoiKb.friendRequestsReceived.filter(
           (id) => id.toString() !== userId.toString()
         );
-        //Xóa yêu cầu kết bạn trong danh sách yêu cầu của người gửi
         userGuiLoiMoiKb.requestfriends = userGuiLoiMoiKb.requestfriends.filter(
           (id) => id.toString() !== userDaDangNhap._id.toString()
         );
-        await userNhanLoiMoiKb.save();
-        await userGuiLoiMoiKb.save();
-        
-        
-        return res.status(200).json({ msg: 'Đã đồng ý lời mời kết bạn' });
-      }  
-    } catch (err) {
-      console.error(" Lỗi xử lý đồng ý/từ chối kết bạn:", err);
-      return res.status(500).json({ msg: "Lỗi server khi xử lý kết bạn" });
-    }
-  };
+      }
+
+      // Cập nhật tài liệu với `findOneAndUpdate`, tránh lỗi VersionError
+      await User.findOneAndUpdate({ _id: userNhanLoiMoiKb._id }, userNhanLoiMoiKb, { new: true, runValidators: true });
+      await User.findOneAndUpdate({ _id: userGuiLoiMoiKb._id }, userGuiLoiMoiKb, { new: true, runValidators: true });
+    };
+
+    // Gọi hàm cập nhật sau khi kiểm tra mã đồng ý/từ chối
+    await updateFriendRequest(code);
+
+    // Trả về phản hồi
+    return res.status(200).json({ msg: code === '1' ? 'Đã đồng ý lời mời kết bạn' : 'Đã từ chối lời mời kết bạn' });
+  } catch (err) {
+    console.error("Lỗi xử lý đồng ý/từ chối kết bạn:", err);
+    return res.status(500).json({ msg: "Lỗi server khi xử lý kết bạn" });
+  }
+};
 
   userController.unFriend = async(req,res) =>{
     try{

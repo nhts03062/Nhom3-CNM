@@ -38,7 +38,7 @@ export class ModalProfileComponent {
           console.log('Chat Room Exists:', existingRoom);
           // Navigate to the existing chat room or handle it as needed
         } else {
-          this.chatRoomService.createChatRoom().subscribe({
+          this.chatRoomService.createChatRoom([friendId],'','').subscribe({
             next: (newRoom) => {
               console.log('Chat Room Created:', newRoom);
               // Navigate to the new chat room or handle it accordingly
@@ -91,9 +91,9 @@ export class ModalProfileComponent {
     });
   }
   
-  requestResponse(code: string): Observable<any> {
-    return this.userService.requestResponse(code);
-  }
+  // requestResponse(code: string): Observable<any> {
+  //   return this.userService.requestResponse(code);
+  // }
 
   sendRequest(friendId:string) {
     if (this.isFriend) return;
@@ -105,7 +105,7 @@ export class ModalProfileComponent {
       console.log("Friend request sent");
     } else {
       // Cancel request logic here
-      this.requestResponse('0');
+      // this.requestResponse('0');
       this.requestSent = false;
       console.log("Friend request canceled");
     }

@@ -20,7 +20,7 @@
           (click)="chatRoomDuocChon(chat._id)"
         >
           <ng-container *ngIf="layNguoiDungKhac(chat,nguoiDung) as userChat">
-            <div class="photo" [style.backgroundImage]="'url(' + (userChat.avatarUrl || defaultAvatarUrl) + ')'">
+            <div class="photo" [style.backgroundImage]="'url(' + (userChat?.avatarUrl || defaultAvatarUrl) + ')'">
             </div>
             <div class="desc-contact">
               <div class="username">

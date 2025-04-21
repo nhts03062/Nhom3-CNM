@@ -1,9 +1,9 @@
 <div class="modal-backdrop" *ngIf="isOpen">
   <div class="modal">
     <article class="modal-container">
+      <!-- Header -->
       <header class="modal-container-header">
-        <h5 class="modal-container-title">          
-          <!-- Tabs -->
+        <h5 class="modal-container-title">
           <div class="modal-tabs">
             <button [class.active]="activeTab === 'friend'" (click)="setTab('friend')">Add Friend</button>
             <button [class.active]="activeTab === 'group'" (click)="setTab('group')">Create Group</button>
@@ -11,82 +11,93 @@
         </h5>
       </header>
 
-
-      <section class="modal-container-body rtf">
+      <!-- Body -->
+      <section class="modal-container-body">
+        <!-- Add Friend Tab -->
         <ng-container *ngIf="activeTab === 'friend'">
-          <input type="text" class="email-searching" placeholder="Search friend's email" [(ngModel)]="searchTerm"/>
+          <input
+            type="text"
+            class="email-searching"
+            placeholder="Search friend email"
+            [(ngModel)]="searchTerm"
+            (keyup.enter)="searchFriend()"
+          />
+          <div *ngIf="isSearching" class="loading">Searching...</div>
+          <p class="error" *ngIf="searchError">{{ searchError }}</p>
+
+          <ul class="search-results" *ngIf="searchResults.length > 0">
+            <li *ngFor="let user of searchResults">
+
+              <ng-container *ngIf="isFriend(user.friends); else notFriend">
+                {{ user.email }} ({{ user.name || user.username }})
+                <p>Đã là bạn bè</p>
+              </ng-container>
+              
+              <!-- Nếu chưa là bạn bè -->
+              <ng-template #notFriend>
+                {{ user.email }} ({{ user.name || user.username }})
+                <button class="add-friend-btn" (click)="sendFriendRequest(user._id)">Add Friend</button>
+              </ng-template>
+
+            </li>
+          </ul>
         </ng-container>
 
+        <!-- Create Group Tab -->
         <ng-container *ngIf="activeTab === 'group'">
-          <div class="d-flex flex-row align-items-center gap-2 p-2">
-            <i class="fa-solid fa-camera-retro"></i>
-            <input type="text" class="group-name" placeholder="Group name" />
-          </div>
-          <!-- Search Input -->
-            <input
+          <input
             type="text"
-            placeholder="Search..."
-            [(ngModel)]="searchTerm"
-            class="friends-searchbar"
-            />
+            class="email-searching"
+            placeholder="Group name"
+            [(ngModel)]="groupName"
+          />
+          <input
+            type="text"
+            class="email-searching"
+            placeholder="Search member email"
+            [(ngModel)]="groupSearchTerm"
+            (keyup.enter)="searchGroupMember()"
+          />
+          <div *ngIf="isGroupSearching" class="loading">Searching...</div>
+          <p class="error" *ngIf="groupSearchError">{{ groupSearchError }}</p>
 
-            <!-- Show only filtered friends -->
-            <ng-container *ngFor="let friend of filteredFriends; let i = index">
-              <div 
-                class="left-section friends" 
-                [class.active]="selectedFriends.includes(friend._id)"
-                (click)="toggleFriendSelection(friend._id)">
-            
-                <div class="checkbox-wrapper-15">
-                  <input 
-                    class="inp-cbx" 
-                    [id]="'cbx-15-' + i" 
-                    type="checkbox" 
-                    [checked]="selectedFriends.includes(friend._id)"
-                    style="display: none;" />
-            
-                  <label class="cbx" [for]="'cbx-15-' + i">
-                    <span>
-                      <svg width="12px" height="9px" viewBox="0 0 12 9">
-                        <polyline points="1 5 4 8 11 1"></polyline>
-                      </svg>
-                    </span>
-                  </label>
-                </div>
-            
-                <div class="photo" [style.backgroundImage]="'url(' + friend.avatarUrl + ')'">
-                  <!-- <div class="online" *ngIf="friend.online"></div> -->
-                </div>
-                <div class="desc-contact">
-                  <p class="name">{{ friend.name }}</p>
-                </div>
-              </div>
-            </ng-container>
-            
+          <ul class="search-results" *ngIf="groupSearchResults.length > 0">
+            <li *ngFor="let user of groupSearchResults">
+              {{ user.email }} ({{ user.name || user.username }})
+              <button class="add-friend-btn" (click)="addGroupMember(user)">Add to Group</button>
+            </li>
+          </ul>
 
-            <!-- Optional: No matches -->
-            <div class="no-results" *ngIf="searchTerm && filteredFriends.length === 0">
-            No friends found.
-            </div>
-
+          <div class="group-members" *ngIf="groupMembers.length > 0">
+            <h6>Selected Members:</h6>
+            <ul>
+              <li *ngFor="let member of groupMembers">
+                {{ member.email }} ({{ member.name || member.username }})
+                <button class="remove-btn" (click)="removeGroupMember(member._id)">Remove</button>
+              </li>
+            </ul>
+          </div>
         </ng-container>
       </section>
 
+      <!-- Footer -->
       <footer class="modal-container-footer">
         <button class="button is-ghost" (click)="close()">Cancel</button>
-        <button class="button is-primary" (click)="activeTab === 'friend' ? onSearchFriend() : createGroup()">
-          {{ activeTab === 'friend' ? 'Search' : 'Create Group' }}
+        <button
+          class="button is-primary"
+          *ngIf="activeTab === 'friend'"
+          (click)="searchFriend()"
+        >
+          Search
         </button>
-        
+        <button
+          class="button is-primary"
+          *ngIf="activeTab === 'group'"
+          (click)="createGroup()"
+        >
+          Create Group
+        </button>
       </footer>
     </article>
   </div>
-  <app-modal-profile
-    *ngIf="showProfileModal"
-    [isOpen]="showProfileModal"
-    [user]="foundUser"
-    (closeModal)="toggleProfileModal()"
-    title="Profile">
-  </app-modal-profile>
-
 </div>
