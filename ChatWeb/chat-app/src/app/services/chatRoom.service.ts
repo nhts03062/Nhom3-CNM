@@ -8,7 +8,7 @@ import { ChatRoom } from '../models/chatRoom.model';
 @Injectable({ providedIn: 'root' })
 
 export class ChatRoomService{
-  private apiUrl = 'http://localhost:5000/api';
+  private apiUrl = 'http://localhost:5000/api/chatroom';
   users: Userr [] =[];
   conversations: Messagee [] = [];
   chatRoom : ChatRoom [] = [];
@@ -20,11 +20,22 @@ export class ChatRoomService{
     const token = sessionStorage.getItem('token');
     return new HttpHeaders({ 'Authorization': `${token}` });
   }
-  createChatRoom(): Observable<ChatRoom[]> {
-    return this.http.post<ChatRoom[]>(`${this.apiUrl}/`, {
+  createChatRoom(
+    members: string[],
+    chatRoomName?: string,
+    image?: string
+  ): Observable<ChatRoom> {
+    const body = {
+      chatRoomName,
+      members,
+      image
+    };
+  
+    return this.http.post<ChatRoom>(`${this.apiUrl}/`, body, {
       headers: this.getHeaders()
     });
   }
+  
   getChatRooms(): Observable<ChatRoom[]> {
     return this.http.get<ChatRoom[]>(`${this.apiUrl}/`, {
       headers: this.getHeaders()

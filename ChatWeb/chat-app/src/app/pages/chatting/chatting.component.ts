@@ -391,7 +391,7 @@ export class ChattingComponent implements OnInit {
     const user = this.getUserFromId(userId);
     return user ? user.name : 'Unknown User';
   }
-  
+
   
 }    
 
