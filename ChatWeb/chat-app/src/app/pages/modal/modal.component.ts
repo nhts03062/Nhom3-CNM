@@ -63,6 +63,9 @@ export class ModalComponent implements OnInit {
   isFriend(friends: string[]): boolean {
     return friends.includes(this.idNguoiDungHienTai || '');
   }
+  isFiendRequestsReceived(friendRequestsReceived: string[]): boolean {
+    return friendRequestsReceived.includes(this.idNguoiDungHienTai || '');
+  }
 
   close() {
     this.closeModal.emit();
