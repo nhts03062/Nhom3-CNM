@@ -479,4 +479,3 @@ export class ChattingComponent implements OnInit {
   //   return messages[index].senderId !== messages[index + 1].senderId;
   // }
 
-

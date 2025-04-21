@@ -17,11 +17,13 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Feather } from "@expo/vector-icons";
 import axios from 'axios';
+import { useAuth } from '../../../contexts/AuthContext';
 
 const { width, height } = Dimensions.get("window");
-const API_BASE_URL = 'http://192.168.88.89:5000/api';
+const API_BASE_URL = require('../../../services/api');
 
 const AuthScreen = ({ navigation, route }) => {
+  const { login } = useAuth();
   const pageFlip = useRef(new Animated.Value(0)).current;
   const [isFlipped, setIsFlipped] = useState(false);
 
@@ -52,31 +54,32 @@ const AuthScreen = ({ navigation, route }) => {
     }
   }, [route.params]);
 
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const token = await AsyncStorage.getItem('token');
-        if (token) {
-          try {
-            const response = await axios.get(`${API_BASE_URL}/auth/verify-token`, {
-              headers: {
-                Authorization: `Bearer ${token}`
-              }
-            });
-            if (response.status === 200) {
-              navigation.replace('Dashboard');
-            }
-          } catch (error) {
-            console.log('Token invalid or expired:', error);
-            await AsyncStorage.removeItem('token');
-          }
+  const checkAuth = async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (token) {
+        console.log('Verifying token:', token);
+        const response = await axios.get(`${API_BASE_URL}/api/chatroom`, {
+          headers: {
+            Authorization: token,
+          },
+        });
+        if (response.status === 200) {
+          navigation.replace('ChatRoomListScreen');
+        } else {
+          await AsyncStorage.removeItem('token');
+          await AsyncStorage.removeItem('user');
         }
-      } catch (error) {
-        console.error('Error checking authentication:', error);
+
+        // If we get here, the token is valid
+        navigation.replace('ChatRoomListScreen');
       }
-    };
-    checkAuth();
-  }, [navigation]);
+    } catch (error) {
+      console.error('Token verification failed:', error.response || error);
+      await AsyncStorage.removeItem('token');
+      await AsyncStorage.removeItem('user');
+    }
+  };
 
   const frontPageStyle = {
     transform: [
@@ -130,7 +133,6 @@ const AuthScreen = ({ navigation, route }) => {
     }),
   };
 
-  // Page flip shadow effect
   const pageShadowStyle = {
     opacity: pageFlip.interpolate({
       inputRange: [0, 0.5, 1],
@@ -146,11 +148,9 @@ const AuthScreen = ({ navigation, route }) => {
     ],
   };
 
-  // Function to handle page flip animation
   const handleFlip = () => {
     const toValue = isFlipped ? 0 : 1;
 
-    // Reset error states
     setEmailError("");
     setPasswordError("");
     setNameError("");
@@ -165,7 +165,6 @@ const AuthScreen = ({ navigation, route }) => {
     setIsFlipped(!isFlipped);
   };
 
-  // Validate login form
   const validateLogin = () => {
     let isValid = true;
 
@@ -182,7 +181,6 @@ const AuthScreen = ({ navigation, route }) => {
     return isValid;
   };
 
-  // Validate signup form
   const validateSignup = () => {
     let isValid = true;
     if (!name) {
@@ -210,29 +208,12 @@ const AuthScreen = ({ navigation, route }) => {
     if (validateLogin()) {
       try {
         setIsLoading(true);
-        const response = await axios.post(`${API_BASE_URL}/auth/login`, {
-          email,
-          password
-        });
-
-        if (response.data.token) {
-          await AsyncStorage.setItem('token', response.data.token);
-          if (response.data.user) {
-            await AsyncStorage.setItem('user', JSON.stringify(response.data.user));
-          }
-          if (rememberMe) {
-            await AsyncStorage.setItem('rememberMe', 'true');
-            await AsyncStorage.setItem('savedEmail', email);
-          } else {
-            await AsyncStorage.removeItem('rememberMe');
-            await AsyncStorage.removeItem('savedEmail');
-          }
-          Alert.alert("Success", "✅ Login successful!");
-          navigation.replace('Dashboard');
-        }
+        await login(email, password, rememberMe);
+        Alert.alert('Success', '✅ Login successful!');
+        navigation.replace('ChatRoomListScreen');
       } catch (error) {
-        const errorMessage = error.response?.data?.msg || "Login failed. Please try again.";
-        Alert.alert("Login Error", `❌ ${errorMessage}`);
+        const errorMessage = error.response?.data?.msg || 'Login failed. Please try again.';
+        Alert.alert('Login Error', `❌ ${errorMessage}`);
       } finally {
         setIsLoading(false);
       }
@@ -246,7 +227,7 @@ const AuthScreen = ({ navigation, route }) => {
         const response = await axios.post(`${API_BASE_URL}/auth/register`, {
           name,
           email,
-          password
+          password,
         });
 
         Alert.alert(
@@ -255,8 +236,8 @@ const AuthScreen = ({ navigation, route }) => {
           [
             {
               text: "OK",
-              onPress: () => handleFlip()
-            }
+              onPress: () => handleFlip(),
+            },
           ]
         );
       } catch (error) {
@@ -280,7 +261,7 @@ const AuthScreen = ({ navigation, route }) => {
       [
         {
           text: "Cancel",
-          style: "cancel"
+          style: "cancel",
         },
         {
           text: "Yes, send link",
@@ -300,8 +281,8 @@ const AuthScreen = ({ navigation, route }) => {
             } finally {
               setIsLoading(false);
             }
-          }
-        }
+          },
+        },
       ]
     );
   };
@@ -313,13 +294,9 @@ const AuthScreen = ({ navigation, route }) => {
         style={styles.keyboardAvoidingView}
       >
         <View style={styles.bookContainer}>
-          {/* Page shadow effect */}
           <Animated.View style={[styles.pageShadow, pageShadowStyle]} />
 
-          {/* Login Page (Front) */}
-          <Animated.View
-            style={[styles.page, frontPageStyle, styles.frontPage]}
-          >
+          <Animated.View style={[styles.page, frontPageStyle, styles.frontPage]}>
             <View style={styles.pageContent}>
               <View style={styles.contentColumn}>
                 <View style={styles.loginHeader}>
@@ -429,7 +406,6 @@ const AuthScreen = ({ navigation, route }) => {
             <View style={styles.pageEdge} />
           </Animated.View>
 
-          {/* Signup Page (Back) */}
           <Animated.View style={[styles.page, backPageStyle, styles.backPage]}>
             <View style={styles.pageEdgeShadow} />
             <View style={styles.pageContent}>
@@ -648,6 +624,7 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   input: {
+    flexsono: false,
     flex: 1,
     fontSize: 16,
     color: "#333",
