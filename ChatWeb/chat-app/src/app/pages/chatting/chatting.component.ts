@@ -13,6 +13,8 @@ import { SocketService } from '../../socket.service';
 import { UserService } from '../../services/user.service';
 import { ChatRoomService } from '../../services/chatRoom.service';
 import { Userr } from '../../models/user.model';
+import { ActivatedRoute } from '@angular/router';
+import { MessageService } from '../../services/message.service';
 
 @Component({
   selector: 'app-chatting',
@@ -38,12 +40,20 @@ export class ChattingComponent implements OnInit {
   showEmojiPicker: boolean = false;
   showModal = false;
   searchTerm: string = '';
+  selectedRoom? : ChatRoom | undefined;
+  otherUsersChat: Userr[] = [];
+
 
   constructor(private http :HttpClient, private socketService : SocketService , 
-    private userService : UserService, private chatRoomService: ChatRoomService){};
+    private userService : UserService, 
+    private chatRoomService: ChatRoomService,
+    private route: ActivatedRoute,
+    private messageService: MessageService
+  
+  ){};
   
   ngOnInit(): void {
-    this.getChatRoom();
+    this.getChatRooms();
 
     this.socketService.onNewMessage( msg =>{
       this.messagees.push(msg);
@@ -58,6 +68,14 @@ export class ChattingComponent implements OnInit {
       this.messagees = this.messagees.map(msg => msg._id === recal._id ? recal : msg )
       console.log('thu hồi đã được gọi', recal)
     })
+    this.route.queryParams.subscribe(params => {
+      this.chatRoomIdDuocChon = params['roomId'];
+      console.log("Selected chat room ID:", this.chatRoomIdDuocChon);
+      if (this.chatRoomIdDuocChon) {
+        this.getRoom(this.chatRoomIdDuocChon);
+      }
+    });
+
     
   }
   toggleModal(): void {
@@ -69,13 +87,39 @@ export class ChattingComponent implements OnInit {
     return new HttpHeaders({ 'Authorization': `${token}` });
   }
 
-  // layNguoiDungKhac(room : ChatRoom): Userr | undefined {
-  //   return room.members.find(mem => mem._id !== this.idNguoiDungHienTai);
+  
+
+  // layNguoiDungKhac(room: ChatRoom, allUsers: Userr[]): { isGroupChat: boolean, avatarUrl?: string, name?: string, chatRoomName?: string, latestMessage?: string } {
+  //   const otherIds = room.members.filter(id => id !== this.idNguoiDungHienTai);
+  //   // If only one member left (the current user is excluded), it's not a group chat
+  //   if (otherIds.length > 1) {
+  //     return {
+  //       isGroupChat: true,
+  //       avatarUrl: room.image || this.defaulGrouptAvatarUrl,
+  //       chatRoomName: room.chatRoomName,  // Group name
+  //       latestMessage: room.latestMessage
+  //     };
+  //   } else {
+  //     // User chat logic
+  //     const user = allUsers.find(user => user._id === otherIds[0]);
+  //     return {
+  //       isGroupChat: false,
+  //       avatarUrl: user?.avatarUrl || this.defaultAvatarUrl,
+  //       name: user?.name,
+  //       latestMessage: room.latestMessage
+  //     };
+  //   }
   // }
 
-  layNguoiDungKhac(room: ChatRoom, allUsers: Userr[]): Userr | undefined {
-    const otherId = room.members.find(id => id !== this.idNguoiDungHienTai);
-    return allUsers.find(u => u._id === otherId);
+  layNguoiDungKhac(room: ChatRoom): Userr[] {
+    // We assume members are now full user objects (after create or fetch)
+    const otherUsers = (room.members as any[]).filter((member: any) => {
+      // Get member._id if it's an object, otherwise just use the string
+      const memberId = typeof member === 'string' ? member : member._id;
+      return memberId !== this.idNguoiDungHienTai;
+    }).filter((member: any) => typeof member !== 'string'); // Only keep objects (Userr)
+
+    return otherUsers;
   }
   
   getMessageById(id: string): Messagee | undefined {
@@ -83,27 +127,64 @@ export class ChattingComponent implements OnInit {
   }
   
 
-  getChatRoom(): void{
-    this.http.get('http://localhost:5000/api/chatroom', { headers: this.getHeaders() }).subscribe({
+  getChatRooms(): void{
+    this.chatRoomService.getChatRooms().subscribe({
       next: (res : any) => {
         this.chatRooms = res;
-        console.log('phòng chat: ',res)
+        console.log('các phòng chat: ',res)
       }, error: err =>{
         console.log(err)
       }
     })
   }
+  getRoom(roomId: string): void {
+    if (!roomId) {
+      console.error('⛔️ roomId không tồn tại khi gọi getRoom');
+      return;
+    }
+  
+    this.chatRoomIdDuocChon = roomId;
+    console.log("🚀 Gọi getRoom với roomId:", this.chatRoomIdDuocChon);
+  
+    this.chatRoomService.getChatRoomsById(this.chatRoomIdDuocChon).subscribe({
+      next: (res: any) => {
+        this.selectedRoom = res;
+        console.log('✅ phòng chat nhận được: ', this.selectedRoom);
+  
+        // Gọi tiếp xử lý tin nhắn
+        if (this.chatRoomIdDuocChon) {
+          this.chatRoomDuocChon(this.chatRoomIdDuocChon);
+        }
+        // if (this.selectedRoom) {
+        //   this.otherUsersChat = this.layNguoiDungKhac(this.selectedRoom);
+        // }
+        if (this.selectedRoom && Array.isArray(this.otherUsersChat)) {
+          this.selectedRoom.isGroupChat = this.otherUsersChat.length > 1;
+        }
+        
+        
+        console.log('👥 Other users in this chat:', this.otherUsersChat);
+      },
+      error: err => {
+        console.error('❌ Lỗi khi gọi getChatRoomsById:', err);
+      }
+    });
+  }
+  
+
 
   chatRoomDuocChon(id: string): void {
     this.chatRoomIdDuocChon = id;
-    console.log(this.chatRoomIdDuocChon)
+    console.log("chatRoomDuocChon",this.chatRoomIdDuocChon)
   
-    this.http.get(`http://localhost:5000/api/message/${this.chatRoomIdDuocChon}`, {
-      headers: this.getHeaders(),
-    }).subscribe({
+    this.messageService.getAllMessages(this.chatRoomIdDuocChon).subscribe({
       next: (res: any) => {
         this.messagees = res;
         console.log('tin nhắn: ', this.messagees);
+        // Log toàn bộ sendID
+        const allSendIDs = this.messagees.map(msg => msg.sendID);
+        console.log('🔍 Tất cả sendID:', allSendIDs);
+        console.log('🙋‍♂️ idNguoiDungHienTai:', this.idNguoiDungHienTai);
       },
       error: err => {
         console.log(err);
@@ -391,7 +472,7 @@ export class ChattingComponent implements OnInit {
     const user = this.getUserFromId(userId);
     return user ? user.name : 'Unknown User';
   }
-
+  
   
 }    
 

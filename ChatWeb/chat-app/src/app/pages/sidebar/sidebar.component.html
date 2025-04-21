@@ -1,8 +1,9 @@
 <nav class="menu">
   <ul class="items">
     <li class="avatar" (click)="onNavigate(0)">
-      <!-- Hiển thị avatar của người dùng hoặc fallback về default -->
-      <div class="photo" [style.backgroundImage]="'url(' + (user.avatarUrl || defaultAvatarUrl) + ')'"></div>
+      <!-- <div class="photo" [style.backgroundImage]="'url(' + user.avatarUrl || defaultAvatarUrl + ')'"> -->
+        <div class="photo" [style.backgroundImage]="'url(' + defaultAvatarUrl + ')'">
+      </div>
     </li>
 
     <li 
