@@ -20,24 +20,14 @@ export class ChatRoomService{
     const token = sessionStorage.getItem('token');
     return new HttpHeaders({ 'Authorization': `${token}` });
   }
-  createChatRoom(
-    members: string[],
-    chatRoomName?: string,
-    image?: string
-  ): Observable<ChatRoom> {
-    const body = {
-      chatRoomName,
-      members,
-      image
-    };
-  
-    return this.http.post<ChatRoom>(`${this.apiUrl}/`, body, {
+  createChatRoom(roomData: { members: string[], chatRoomName?: string, image?: string }): Observable<ChatRoom> {
+    return this.http.post<ChatRoom>(`${this.apiUrl}`, roomData, {
       headers: this.getHeaders()
     });
   }
   
   getChatRooms(): Observable<ChatRoom[]> {
-    return this.http.get<ChatRoom[]>(`${this.apiUrl}/`, {
+    return this.http.get<ChatRoom[]>(`${this.apiUrl}`, {
       headers: this.getHeaders()
     });
   }
