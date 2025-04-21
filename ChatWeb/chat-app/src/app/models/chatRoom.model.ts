@@ -1,6 +1,9 @@
 // import { Messagee } from './message.model';
 // import { Userr } from './user.model';
 
+import { Messagee } from "./message.model";
+import { Userr } from "./user.model";
+
 // export interface ChatRoom {
 //   // timeAgo: string;
 //   _id: string;
@@ -18,8 +21,9 @@ export interface ChatRoom {
   members: string[]; // user IDs
   image?: string;
   admin?: string; // user ID
-  latestMessage?: string; // message ID
+  latestMessage?: Messagee;
   createdAt: string;
   updatedAt: string;
+  otherMembers:Userr[];
   __v?: number;
 }

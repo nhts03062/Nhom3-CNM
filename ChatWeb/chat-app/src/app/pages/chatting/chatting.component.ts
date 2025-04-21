@@ -41,7 +41,7 @@ export class ChattingComponent implements OnInit {
   showModal = false;
   searchTerm: string = '';
   selectedRoom? : ChatRoom | undefined;
-  otherUsersChat: Userr[] = [];
+  otherUsersChat: Userr | undefined;
 
 
   constructor(private http :HttpClient, private socketService : SocketService , 
@@ -121,6 +121,7 @@ export class ChattingComponent implements OnInit {
 
     return otherUsers;
   }
+
   
   getMessageById(id: string): Messagee | undefined {
     return this.messagees.find(m => m._id === id);
@@ -130,8 +131,13 @@ export class ChattingComponent implements OnInit {
   getChatRooms(): void{
     this.chatRoomService.getChatRooms().subscribe({
       next: (res : any) => {
-        this.chatRooms = res;
-        console.log('các phòng chat: ',res)
+        const updatedChatRooms = res.map((room: ChatRoom)=>{
+          return {...room,
+          otherMembers: this.layNguoiDungKhac(room)
+        }})
+        this.chatRooms = updatedChatRooms;
+        
+        console.log('các phòng chat: ',this.chatRooms)
       }, error: err =>{
         console.log(err)
       }
@@ -142,42 +148,20 @@ export class ChattingComponent implements OnInit {
       console.error('⛔️ roomId không tồn tại khi gọi getRoom');
       return;
     }
-  
-    this.chatRoomIdDuocChon = roomId;
+
     console.log("🚀 Gọi getRoom với roomId:", this.chatRoomIdDuocChon);
-  
-    this.chatRoomService.getChatRoomsById(this.chatRoomIdDuocChon).subscribe({
-      next: (res: any) => {
-        this.selectedRoom = res;
-        console.log('✅ phòng chat nhận được: ', this.selectedRoom);
-  
-        // Gọi tiếp xử lý tin nhắn
-        if (this.chatRoomIdDuocChon) {
-          this.chatRoomDuocChon(this.chatRoomIdDuocChon);
-        }
-        // if (this.selectedRoom) {
-        //   this.otherUsersChat = this.layNguoiDungKhac(this.selectedRoom);
-        // }
-        if (this.selectedRoom && Array.isArray(this.otherUsersChat)) {
-          this.selectedRoom.isGroupChat = this.otherUsersChat.length > 1;
-        }
-        
-        
-        console.log('👥 Other users in this chat:', this.otherUsersChat);
-      },
-      error: err => {
-        console.error('❌ Lỗi khi gọi getChatRoomsById:', err);
-      }
-    });
+    this.selectedRoom = this.chatRooms.find(room=>room._id.toString() === roomId)
+    console.log("🚀 ~ ChattingComponent ~ getRoom ~ this.selectedRoom:", this.selectedRoom)
+    if (roomId) {
+      this.chatRoomDuocChon(roomId);
+    }
   }
   
 
 
   chatRoomDuocChon(id: string): void {
-    this.chatRoomIdDuocChon = id;
-    console.log("chatRoomDuocChon",this.chatRoomIdDuocChon)
   
-    this.messageService.getAllMessages(this.chatRoomIdDuocChon).subscribe({
+    this.messageService.getAllMessages(id).subscribe({
       next: (res: any) => {
         this.messagees = res;
         console.log('tin nhắn: ', this.messagees);
@@ -185,6 +169,7 @@ export class ChattingComponent implements OnInit {
         const allSendIDs = this.messagees.map(msg => msg.sendID);
         console.log('🔍 Tất cả sendID:', allSendIDs);
         console.log('🙋‍♂️ idNguoiDungHienTai:', this.idNguoiDungHienTai);
+        
       },
       error: err => {
         console.log(err);
@@ -227,9 +212,11 @@ export class ChattingComponent implements OnInit {
   
 
   createMessage(text: string): void {
-    const chatRoom = this.chatRoomIdDuocChon; // Đây phải là một đối tượng ChatRoom
+    const chatRoom = this.selectedRoom?._id; // Đây phải là một đối tượng ChatRoom
     const user = this.idNguoiDungHienTai; // Đây phải là một đối tượng Userr
 
+    console.log('chatRoom',chatRoom)
+    console.log('user',user)
     // Kiểm tra nếu thiếu thông tin cần thiết
     if (!chatRoom || !user) {
       console.warn("Chat room or user information is missing.");
@@ -559,4 +546,5 @@ export class ChattingComponent implements OnInit {
   //   if (!messages || index >= messages.length - 1) return true;
   //   return messages[index].senderId !== messages[index + 1].senderId;
   // }
+
 

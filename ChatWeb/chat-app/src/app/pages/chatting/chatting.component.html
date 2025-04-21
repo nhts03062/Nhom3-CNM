@@ -20,14 +20,14 @@
           (click)="getRoom(chat._id) "
         >
           <ng-container *ngIf="selectedRoom">
-            <div *ngFor="let userChat of otherUsersChat">
+            <div>
               <div class="photo" 
-                  [style.backgroundImage]="'url(' + (selectedRoom.isGroupChat ? (selectedRoom.image) : userChat.avatarUrl) + ')'">
+                  [style.backgroundImage]="'url(' + (selectedRoom.isGroupChat ? (selectedRoom.image) : otherUsersChat?.avatarUrl) + ')'">
               </div>
               <div class="desc-contact">
                 <div class="username">
                   <p class="name" *ngIf="selectedRoom.isGroupChat === false">
-                    {{ userChat.name }}
+                    {{ otherUsersChat?.name }}
                   </p>
                   <p class="name" *ngIf="selectedRoom.isGroupChat === true">
                     {{ selectedRoom.chatRoomName }}
@@ -73,10 +73,10 @@
     
         <!-- 1v1 CHAT -->
         <ng-template #oneToOne>
-          <ng-container *ngFor="let userChat of layNguoiDungKhac(selectedRoom)">
-            <div class="photo" [style.backgroundImage]="'url(' + userChat.avatarUrl || defaultAvatarUrl + ')'"></div>
+          <ng-container >
+            <div class="photo" [style.backgroundImage]="'url(' + selectedRoom.otherMembers[0].avatarUrl|| defaultAvatarUrl + ')'"></div>
             <div class="username">
-              <p class="name">{{ userChat.name }}</p>
+              <p class="name">{{ selectedRoom.otherMembers[0].name }}</p>
             </div>
           </ng-container>
         </ng-template>
@@ -129,20 +129,20 @@
       [class.message-active]="room._id === chatRoomIdDuocChon"
       (click)="getRoom(room._id)"
     >
-      <ng-container *ngFor="let userChat of layNguoiDungKhac(room)">
-        <div class="photo" [style.backgroundImage]="'url(' + (userChat.avatarUrl || defaultAvatarUrl) + ')'">
+      <ng-container>
+        <div class="photo" [style.backgroundImage]="'url(' + (otherUsersChat?.avatarUrl || defaultAvatarUrl) + ')'">
         </div>
         <div class="desc-contact">
           <div class="username">
-            <p class="name" *ngIf="room.isGroupChat === false">
-              {{ userChat.name }}
+            <p class="name" *ngIf="room.isGroupChat === false && room.otherMembers">
+              {{ room.otherMembers[0].name }}
             </p>
             <p class="name" *ngIf="room.isGroupChat === true">
               {{ room.chatRoomName }}
             </p>
           </div>
           
-        <p class="message">{{room.latestMessage}}</p>
+        <p class="message">{{ room.latestMessage?.content?.text}}</p>
         </div>
       </ng-container>
     </div>
@@ -163,7 +163,7 @@
           </p>
         </div> -->
   <section class="Right-section">
-    <div *ngIf="chatRoomIdDuocChon && idNguoiDungHienTai">
+    <div *ngIf="selectedRoom?._id && idNguoiDungHienTai">
       <div class="messages-chat">
           <!-- Date separator -->
         <!-- <div class="date">
@@ -192,8 +192,8 @@
         <ng-container *ngFor="let msg of messagees; let i = index">
           <!-- Nếu message đã bị recall cho tất cả -->
         <div *ngIf="msg.recall === '2'" class="Messages">
-          <div class="message" *ngIf="msg.sendID !== idNguoiDungHienTai">
-            <div class="photo" [style.backgroundImage]="'url(' + (getUserFromId(msg.sendID)?.avatarUrl  || defaultAvatarUrl) + ')'"></div>
+          <div class="message" *ngIf="msg.sendID._id !== idNguoiDungHienTai">
+            <div class="photo" [style.backgroundImage]="'url(' + (getUserFromId(msg.sendID._id)?.avatarUrl  || defaultAvatarUrl) + ')'"></div>
             <div class="bubble-wrapper">
               <div class="bubble">
                 <p class="text"><i>Tin nhắn đã bị thu hồi.</i></p>
@@ -201,7 +201,7 @@
               <p class="time">{{ msg.createdAt | date: 'shortTime' }}</p>
             </div>
           </div>
-          <div class="response" *ngIf="msg.sendID === idNguoiDungHienTai">
+          <div class="response" *ngIf="msg.sendID._id === idNguoiDungHienTai">
             <p class="text"><i>Tin nhắn đã bị thu hồi.</i></p>
             <div class="response-time time">{{ msg.createdAt | date: 'shortTime' }}</div>
           </div>
@@ -210,9 +210,9 @@
         <!-- Nếu message chỉ bị recall với chính người gửi -->
         <!-- Ẩn nếu là người gửi -->
         <div *ngIf="msg.recall === '1'">
-          <div class="message" *ngIf="msg.sendID !== idNguoiDungHienTai">
+          <div class="message" *ngIf="msg.sendID._id !== idNguoiDungHienTai">
             <!-- Người nhận vẫn thấy -->
-            <div class="photo" [style.backgroundImage]="'url(' + (getUserFromId(msg.sendID)?.avatarUrl || defaultAvatarUrl) + ')'"></div>
+            <div class="photo" [style.backgroundImage]="'url(' + (getUserFromId(msg.sendID._id)?.avatarUrl || defaultAvatarUrl) + ')'"></div>
             <div class="bubble-wrapper">
               <div class="bubble">
                 <p class="text">{{ msg.content.text }}</p>
@@ -224,13 +224,13 @@
           <!-- Message bình thường -->
           <div *ngIf="msg.recall === '0'" class="Messages" (mouseleave)="closeMessageOptions()">
             <!-- 💬 Tin nhắn từ người khác -->
-            <div class="message" *ngIf="msg.sendID !== idNguoiDungHienTai">
-              <div class="photo" [style.backgroundImage]="'url(' + (getUserFromId(msg.sendID)?.avatarUrl  || defaultAvatarUrl) + ')'"></div>
+            <div class="message" *ngIf="msg.sendID._id.toString() !== idNguoiDungHienTai.toString()">
+              <div class="photo" [style.backgroundImage]="'url(' + (getUserFromId(msg.sendID._id)?.avatarUrl  || defaultAvatarUrl) + ')'"></div>
               <div class="bubble-wrapper">
                 <div class="bubble">
                   <div class="reply-preview" *ngIf="msg.replyToMessage">
                     <p class="reply-info">
-                      Reply to <strong>{{ getUserName(msg.replyToMessage.sendID) }}</strong>
+                      Reply to <strong>{{ getUserName(msg.replyToMessage.sendID._id) }}</strong>
                   </p>
                   
   
@@ -285,13 +285,13 @@
             </div>
       
             <!-- ✅ Tin nhắn của chính mình -->
-            <div class="response" *ngIf="msg.sendID === idNguoiDungHienTai">
+            <div class="response" *ngIf="msg.sendID._id === idNguoiDungHienTai.toString()">
          
                 <!-- Nội dung tin nhắn -->
               <!-- ✅ Hiển thị khung reply nếu có -->
               <div class="reply-preview" *ngIf="msg.replyToMessage">
                 <p class="reply-info">
-                  Reply to <strong>{{ getUserName(msg.replyToMessage.sendID) }}</strong>
+                  Reply to <strong>{{ getUserName(msg.replyToMessage.sendID._id) }}</strong>
               </p>
               
 
@@ -360,7 +360,7 @@
       <div class="reply-box" *ngIf="replyingTo">
         <p>
           Replying to: 
-          {{ replyingTo.sendID === idNguoiDungHienTai ? getDisplayName(idNguoiDungHienTai) : getUserName(replyingTo.sendID) }}
+          {{ replyingTo.sendID._id === idNguoiDungHienTai ? getDisplayName(idNguoiDungHienTai) : getUserName(replyingTo.sendID._id) }}
         </p>
 
         <!-- Nếu là text -->
@@ -425,6 +425,7 @@
               class="write-message"
               [(ngModel)]="messageText"
               placeholder="Type your message here"
+              (keydown.enter)="createMessage(messageText)"
             />
 
             <!-- <i class="icon attach fa-solid fa-paperclip clickable" (click)="fileInput.click()"></i>
@@ -480,7 +481,7 @@
     <!-- <div *ngIf="!selectedConversationId" class="no-chat-selected">
       <img src="../../../assets/let's-chat.png" class="no-chat-img" />
     </div> -->
-    <div *ngIf="!chatRoomIdDuocChon" class="no-chat-selected">
+    <div *ngIf="!selectedRoom?._id" class="no-chat-selected">
       <img src="../../../assets/let's-chat.png" class="no-chat-img" />
     </div>
   </section>
