@@ -223,7 +223,8 @@ const ChatScreen = () => {
                     chatId: chatRoom._id,
                     sendID: {
                         _id: user._id,
-                        name: user.name
+                        name: user.name,
+                        avatarUrl: user.avatarUrl, // Include user's avatar URL from auth context
                     },
                     content: {
                         type: 'text',
@@ -353,7 +354,8 @@ const ChatScreen = () => {
                 chatId: chatRoom._id,
                 sendID: {
                     _id: user._id,
-                    name: user.name
+                    name: user.name,
+                    avatarUrl: user.avatarUrl, // Include user's avatar
                 },
                 content: {
                     type: type,
@@ -523,10 +525,38 @@ const ChatScreen = () => {
         return 'Chat';
     };
 
-    // Enhanced message renderer with Zalo-like styling
-    const renderMessage = (msg) => {
+    // Get avatar source for a member
+    const getAvatarSource = (member) => {
+        if (member) {
+            if (member.avatarUrl) {
+                return { uri: member.avatarUrl };
+            }
+            return { uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(member.name)}&background=0999fa&color=fff` };
+        }
+        return { uri: `https://ui-avatars.com/api/?name=User&background=0999fa&color=fff` };
+    };
+
+    // Function to check if a message should show avatar (first message from a sender in a sequence)
+    const shouldShowAvatar = (index) => {
+        if (index === 0) return true;
+
+        const currentMessage = messages[index];
+        const previousMessage = messages[index - 1];
+
+        // If current message is from a different sender than previous message
+        return (
+            typeof currentMessage.sendID === 'object' &&
+            typeof previousMessage.sendID === 'object' &&
+            currentMessage.sendID._id !== previousMessage.sendID._id
+        );
+    };
+
+    // Enhanced message renderer with grouped messages and avatars only for first message in group
+    const renderMessage = (msg, index) => {
         const senderId = typeof msg.sendID === 'object' ? msg.sendID._id : msg.sendID;
         const isOwnMessage = senderId === user._id;
+        const showAvatar = !isOwnMessage && shouldShowAvatar(index);
+        const sender = typeof msg.sendID === 'object' ? msg.sendID : { name: 'User', _id: senderId };
 
         // Loading state for message being deleted
         if (msg.isDeleting) {
@@ -538,6 +568,14 @@ const ChatScreen = () => {
                         isOwnMessage ? styles.ownMessageWrapper : styles.otherMessageWrapper
                     ]}
                 >
+                    {showAvatar ? (
+                        <Image
+                            source={getAvatarSource(sender)}
+                            style={styles.messageAvatar}
+                        />
+                    ) : (
+                        <View style={styles.avatarPlaceholder} />
+                    )}
                     <View style={[styles.messageBubble, styles.deletingMessage]}>
                         <ActivityIndicator size="small" color={isOwnMessage ? "#fff" : "#999"} />
                         <Text style={styles.deletingMessageText}>
@@ -558,6 +596,14 @@ const ChatScreen = () => {
                         isOwnMessage ? styles.ownMessageWrapper : styles.otherMessageWrapper
                     ]}
                 >
+                    {showAvatar ? (
+                        <Image
+                            source={getAvatarSource(sender)}
+                            style={styles.messageAvatar}
+                        />
+                    ) : (
+                        <View style={styles.avatarPlaceholder} />
+                    )}
                     <View style={[styles.messageBubble, styles.recallingMessage]}>
                         <ActivityIndicator size="small" color={isOwnMessage ? "#fff" : "#999"} />
                         <Text style={styles.recalledMessageText}>
@@ -578,6 +624,14 @@ const ChatScreen = () => {
                         isOwnMessage ? styles.ownMessageWrapper : styles.otherMessageWrapper
                     ]}
                 >
+                    {showAvatar ? (
+                        <Image
+                            source={getAvatarSource(sender)}
+                            style={styles.messageAvatar}
+                        />
+                    ) : (
+                        <View style={styles.avatarPlaceholder} />
+                    )}
                     <View style={[styles.messageBubble, styles.recalledMessage]}>
                         <Ionicons name="eye-off-outline" size={16} color="#999" style={{ marginRight: 4 }} />
                         <Text style={styles.recalledMessageText}>
@@ -598,6 +652,14 @@ const ChatScreen = () => {
                         isOwnMessage ? styles.ownMessageWrapper : styles.otherMessageWrapper
                     ]}
                 >
+                    {showAvatar ? (
+                        <Image
+                            source={getAvatarSource(sender)}
+                            style={styles.messageAvatar}
+                        />
+                    ) : (
+                        <View style={styles.avatarPlaceholder} />
+                    )}
                     <View style={[styles.messageBubble, styles.recalledMessage]}>
                         <Ionicons name="refresh-outline" size={16} color="#999" style={{ marginRight: 4 }} />
                         <Text style={styles.recalledMessageText}>
@@ -618,14 +680,25 @@ const ChatScreen = () => {
                 onLongPress={() => handleLongPressMessage(msg)}
                 activeOpacity={0.7}
             >
+                {/* Add avatar only for first message in a sequence */}
+                {showAvatar ? (
+                    <Image
+                        source={getAvatarSource(sender)}
+                        style={styles.messageAvatar}
+                    />
+                ) : !isOwnMessage ? (
+                    <View style={styles.avatarPlaceholder} />
+                ) : null}
+
                 <View
                     style={[
                         styles.messageBubble,
                         isOwnMessage ? styles.ownMessage : styles.otherMessage
                     ]}
                 >
-                    {!isOwnMessage && (
-                        <Text style={styles.senderName}>{msg.sendID.name}</Text>
+                    {/* Show sender name only for first message in a sequence */}
+                    {!isOwnMessage && showAvatar && (
+                        <Text style={styles.senderName}>{sender.name}</Text>
                     )}
 
                     {/* Render reply preview if this message is a reply */}
@@ -864,13 +937,7 @@ const ChatScreen = () => {
                         style={{ marginRight: 12 }}
                         onPress={() => navigation.navigate('ChatRoomListScreen')}
                     />
-                    <TouchableOpacity style={styles.userInfo} onPress={() => navigation.navigate('GroupOptionsScreen', { chatRoom })}>
-                        <Image
-                            source={{ uri: chatRoom?.image || chatRoom?.members.find(m => m._id !== user._id)?.avatarUrl }}
-                            style={styles.avatarSmall}
-                        />
-                        <Text style={styles.headerTitle}>{getChatName()}</Text>
-                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>{getChatName()}</Text>
 
                     <View style={styles.headerIcons}>
                         <TouchableOpacity style={styles.headerIcon}>
@@ -897,7 +964,7 @@ const ChatScreen = () => {
                 contentContainerStyle={styles.chatContent}
                 onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
             >
-                {messages.map(renderMessage)}
+                {messages.map((msg, index) => renderMessage(msg, index))}
             </ScrollView>
 
             {/* Message Options Modal */}
@@ -1027,17 +1094,20 @@ const styles = StyleSheet.create({
         color: '#555',
     },
 
-    // Enhanced message styles
+    // Enhanced message styles with grouped avatars
     messageWrapper: {
         flexDirection: 'row',
-        marginVertical: 3,
+        marginVertical: 2,
         paddingHorizontal: 10,
+        alignItems: 'flex-end', // Align items at the bottom
     },
     ownMessageWrapper: {
         justifyContent: 'flex-end',
+        marginBottom: 2,
     },
     otherMessageWrapper: {
         justifyContent: 'flex-start',
+        marginBottom: 2,
     },
     messageBubble: {
         maxWidth: '80%',
@@ -1082,16 +1152,18 @@ const styles = StyleSheet.create({
         marginBottom: 4,
         color: '#333',
     },
-    avatarSmall: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
+
+    // Message avatar and placeholder 
+    messageAvatar: {
+        width: 30,
+        height: 30,
+        borderRadius: 15,
         marginRight: 8,
     },
-    userInfo: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        flex: 1,
+    avatarPlaceholder: {
+        width: 30,
+        height: 0,
+        marginRight: 8,
     },
 
     // Enhanced recalled message styles
@@ -1112,6 +1184,19 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingVertical: 8,
         opacity: 0.7,
+    },
+    deletingMessage: {
+        backgroundColor: '#f1f1f1',
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 8,
+        opacity: 0.7,
+    },
+    deletingMessageText: {
+        fontStyle: 'italic',
+        color: '#999',
+        fontSize: 13,
+        marginLeft: 8,
     },
 
     // Enhanced reply styles
