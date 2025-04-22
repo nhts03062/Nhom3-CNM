@@ -19,7 +19,7 @@ import { ChatRoom } from "./chatRoom.model";
 export interface Messagee {
   _id: string;
   chatId: string;
-  sendID: string;
+  sendID: ISenderId;
   replyToMessage?: Messagee | null;
   content: {
     type: 'text' | 'file' | 'media';
@@ -31,4 +31,11 @@ export interface Messagee {
   createdAt: string;
   updatedAt: string;
   __v?: number;
+}
+
+export interface ISenderId{
+    _id:string,
+    name: string
+    email:string,
+    avatarUrl:string
 }

@@ -52,7 +52,7 @@ router.post("/register", async (req, res) => {
       html: `
         <h3>Chào ${name},</h3>
         <p>Nhấn vào link dưới đây để xác thực tài khoản:</p>
-        <a href="http://localhost:4200/api/auth/verify?token=${encodeURIComponent(token)}">Xác thực tài khoản</a>
+        <a href="http://localhost:5000/api/auth/verify?token=${encodeURIComponent(token)}">Xác thực tài khoản</a>
       `,
     };
 

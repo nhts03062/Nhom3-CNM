@@ -29,6 +29,7 @@ export class ModalComponent implements OnInit {
 
   activeTab: 'friend' | 'group' = 'friend';
   searchTerm: string = '';
+  currentUserId = sessionStorage.getItem('userId'); ;
 
   constructor(private userService : UserService,
     private chatRoomService: ChatRoomService,
@@ -66,7 +67,6 @@ export class ModalComponent implements OnInit {
   
 
   foundUser?: Userr;
-
   onSearchFriend() {
     this.userService.getUsers().subscribe({
       next: users => {
@@ -103,19 +103,20 @@ export class ModalComponent implements OnInit {
   }
 
   createGroup(friendIds: string[]): void {
-    const currentUserId = sessionStorage.getItem('userId'); ;
+    
     if (friendIds.length < 2) {
       alert("Please select at least 2 friends");
       return;
     }
-    if (!currentUserId) {
+    if (!this.currentUserId) {
       console.error("⚠️ Cannot start chat: user._id is undefined");
       return;
     }
     console.log("📦 Creating room with:", {
-      currentUserId,
-      friendIds
+      currentUserId: this.currentUserId,
+      friendIds: friendIds
     });
+    
     
     const roomData = {
       members: [...friendIds],
