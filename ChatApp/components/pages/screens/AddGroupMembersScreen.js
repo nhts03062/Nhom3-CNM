@@ -13,7 +13,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import * as ImagePicker from 'expo-image-picker';
 import axios from 'axios';
 import { useAuth } from '../../../contexts/AuthContext';
 
@@ -23,15 +22,14 @@ const AddGroupMembersScreen = () => {
     const navigation = useNavigation();
     const route = useRoute();
     const { token, user } = useAuth();
+    const chatRoom = route.params?.chatRoom;
 
-    const [groupName, setGroupName] = useState('');
-    const [groupImage, setGroupImage] = useState(null);
     const [friends, setFriends] = useState([]);
     const [selected, setSelected] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
 
-    // Fetch friends list when component mounts
+    // Fetch friends list and mark existing members
     useEffect(() => {
         fetchFriends();
     }, []);
@@ -42,7 +40,26 @@ const AddGroupMembersScreen = () => {
             const response = await axios.get(`${API_URL}/user/allfriend`, {
                 headers: { Authorization: token }
             });
-            setFriends(response.data);
+
+            // Mark friends who are already in the group
+            if (chatRoom && chatRoom.members) {
+                const friendsWithStatus = response.data.map(friend => {
+                    // Check if friend is already in the group
+                    const isAlreadyMember = chatRoom.members.some(
+                        member => typeof member === 'object'
+                            ? member._id === friend._id
+                            : member === friend._id
+                    );
+
+                    return {
+                        ...friend,
+                        isAlreadyMember
+                    };
+                });
+                setFriends(friendsWithStatus);
+            } else {
+                setFriends(response.data);
+            }
         } catch (error) {
             console.error('Error fetching friends:', error);
             Alert.alert('Lỗi', 'Không thể tải danh sách bạn bè');
@@ -51,129 +68,117 @@ const AddGroupMembersScreen = () => {
         }
     };
 
-    const toggleSelect = (id) => {
-        setSelected((prev) =>
-            prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-        );
-    };
-
-    const pickImage = async () => {
-        try {
-            const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-            if (permissionResult.granted === false) {
-                Alert.alert('Cần quyền truy cập', 'Vui lòng cấp quyền truy cập thư viện ảnh.');
-                return;
-            }
-
-            const result = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                allowsEditing: true,
-                aspect: [1, 1],
-                quality: 1,
-            });
-
-            if (!result.canceled && result.assets && result.assets.length > 0) {
-                setGroupImage(result.assets[0].uri);
-            }
-        } catch (error) {
-            console.error('Error picking image:', error);
-            Alert.alert('Lỗi', 'Không thể chọn ảnh. Vui lòng thử lại sau.');
-        }
-    };
-
-    const createGroup = async () => {
-        if (!groupName.trim()) {
-            Alert.alert('Lỗi', 'Vui lòng nhập tên nhóm');
+    const toggleSelect = (userId) => {
+        // Don't allow selecting users who are already members
+        const friend = friends.find(f => f._id === userId);
+        if (friend && friend.isAlreadyMember) {
             return;
         }
 
-        if (selected.length < 2) {
-            Alert.alert('Lỗi', 'Vui lòng chọn ít nhất 2 thành viên');
+        setSelected(prev => {
+            if (prev.includes(userId)) {
+                return prev.filter(id => id !== userId);
+            } else {
+                return [...prev, userId];
+            }
+        });
+    };
+
+    const handleAddMembers = async () => {
+        if (selected.length === 0) {
+            Alert.alert('Thông báo', 'Vui lòng chọn ít nhất 1 thành viên để thêm vào nhóm');
             return;
         }
 
         try {
             setLoading(true);
 
-            // Create form data if we have an image to upload
-            let requestData = {
-                chatRoomName: groupName,
-                members: selected,
-            };
+            // Get current members IDs
+            const currentMemberIds = chatRoom.members.map(member =>
+                typeof member === 'object' ? member._id : member
+            );
 
-            if (groupImage) {
-                // For simplicity, we'll handle image upload separately
-                // In a real app, you'd likely use FormData to upload the image
-                // This is a placeholder for the image URL
-                requestData.image = groupImage;
-            }
+            // Combine current members with newly selected members
+            const allMembers = [...new Set([...currentMemberIds, ...selected])];
 
-            // Create the group chat
-            const response = await axios.post(`${API_URL}/chatroom`, requestData, {
+            // Update the chat room with new members
+            const response = await axios.put(`${API_URL}/chatroom`, {
+                chatRoomId: chatRoom._id,
+                members: allMembers
+            }, {
                 headers: { Authorization: token }
             });
 
-            // Navigate to the chat screen with the newly created chat room
-            navigation.navigate('ChatScreen', { chatRoom: response.data });
+            if (response.data) {
+                Alert.alert(
+                    'Thành công',
+                    'Đã thêm thành viên vào nhóm',
+                    [
+                        {
+                            text: 'OK',
+                            onPress: () => {
+                                // Cập nhật thông tin về GroupOptionsScreen
+                                navigation.navigate({
+                                    name: 'GroupOptionsScreen',
+                                    params: {
+                                        updatedChatRoom: response.data
+                                    },
+                                    merge: true
+                                });
+                            }
+                        }
+                    ]
+                );
+            }
         } catch (error) {
-            console.error('Error creating group:', error);
-            Alert.alert('Lỗi', 'Không thể tạo nhóm chat. Vui lòng thử lại sau.');
+            console.error('Error adding members:', error);
+            Alert.alert('Lỗi', 'Không thể thêm thành viên vào nhóm. Vui lòng thử lại sau.');
         } finally {
             setLoading(false);
         }
     };
 
-    const filteredFriends = friends.filter(friend =>
-        friend.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filteredFriends = searchQuery
+        ? friends.filter(friend =>
+            friend.name.toLowerCase().includes(searchQuery.toLowerCase()))
+        : friends;
 
     const renderItem = ({ item }) => {
         const isSelected = selected.includes(item._id);
+        const isAlreadyMember = item.isAlreadyMember;
 
         return (
-            <TouchableOpacity style={styles.item} onPress={() => toggleSelect(item._id)}>
+            <TouchableOpacity
+                style={[styles.item, isAlreadyMember && styles.disabledItem]}
+                onPress={() => toggleSelect(item._id)}
+                disabled={isAlreadyMember}
+            >
                 <Image
-                    source={{ uri: item.avatarUrl || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(item.name) }}
+                    source={{ uri: item.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.name)}&background=0999fa&color=fff` }}
                     style={styles.avatar}
                 />
-                <Text style={styles.name}>{item.name}</Text>
-                <View style={[styles.checkbox, isSelected && styles.checked]}>
-                    {isSelected && <View style={styles.innerDot} />}
+                <View style={{ flex: 1 }}>
+                    <Text style={styles.name}>{item.name}</Text>
+                    {isAlreadyMember && (
+                        <Text style={styles.memberStatus}>Đã tham gia</Text>
+                    )}
                 </View>
+                {!isAlreadyMember && (
+                    <View style={[styles.checkbox, isSelected && styles.checked]}>
+                        {isSelected && <View style={styles.innerDot} />}
+                    </View>
+                )}
             </TouchableOpacity>
         );
     };
 
     return (
-        <SafeAreaView style={styles.container}>
+        <View style={styles.container}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()}>
                     <Ionicons name="arrow-back" size={24} color="white" />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Tạo nhóm chat</Text>
-            </View>
-
-            <View style={styles.groupInfoContainer}>
-                <TouchableOpacity style={styles.groupImageContainer} onPress={pickImage}>
-                    {groupImage ? (
-                        <Image source={{ uri: groupImage }} style={styles.groupImage} />
-                    ) : (
-                        <View style={styles.groupImagePlaceholder}>
-                            <Ionicons name="camera" size={30} color="#666" />
-                            <Text style={styles.groupImageText}>Thêm ảnh nhóm</Text>
-                        </View>
-                    )}
-                </TouchableOpacity>
-
-                <View style={styles.groupNameContainer}>
-                    <TextInput
-                        style={styles.groupNameInput}
-                        placeholder="Nhập tên nhóm"
-                        value={groupName}
-                        onChangeText={setGroupName}
-                    />
-                </View>
+                <Text style={styles.headerTitle}>Thêm thành viên</Text>
             </View>
 
             <View style={styles.searchBar}>
@@ -207,13 +212,21 @@ const AddGroupMembersScreen = () => {
             )}
 
             {selected.length > 0 && (
-                <TouchableOpacity style={styles.createButton} onPress={createGroup}>
-                    <Text style={styles.createButtonText}>
-                        Tạo nhóm với {selected.length} thành viên
-                    </Text>
+                <TouchableOpacity
+                    style={styles.addButton}
+                    onPress={handleAddMembers}
+                    disabled={loading}
+                >
+                    {loading ? (
+                        <ActivityIndicator color="#fff" size="small" />
+                    ) : (
+                        <Text style={styles.addButtonText}>
+                            Thêm {selected.length} thành viên vào nhóm
+                        </Text>
+                    )}
                 </TouchableOpacity>
             )}
-        </SafeAreaView>
+        </View>
     );
 };
 
@@ -224,7 +237,7 @@ const styles = StyleSheet.create({
     },
     header: {
         backgroundColor: '#0999fa',
-        paddingTop: 10,
+        paddingTop: 50,
         paddingBottom: 16,
         paddingHorizontal: 16,
         flexDirection: 'row',
@@ -235,46 +248,6 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: 'bold',
         marginLeft: 16,
-    },
-    groupInfoContainer: {
-        padding: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: '#eee',
-        alignItems: 'center',
-    },
-    groupImageContainer: {
-        marginBottom: 16,
-    },
-    groupImage: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
-    },
-    groupImagePlaceholder: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
-        backgroundColor: '#f0f0f0',
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: '#ddd',
-        borderStyle: 'dashed',
-    },
-    groupImageText: {
-        fontSize: 12,
-        color: '#666',
-        marginTop: 4,
-    },
-    groupNameContainer: {
-        width: '100%',
-    },
-    groupNameInput: {
-        borderWidth: 1,
-        borderColor: '#ddd',
-        borderRadius: 8,
-        padding: 10,
-        fontSize: 16,
     },
     searchBar: {
         flexDirection: 'row',
@@ -296,6 +269,10 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: '#eee',
     },
+    disabledItem: {
+        opacity: 0.7,
+        backgroundColor: '#f9f9f9'
+    },
     avatar: {
         width: 40,
         height: 40,
@@ -303,8 +280,12 @@ const styles = StyleSheet.create({
         marginRight: 12
     },
     name: {
-        flex: 1,
         fontSize: 16
+    },
+    memberStatus: {
+        fontSize: 12,
+        color: '#0999fa',
+        marginTop: 2
     },
     checkbox: {
         width: 20,
@@ -316,7 +297,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     checked: {
-        borderColor: '#2196F3'
+        borderColor: '#2196F3',
     },
     innerDot: {
         width: 10,
@@ -324,14 +305,14 @@ const styles = StyleSheet.create({
         borderRadius: 5,
         backgroundColor: '#2196F3',
     },
-    createButton: {
+    addButton: {
         backgroundColor: '#0999fa',
         paddingVertical: 12,
         alignItems: 'center',
         borderRadius: 10,
         margin: 16,
     },
-    createButtonText: {
+    addButtonText: {
         color: '#fff',
         fontSize: 16,
         fontWeight: 'bold'
