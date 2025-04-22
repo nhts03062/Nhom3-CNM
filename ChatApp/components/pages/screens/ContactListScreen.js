@@ -32,11 +32,7 @@ const ContactListScreen = () => {
     const fetchFriends = useCallback(async () => {
         try {
             setLoading(true);
-            const response = await axios.get(`${API_URL}/user/allfriend`, {
-                headers: {
-                    Authorization: token
-                }
-            });
+            const response = await axios.get(`${API_URL}/user/allfriend`);
             setFriends(response.data);
         } catch (error) {
             console.error('Error fetching friends:', error);
@@ -48,13 +44,8 @@ const ContactListScreen = () => {
 
     const fetchFriendRequests = useCallback(async () => {
         try {
-            const meResponse = await axios.get(`${API_URL}/user/${user._id}`, {
-                headers: {
-                    Authorization: token
-                }
-            });
+            const meResponse = await axios.get(`${API_URL}/user/${user._id}`);
 
-            // Lấy danh sách ID người gửi lời mời kết bạn
             const requestIds = meResponse.data.friendRequestsReceived || [];
 
             if (requestIds.length === 0) {
@@ -62,11 +53,8 @@ const ContactListScreen = () => {
                 return;
             }
 
-            // Lấy thông tin chi tiết của từng người dùng đã gửi lời mời
             const userDetailsPromises = requestIds.map(userId =>
-                axios.get(`${API_URL}/user/${userId}`, {
-                    headers: { Authorization: token }
-                })
+                axios.get(`${API_URL}/user/${userId}`)
             );
 
             const userResponses = await Promise.all(userDetailsPromises);
@@ -79,12 +67,27 @@ const ContactListScreen = () => {
         }
     }, [token, user]);
 
-    // Refresh friend list and friend requests when screen is focused
+    const fetchGroups = useCallback(async () => {
+        try {
+            setLoading(true);
+            const response = await axios.get(`${API_URL}/chatroom`);
+            // Filter for group chats only
+            const groupChats = response.data.filter(chat => chat.isGroupChat);
+            setGroups(groupChats);
+        } catch (error) {
+            console.error('Error fetching groups:', error);
+            Alert.alert('Lỗi', 'Không thể tải danh sách nhóm');
+        } finally {
+            setLoading(false);
+        }
+    }, [token]);
+
     useFocusEffect(
         useCallback(() => {
             fetchFriends();
             fetchFriendRequests();
-        }, [fetchFriends, fetchFriendRequests])
+            fetchGroups();
+        }, [fetchFriends, fetchFriendRequests, fetchGroups])
     );
 
     const handleAddFriend = () => {
@@ -92,8 +95,11 @@ const ContactListScreen = () => {
     };
 
     const handleChatWithFriend = (friend) => {
-        // Create or navigate to chat with friend
         navigation.navigate('ChatScreen', { userId: friend._id });
+    };
+
+    const handleChatWithGroup = (group) => {
+        navigation.navigate('ChatScreen', { chatRoom: group });
     };
 
     const handleAcceptFriendRequest = async (userId) => {
@@ -104,14 +110,11 @@ const ContactListScreen = () => {
                 { userId },
                 {
                     headers: {
-                        Authorization: token,
                         'Content-Type': 'application/json'
                     }
                 }
             );
             Alert.alert('Thành công', 'Đã chấp nhận lời mời kết bạn');
-
-            // Cập nhật danh sách bạn bè và lời mời kết bạn
             await fetchFriendRequests();
             await fetchFriends();
         } catch (error) {
@@ -130,14 +133,11 @@ const ContactListScreen = () => {
                 { userId },
                 {
                     headers: {
-                        Authorization: token,
                         'Content-Type': 'application/json'
                     }
                 }
             );
             Alert.alert('Thông báo', 'Đã từ chối lời mời kết bạn');
-
-            // Cập nhật danh sách lời mời kết bạn
             await fetchFriendRequests();
         } catch (error) {
             console.error('Error rejecting friend request:', error);
@@ -153,32 +153,58 @@ const ContactListScreen = () => {
             (friend.phone && friend.phone.includes(searchText))
         )
         : groups.filter(group =>
-            group.name.toLowerCase().includes(searchText.toLowerCase())
+            group.chatRoomName.toLowerCase().includes(searchText.toLowerCase())
         );
 
-    const getAvatarSource = (user) => {
-        if (user.avatarUrl) {
-            return { uri: user.avatarUrl };
+    const getAvatarSource = (item) => {
+        if (activeTab === 'friends') {
+            if (item.avatarUrl) {
+                return { uri: item.avatarUrl };
+            }
+            return { uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(item.name)}&background=0999fa&color=fff` };
         } else {
-            return { uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=0999fa&color=fff` };
+            if (item.image) {
+                return { uri: item.image };
+            }
+            return { uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(item.chatRoomName)}&background=0999fa&color=fff` };
         }
     };
 
-    const renderFriendItem = ({ item }) => (
-        <TouchableOpacity
-            style={styles.item}
-            onPress={() => handleChatWithFriend(item)}
-        >
-            <Image source={getAvatarSource(item)} style={styles.avatar} />
-            <View style={styles.itemInfo}>
-                <Text style={styles.name}>{item.name}</Text>
-                {item.phone && <Text style={styles.info}>{item.phone}</Text>}
-            </View>
-            <TouchableOpacity style={styles.chatButton}>
-                <Ionicons name="chatbubble-outline" size={20} color="#0999fa" />
-            </TouchableOpacity>
-        </TouchableOpacity>
-    );
+    const renderItem = ({ item }) => {
+        if (activeTab === 'friends') {
+            return (
+                <TouchableOpacity
+                    style={styles.item}
+                    onPress={() => handleChatWithFriend(item)}
+                >
+                    <Image source={getAvatarSource(item)} style={styles.avatar} />
+                    <View style={styles.itemInfo}>
+                        <Text style={styles.name}>{item.name}</Text>
+                        {item.phone && <Text style={styles.info}>{item.phone}</Text>}
+                    </View>
+                    <TouchableOpacity style={styles.chatButton}>
+                        <Ionicons name="chatbubble-outline" size={20} color="#0999fa" />
+                    </TouchableOpacity>
+                </TouchableOpacity>
+            );
+        } else {
+            return (
+                <TouchableOpacity
+                    style={styles.item}
+                    onPress={() => handleChatWithGroup(item)}
+                >
+                    <Image source={getAvatarSource(item)} style={styles.avatar} />
+                    <View style={styles.itemInfo}>
+                        <Text style={styles.name}>{item.chatRoomName}</Text>
+                        <Text style={styles.info}>Thành viên: {item.members.length}</Text>
+                    </View>
+                    <TouchableOpacity style={styles.chatButton}>
+                        <Ionicons name="chatbubble-outline" size={20} color="#0999fa" />
+                    </TouchableOpacity>
+                </TouchableOpacity>
+            );
+        }
+    };
 
     const renderFriendRequestItem = ({ item }) => (
         <View style={styles.requestItem}>
@@ -262,16 +288,18 @@ const ContactListScreen = () => {
                 <FlatList
                     data={filteredData}
                     keyExtractor={(item) => item._id}
-                    renderItem={renderFriendItem}
+                    renderItem={renderItem}
                     ListHeaderComponent={activeTab === 'friends' && friendRequests.length > 0 ?
-                        <Text style={styles.listHeader}>Bạn bè ({friends.length})</Text> : null
+                        <Text style={styles.listHeader}>Bạn bè ({friends.length})</Text> :
+                        activeTab === 'groups' ?
+                            <Text style={styles.listHeader}>Nhóm ({groups.length})</Text> : null
                     }
                     ListEmptyComponent={
                         <View style={styles.emptyContainer}>
                             <Text style={styles.emptyText}>
                                 {activeTab === 'friends'
                                     ? "Chưa có bạn bè nào. Hãy thêm bạn bè để trò chuyện!"
-                                    : "Chưa có nhóm nào"}
+                                    : "Chưa có nhóm nào. Hãy tham gia hoặc tạo một nhóm!"}
                             </Text>
                         </View>
                     }
@@ -334,7 +362,6 @@ const styles = StyleSheet.create({
     activeTab: { borderBottomWidth: 2, borderBottomColor: '#0999fa' },
     tabText: { fontSize: 14, color: '#888' },
     activeTabText: { color: '#0999fa', fontWeight: 'bold' },
-    // Friend requests section
     requestsSection: {
         backgroundColor: '#f5f5f5',
         paddingVertical: 10,

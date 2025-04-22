@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
     View,
     Text,
@@ -23,6 +23,7 @@ import * as ImagePicker from 'expo-image-picker';
 import EmojiSelector, { Categories } from 'react-native-emoji-selector';
 import { useAuth } from '../../../contexts/AuthContext';
 import io from 'socket.io-client';
+import { useFocusEffect } from '@react-navigation/native';
 
 const API_URL = require('../../../services/api');
 
@@ -37,6 +38,7 @@ const ChatScreen = () => {
     const [replyingTo, setReplyingTo] = useState(null);
     const [selectedMessage, setSelectedMessage] = useState(null);
     const [showMessageOptions, setShowMessageOptions] = useState(false);
+    const [newMessages, setNewMessages] = useState(new Set());
     const scrollViewRef = useRef();
     const textInputRef = useRef(null);
     const route = useRoute();
@@ -46,6 +48,27 @@ const ChatScreen = () => {
 
     const chatRoomParam = route.params?.chatRoom;
     const userIdParam = route.params?.userId;
+
+    useFocusEffect(
+        useCallback(() => {
+            if (route.params?.updatedChatRoom) {
+                setChatRoom(route.params.updatedChatRoom);
+            }
+            return () => { };
+        }, [route.params?.updatedChatRoom])
+    );
+
+    // Mark chat room as read when exiting, but only for messages present when entering
+    useEffect(() => {
+        if (chatRoom) {
+            return () => {
+                console.log('Exiting ChatScreen, marking chat room as read:', chatRoom._id);
+                navigation.navigate('ChatRoomListScreen', {
+                    chatRoomRead: { chatRoomId: chatRoom._id }
+                });
+            };
+        }
+    }, [chatRoom, navigation]);
 
     // Initialize socket connection
     useEffect(() => {
@@ -62,25 +85,24 @@ const ChatScreen = () => {
         };
     }, [token]);
 
-    // Handle socket events
     useEffect(() => {
         if (!socket || !chatRoom) return;
 
-        // Join personal room and chat room
         if (!isJoin) {
             socket.emit('join', user._id);
             setIsJoin(true);
         }
 
-        // Listen for new messages
         socket.on('message-created', (data) => {
             console.log('newMessage', data);
-
-            setMessages(prev => [...prev, data]);
-            scrollViewRef.current?.scrollToEnd({ animated: true });
+            if (data.chatId === chatRoom._id) {
+                setMessages(prev => [...prev, data]);
+                scrollViewRef.current?.scrollToEnd({ animated: true });
+            }
+            // Track new messages to keep them unread
+            setNewMessages(prev => new Set(prev).add(data._id));
         });
 
-        // Listen for message deletions
         socket.on('message-deleted', (deletedMessage) => {
             if (deletedMessage.chatId === chatRoom._id) {
                 setMessages(prev =>
@@ -91,10 +113,14 @@ const ChatScreen = () => {
             }
         });
 
-        // Listen for permanent message deletions
         socket.on('message-deleted-permanently', (messageId) => {
             if (messageId) {
                 setMessages(prev => prev.filter(msg => msg._id !== messageId));
+                setNewMessages(prev => {
+                    const updated = new Set(prev);
+                    updated.delete(messageId);
+                    return updated;
+                });
             }
         });
 
@@ -154,6 +180,8 @@ const ChatScreen = () => {
                 headers: { Authorization: token }
             });
             setMessages(response.data);
+            // Mark all fetched messages as not new (already viewed)
+            setNewMessages(new Set());
             setTimeout(() => {
                 scrollViewRef.current?.scrollToEnd({ animated: false });
             }, 100);
@@ -183,7 +211,6 @@ const ChatScreen = () => {
     };
 
     const toggleEmojiPicker = () => {
-        // Dismiss keyboard if it's visible
         if (keyboardVisible) {
             Keyboard.dismiss();
             setTimeout(() => {
@@ -208,7 +235,6 @@ const ChatScreen = () => {
                     content
                 };
 
-                // If replying to a message
                 if (replyingTo) {
                     endpoint = `${API_URL}/message/reply`;
                     postData = {
@@ -217,14 +243,13 @@ const ChatScreen = () => {
                     };
                 }
 
-                // Add message optimistically to UI first for better UX
                 const tempMessage = {
                     _id: Date.now().toString(),
                     chatId: chatRoom._id,
                     sendID: {
                         _id: user._id,
                         name: user.name,
-                        avatarUrl: user.avatarUrl, // Include user's avatar URL from auth context
+                        avatarUrl: user.avatarUrl,
                     },
                     content: {
                         type: 'text',
@@ -243,19 +268,16 @@ const ChatScreen = () => {
                 setReplyingTo(null);
                 scrollViewRef.current?.scrollToEnd({ animated: true });
 
-                // Send message to server
                 const response = await axios.post(endpoint, postData, {
                     headers: { Authorization: token }
                 });
 
-                // Update the temporary message with the real one
                 setMessages(prev =>
                     prev.map(msg =>
                         msg._id === tempMessage._id ? response.data : msg
                     )
                 );
 
-                // Emit socket event to notify other users
                 if (socket) {
                     socket.emit('create-message', {
                         chatRoomId: chatRoom._id,
@@ -305,7 +327,6 @@ const ChatScreen = () => {
 
             if (result.canceled === false && result.assets && result.assets.length > 0) {
                 const files = result.assets;
-                // Upload each selected image/video
                 for (const file of files) {
                     await uploadFile(file, 'media');
                 }
@@ -323,19 +344,16 @@ const ChatScreen = () => {
         }
 
         try {
-            // Create FormData object to send file
             const formData = new FormData();
             formData.append('chatId', chatRoom._id);
 
-            // Create content object based on file type
             const content = {
-                type: type, // 'file' or 'media'
-                text: message.trim(), // Include any text message along with the file
+                type: type,
+                text: message.trim(),
             };
 
             formData.append('content', JSON.stringify(content));
 
-            // Append the file with the appropriate key (file or media)
             const fileToUpload = {
                 uri: file.uri,
                 type: file.mimeType || 'application/octet-stream',
@@ -344,10 +362,8 @@ const ChatScreen = () => {
 
             formData.append(type, fileToUpload);
 
-            // Reset message input
             setMessage('');
 
-            // Show loading indicator or temporary message
             const tempId = Date.now().toString();
             const tempMessage = {
                 _id: tempId,
@@ -355,7 +371,7 @@ const ChatScreen = () => {
                 sendID: {
                     _id: user._id,
                     name: user.name,
-                    avatarUrl: user.avatarUrl, // Include user's avatar
+                    avatarUrl: user.avatarUrl,
                 },
                 content: {
                     type: type,
@@ -367,7 +383,6 @@ const ChatScreen = () => {
             setMessages(prev => [...prev, tempMessage]);
             scrollViewRef.current?.scrollToEnd({ animated: true });
 
-            // Upload the file
             const response = await axios.post(`${API_URL}/message`, formData, {
                 headers: {
                     'Authorization': token,
@@ -375,10 +390,8 @@ const ChatScreen = () => {
                 }
             });
 
-            // Remove temp message and add real message
             setMessages(prev => prev.filter(msg => msg._id !== tempId).concat(response.data));
 
-            // Notify other users through socket
             if (socket) {
                 socket.emit('create-message', {
                     chatRoomId: chatRoom._id,
@@ -393,32 +406,27 @@ const ChatScreen = () => {
         }
     };
 
-    // Handle message recall (with two options like Zalo)
     const handleRecallMessage = async (code) => {
         try {
             if (!selectedMessage) return;
 
-            // Display loading indication
             const updatedMessages = messages.map(msg =>
                 msg._id === selectedMessage._id ? { ...msg, isRecalling: true } : msg
             );
             setMessages(updatedMessages);
 
-            // Call API to recall message
             const response = await axios.post(
                 `${API_URL}/message/recall/${code}`,
                 { _id: selectedMessage._id },
                 { headers: { Authorization: token } }
             );
 
-            // Update local message state
             setMessages(prev =>
                 prev.map(msg =>
                     msg._id === selectedMessage._id ? response.data : msg
                 )
             );
 
-            // Notify other users via socket if code is 2 (recall for everyone)
             if (socket && code === '2') {
                 socket.emit('delete-message', {
                     chatRoomId: chatRoom._id,
@@ -434,12 +442,10 @@ const ChatScreen = () => {
         }
     };
 
-    // Handle complete message deletion
     const handleDeleteMessage = async () => {
         try {
             if (!selectedMessage) return;
 
-            // Confirm deletion
             Alert.alert(
                 "Xóa tin nhắn",
                 "Bạn có chắc chắn muốn xóa tin nhắn này không? Hành động này không thể hoàn tác.",
@@ -452,23 +458,19 @@ const ChatScreen = () => {
                         text: "Xóa",
                         style: "destructive",
                         onPress: async () => {
-                            // Display loading indication
                             const updatedMessages = messages.map(msg =>
                                 msg._id === selectedMessage._id ? { ...msg, isDeleting: true } : msg
                             );
                             setMessages(updatedMessages);
 
                             try {
-                                // Call API to delete message
                                 const response = await axios.delete(
                                     `${API_URL}/message/${selectedMessage._id}`,
                                     { headers: { Authorization: token } }
                                 );
 
-                                // Remove message from state
                                 setMessages(prev => prev.filter(msg => msg._id !== selectedMessage._id));
 
-                                // Notify other users via socket
                                 if (socket) {
                                     socket.emit('message-deleted-permanently', {
                                         chatRoomId: chatRoom._id,
@@ -479,7 +481,6 @@ const ChatScreen = () => {
                                 console.error('Error deleting message:', error);
                                 Alert.alert('Lỗi', 'Không thể xóa tin nhắn. Vui lòng thử lại sau.');
 
-                                // Restore message view on error
                                 setMessages(prev =>
                                     prev.map(msg =>
                                         msg._id === selectedMessage._id ?
@@ -500,13 +501,11 @@ const ChatScreen = () => {
         }
     };
 
-    // Improved reply to message function
     const handleReplyToMessage = (msg) => {
         setReplyingTo(msg);
         setSelectedMessage(null);
         setShowMessageOptions(false);
 
-        // Focus the text input
         Keyboard.dismiss();
         setTimeout(() => {
             textInputRef?.current?.focus();
@@ -525,7 +524,6 @@ const ChatScreen = () => {
         return 'Chat';
     };
 
-    // Get avatar source for a member
     const getAvatarSource = (member) => {
         if (member) {
             if (member.avatarUrl) {
@@ -536,14 +534,12 @@ const ChatScreen = () => {
         return { uri: `https://ui-avatars.com/api/?name=User&background=0999fa&color=fff` };
     };
 
-    // Function to check if a message should show avatar (first message from a sender in a sequence)
     const shouldShowAvatar = (index) => {
         if (index === 0) return true;
 
         const currentMessage = messages[index];
         const previousMessage = messages[index - 1];
 
-        // If current message is from a different sender than previous message
         return (
             typeof currentMessage.sendID === 'object' &&
             typeof previousMessage.sendID === 'object' &&
@@ -551,14 +547,12 @@ const ChatScreen = () => {
         );
     };
 
-    // Enhanced message renderer with grouped messages and avatars only for first message in group
     const renderMessage = (msg, index) => {
         const senderId = typeof msg.sendID === 'object' ? msg.sendID._id : msg.sendID;
         const isOwnMessage = senderId === user._id;
         const showAvatar = !isOwnMessage && shouldShowAvatar(index);
         const sender = typeof msg.sendID === 'object' ? msg.sendID : { name: 'User', _id: senderId };
 
-        // Loading state for message being deleted
         if (msg.isDeleting) {
             return (
                 <View
@@ -586,7 +580,6 @@ const ChatScreen = () => {
             );
         }
 
-        // Loading state for message being recalled
         if (msg.isRecalling) {
             return (
                 <View
@@ -614,7 +607,6 @@ const ChatScreen = () => {
             );
         }
 
-        // For recalled messages - personal recall
         if (msg.recall === '1' && msg.sendID._id === user._id) {
             return (
                 <View
@@ -642,7 +634,6 @@ const ChatScreen = () => {
             );
         }
 
-        // For recalled messages - global recall
         if (msg.recall === '2') {
             return (
                 <View
@@ -680,7 +671,6 @@ const ChatScreen = () => {
                 onLongPress={() => handleLongPressMessage(msg)}
                 activeOpacity={0.7}
             >
-                {/* Add avatar only for first message in a sequence */}
                 {showAvatar ? (
                     <Image
                         source={getAvatarSource(sender)}
@@ -696,12 +686,10 @@ const ChatScreen = () => {
                         isOwnMessage ? styles.ownMessage : styles.otherMessage
                     ]}
                 >
-                    {/* Show sender name only for first message in a sequence */}
                     {!isOwnMessage && showAvatar && (
                         <Text style={styles.senderName}>{sender.name}</Text>
                     )}
 
-                    {/* Render reply preview if this message is a reply */}
                     {msg.replyToMessage && (
                         <View style={[
                             styles.replyContainer,
@@ -803,7 +791,6 @@ const ChatScreen = () => {
         );
     };
 
-    // Enhanced message options modal with Zalo-like styling
     const renderMessageOptionsModal = () => {
         if (!showMessageOptions) return null;
 
@@ -869,7 +856,6 @@ const ChatScreen = () => {
         );
     };
 
-    // Enhanced reply preview with Zalo-like styling
     const renderReplyPreview = () => {
         if (!replyingTo) return null;
 
@@ -901,14 +887,13 @@ const ChatScreen = () => {
     };
 
     const handleLongPressMessage = (message) => {
-        // Store the selected message for options
         setSelectedMessage(message);
         setShowMessageOptions(true);
     };
 
     const handleGotoProfile = () => {
         navigation.navigate('UserProfileScreen', { user: chatRoom.members.find(member => member._id !== user._id) });
-    }
+    };
 
     if (loading) {
         return (
@@ -927,7 +912,6 @@ const ChatScreen = () => {
         >
             <StatusBar barStyle="light-content" backgroundColor="#0999fa" />
 
-            {/* Header */}
             <View style={styles.header}>
                 <View style={styles.headerContent}>
                     <Ionicons
@@ -949,7 +933,8 @@ const ChatScreen = () => {
                         {chatRoom?.isGroupChat && (
                             <TouchableOpacity
                                 style={styles.headerIcon}
-                                onPress={() => navigation.navigate('GroupOptionsScreen', { chatRoom })}>
+                                onPress={() => navigation.navigate('GroupOptionsScreen', { chatRoom })}
+                            >
                                 <MaterialIcons name="more-vert" size={22} color="white" />
                             </TouchableOpacity>
                         )}
@@ -957,7 +942,6 @@ const ChatScreen = () => {
                 </View>
             </View>
 
-            {/* Chat Area */}
             <ScrollView
                 ref={scrollViewRef}
                 style={styles.chatContainer}
@@ -967,13 +951,10 @@ const ChatScreen = () => {
                 {messages.map((msg, index) => renderMessage(msg, index))}
             </ScrollView>
 
-            {/* Message Options Modal */}
             {renderMessageOptionsModal()}
 
-            {/* Reply Preview */}
             {renderReplyPreview()}
 
-            {/* Input Area */}
             <View style={styles.inputArea}>
                 <TouchableOpacity style={styles.inputButton} onPress={toggleEmojiPicker}>
                     <Ionicons
@@ -1008,7 +989,6 @@ const ChatScreen = () => {
                 )}
             </View>
 
-            {/* Emoji Picker */}
             {showEmojiPicker && (
                 <View style={styles.emojiContainer}>
                     <EmojiSelector
@@ -1093,13 +1073,11 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: '#555',
     },
-
-    // Enhanced message styles with grouped avatars
     messageWrapper: {
         flexDirection: 'row',
         marginVertical: 2,
         paddingHorizontal: 10,
-        alignItems: 'flex-end', // Align items at the bottom
+        alignItems: 'flex-end',
     },
     ownMessageWrapper: {
         justifyContent: 'flex-end',
@@ -1152,8 +1130,6 @@ const styles = StyleSheet.create({
         marginBottom: 4,
         color: '#333',
     },
-
-    // Message avatar and placeholder 
     messageAvatar: {
         width: 30,
         height: 30,
@@ -1165,8 +1141,6 @@ const styles = StyleSheet.create({
         height: 0,
         marginRight: 8,
     },
-
-    // Enhanced recalled message styles
     recalledMessage: {
         backgroundColor: '#f1f1f1',
         flexDirection: 'row',
@@ -1198,8 +1172,6 @@ const styles = StyleSheet.create({
         fontSize: 13,
         marginLeft: 8,
     },
-
-    // Enhanced reply styles
     replyContainer: {
         flexDirection: 'row',
         marginBottom: 6,
@@ -1235,8 +1207,6 @@ const styles = StyleSheet.create({
     ownReplyText: {
         color: 'rgba(255,255,255,0.8)',
     },
-
-    // File and media message styles
     fileContainer: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -1256,8 +1226,6 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         marginVertical: 5,
     },
-
-    // Enhanced reply preview styles
     replyPreviewContainer: {
         backgroundColor: '#F8F8F8',
         borderTopWidth: 1,
@@ -1291,16 +1259,12 @@ const styles = StyleSheet.create({
     cancelReplyButton: {
         padding: 4,
     },
-
-    // Emoji picker styles
     emojiContainer: {
         height: 250,
         backgroundColor: '#FFFFFF',
         borderTopWidth: 1,
         borderTopColor: '#E0E0E0',
     },
-
-    // Enhanced message options modal
     modalOverlay: {
         flex: 1,
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
