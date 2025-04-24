@@ -52,7 +52,7 @@ router.post("/register", async (req, res) => {
       html: `
         <h3>Chào ${name},</h3>
         <p>Nhấn vào link dưới đây để xác thực tài khoản:</p>
-        <a href="http://localhost:5000/api/auth/verify?token=${encodeURIComponent(token)}">Xác thực tài khoản</a>
+        <a href="http://chat.fff3l.click/api/auth/verify?token=${encodeURIComponent(token)}">Xác thực tài khoản</a>
       `,
     };
 
@@ -109,7 +109,7 @@ router.post("/login", async (req, res) => {
     const userDaLoc = UserUtil.locUserRaIdNameAvatarRequestFriendFriend(user)
     console.log(userDaLoc)
 
-    res.status(200).json({ msg: "Đăng nhập thành công!", redirect: "/dashboard.html", token, userDaLoc });
+    res.status(200).json({ msg: "Đăng nhập thành công!", redirect: "/dashboard.html", token, userDaLoc});
 
   } catch (error) {
     console.error(error);

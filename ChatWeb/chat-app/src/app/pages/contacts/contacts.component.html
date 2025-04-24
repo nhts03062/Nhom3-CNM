@@ -49,9 +49,9 @@
             [class.active]="selectedFriend?._id === friend._id"
             (click)="selectFriend(friend)"
           >
-            <div class="d-flex align-items-center">
+            <div class="d-flex align-items-center w-100">
               <div 
-                class="photo me-2" 
+                class="photo" 
                 [style.backgroundImage]="'url(' + friend.avatarUrl + ')'"
               >
                 <!-- <div class="online" *ngIf="friend.online === true"></div> -->
@@ -135,7 +135,7 @@
           </ng-container>
           
 
-          <ng-container *ngFor="let sentRequest of sentRequests">
+          <ng-container *ngFor="let sentRequest of sentRequests ">
             <div class="card mb-3">
               <div class="card-body">
                 <div class="d-flex align-items-center">

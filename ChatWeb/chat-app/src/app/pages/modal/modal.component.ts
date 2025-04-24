@@ -7,6 +7,7 @@ import { ModalProfileComponent } from '../profile/modal-profile/modal-profile.co
 import { Userr } from '../../models/user.model';
 import { ChatRoomService } from '../../services/chatRoom.service';
 import { Router } from '@angular/router';
+import { SocketService } from '../../socket.service';
 
 @Component({
   selector: 'app-modal',
@@ -29,11 +30,13 @@ export class ModalComponent implements OnInit {
 
   activeTab: 'friend' | 'group' = 'friend';
   searchTerm: string = '';
-  currentUserId = sessionStorage.getItem('userId'); ;
+  currentUserId = sessionStorage.getItem('userId');
+  groupName = '';
 
   constructor(private userService : UserService,
     private chatRoomService: ChatRoomService,
-    private router: Router){}
+    private router: Router,
+  private socketService: SocketService){}
 
   ngOnInit(): void {
     this.loadFriends();
@@ -103,57 +106,45 @@ export class ModalComponent implements OnInit {
   }
 
   createGroup(friendIds: string[]): void {
-    
     if (friendIds.length < 2) {
       alert("Please select at least 2 friends");
       return;
     }
+  
     if (!this.currentUserId) {
       console.error("⚠️ Cannot start chat: user._id is undefined");
       return;
     }
+  
     console.log("📦 Creating room with:", {
       currentUserId: this.currentUserId,
       friendIds: friendIds
     });
-    
-    
+  
     const roomData = {
       members: [...friendIds],
-      chatRoomName: '', // để trống nếu là phòng 2 người
-      image:this.defaulGrouptAvatarUrl
+      chatRoomName: this.groupName ?? '', // Use nullish coalescing to provide an empty string as default
+      image: this.defaulGrouptAvatarUrl
     };
-    
-    console.log("🚀 ~ ModalComponent ~ createGroup ~ roomData:", roomData)
-    this.chatRoomService.getChatRooms().subscribe({
-      next: (chatRooms) => {
-        // Check if a chat room already exists with the friend
-        const existingRoom = chatRooms.find(room => 
-          room.members.some(id => friendIds.includes(id))  // Check if any friend is already in the room
-        );
-        
-        if (existingRoom) {
-          console.log('Chat Room Exists:', existingRoom);
-          this.navigateToChatRoom(existingRoom._id);
-          // Navigate to the existing chat room or handle it as needed
-        } else {
-          this.chatRoomService.createChatRoom(roomData).subscribe({
-            next: (newRoom) => {
-              console.log('Chat Room Created:', newRoom);
-              this.navigateToChatRoom(newRoom._id);
-              // Navigate to the new chat room or handle it accordingly
-            },
-            error: (err) => console.error('Failed to create chat room:', err)
-          });
-        }
+  
+    console.log("🚀 ~ ModalComponent ~ createGroup ~ roomData:", roomData);
+  
+    this.chatRoomService.createChatRoom(roomData).subscribe({
+      next: (newRoom) => {
+        console.log('Chat Room Created:', newRoom);
+        this.close();
+        this.navigateToChatRoom(newRoom._id);
+        this.socketService.joinRoom(newRoom._id);
+        // Navigate to the new chat room or handle it accordingly
       },
-      error: (err) => console.error('Error fetching chat rooms:', err)
+      error: (err) => console.error('Failed to create chat room:', err)  // Handle errors here
     });
   }
+  
   navigateToChatRoom(chatRoomId: string): void {
     console.log("Navigating to chat room with ID:", chatRoomId);
-    //navigate to chat page
+    // Navigate to chat page
     this.router.navigate([`/chat`], { queryParams: { roomId: chatRoomId } });
-    
   }
-}
+}  
+

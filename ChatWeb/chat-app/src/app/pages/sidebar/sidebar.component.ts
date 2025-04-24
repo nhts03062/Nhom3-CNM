@@ -1,7 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject} from '@angular/core';
-import { Router, RouterModule } from '@angular/router';
-import { Userr } from '../../models/user.model'; 
+import { Component, inject, OnInit, OnDestroy } from '@angular/core';
+import { Router, RouterModule, NavigationEnd } from '@angular/router';
+import { filter, Subscription } from 'rxjs';
+import { Userr } from '../../models/user.model';
 import { UserService } from '../../services/user.service';
 
 @Component({
@@ -10,32 +11,33 @@ import { UserService } from '../../services/user.service';
   standalone: true,
   templateUrl: './sidebar.component.html',
   styleUrls: ['./sidebar.component.css']
-
 })
-export class SidebarComponent {
+export class SidebarComponent implements OnInit, OnDestroy {
   router = inject(Router);
   activeIndex = 0;
   user!: Userr;
   userId: string = sessionStorage.getItem('userId')!;
   defaultAvatarUrl = 'https://i1.rgstatic.net/ii/profile.image/1039614412341248-1624874799001_Q512/Meryem-Laval.jpg';
 
-  ngOnInit() {
-    const currentUrl = this.router.url;
-    this.loadUserData(this.userId!);
+  private routerEventsSub!: Subscription;
 
-    if (currentUrl.includes('/profile')) {
-      this.activeIndex = 0;
-    }
-    else if (currentUrl.includes('/chat')) {
-      this.activeIndex = 1;
-    } else if (currentUrl.includes('/contacts')) {
-      this.activeIndex = 2;
-    } else if (currentUrl.includes('/auth')) {
-      this.activeIndex = 3;
+  constructor(private userService: UserService) {}
+
+  ngOnInit() {
+    this.setActiveIndex(this.router.url);
+
+    this.routerEventsSub = this.router.events.pipe(
+      filter(event => event instanceof NavigationEnd)
+    ).subscribe((event: any) => {
+      this.setActiveIndex(event.urlAfterRedirects);
+    });
+  }
+
+  ngOnDestroy() {
+    if (this.routerEventsSub) {
+      this.routerEventsSub.unsubscribe();
     }
   }
-    constructor(private userService: UserService) {
-    }
 
   onNavigate(index: number) {
     this.activeIndex = index;
@@ -50,15 +52,16 @@ export class SidebarComponent {
       this.router.navigateByUrl('/auth', { replaceUrl: true });
     }
   }
-  loadUserData(userId: string): void {
-    // this.userService.getUserById(userId).subscribe({
-    //   next: (res: Userr) => {
-    //     this.user = res;
-    //     console.log('User data loaded:', this.user);
-    //   },
-    //   error: (err: any) => {
-    //     console.error('Failed to load user:', err);
-    //   }
-    // });
+
+  private setActiveIndex(url: string) {
+    if (url.includes('/profile')) {
+      this.activeIndex = 0;
+    } else if (url.includes('/chat')) {
+      this.activeIndex = 1;
+    } else if (url.includes('/contacts')) {
+      this.activeIndex = 2;
+    } else if (url.includes('/auth')) {
+      this.activeIndex = 3;
+    }
   }
 }

@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, Output, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ChatRoomService } from '../../../services/chatRoom.service';
 import { ChatRoom } from '../../../models/chatRoom.model';
@@ -26,11 +26,13 @@ export class ModalProfileComponent {
   requestSent: boolean = false;
   defaulGroupAvatarUrl= 'https://static.vecteezy.com/system/resources/previews/026/019/617/original/group-profile-avatar-icon-default-social-media-forum-profile-photo-vector.jpg';
   messagees : Messagee [] = [];
+  personGotRequest: Userr | undefined;
 
   constructor(private chatRoomService : ChatRoomService, 
     private userService: UserService,
     private router: Router,
-    private messageService : MessageService  
+    private messageService : MessageService,
+    private cdRef: ChangeDetectorRef   
   ){}
 
   close() {
@@ -43,7 +45,12 @@ export class ModalProfileComponent {
     this.checkProfile();
 
   }
-
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['isOpen'] && this.isOpen) {
+      this.checkProfile();
+    }
+  }
+  
   
   startChat(friendId: string): void {
     if (!this.user || !this.user._id) {
@@ -63,13 +70,13 @@ export class ModalProfileComponent {
         if (existingRoom) {
           console.log('Chat Room Exists:', existingRoom);
           this.navigateToChatRoom(existingRoom._id);
-          // Navigate to the existing chat room or handle it as needed
+          this.isOpen = false;
         } else {
           this.chatRoomService.createChatRoom(roomData).subscribe({
             next: (newRoom) => {
               console.log('Chat Room Created:', newRoom);
               this.navigateToChatRoom(newRoom._id);
-              // Navigate to the new chat room or handle it accordingly
+              this.isOpen = false;
             },
             error: (err) => console.error('Failed to create chat room:', err)
           });
@@ -102,19 +109,6 @@ export class ModalProfileComponent {
     }
   }
 
-  // loadUserData(userId: string): void {
-  //   this.userService.getUserById(userId).subscribe({
-  //     next: (res: Userr) => {
-  //       this.user = res;
-  //       if (this.currentUserId) {
-  //         this.requestSent = this.checkIfSentRequest(this.currentUserId);
-  //       }
-  //     },
-  //     error: err => {
-  //       console.error('Failed to load user:', err);
-  //     }
-  //   });
-  // }
 
   loadFriendsAndCheck(userId: string): void {
     this.userService.getFriends().subscribe({
@@ -145,12 +139,16 @@ export class ModalProfileComponent {
         this.user = res;
         this.requestSent = true;
         console.log("Request sent to:", this.user);
+        
       },
       error: (err) => {
-        console.error("Failed to request sent:", err);
+        console.error("Failed to send friend request:", err);
+        alert('⚠️ Gửi lời mời kết bạn thất bại');
       }
     });
   }
+  
+
   
   // cancelFriendRequest(friendId: string): void {
   //   if (!this.user) return;
@@ -159,6 +157,16 @@ export class ModalProfileComponent {
   //   this.requestSent = false;
   //   console.log('Friend request canceled:', friendId);
   // }
+  loadUser(userId:string): void {
+    if (userId) {
+      this.userService.getUserById(userId).subscribe({
+        next: (user) => {
+          this.personGotRequest = user;
+        },
+        error: (err) => console.error("Failed to load user:", err)
+      });
+    }
+  }
   
 
   sendRequest(friendId:string) {
@@ -166,7 +174,8 @@ export class ModalProfileComponent {
   
     if (!this.requestSent) {
       // Send request logic here
-      this.sendAddFriend(friendId);
+       // Refreshes status
+      this.sendAddFriend(friendId)
       this.checkProfile();
       console.log("Friend request sent", friendId);
     } else {
@@ -176,5 +185,6 @@ export class ModalProfileComponent {
       console.log("Friend request canceled",friendId);
     }
   }
+  
   
 }

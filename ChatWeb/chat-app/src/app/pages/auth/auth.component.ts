@@ -6,6 +6,7 @@ import { CommonModule } from '@angular/common';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { ToastrModule, ToastrService } from 'ngx-toastr';
 import { filter } from 'rxjs';
+import { apiUrl } from '../../contants';
 
 @Component({
   selector: 'app-auth',
@@ -19,6 +20,7 @@ export class AuthComponent implements OnInit {
   private router = inject(Router);
   private fb = inject(FormBuilder);
   private route = inject(ActivatedRoute);
+  apiUrl = apiUrl;
   isForgotPasswordRoute: boolean = false;
   isChangePasswordRoute: boolean = false;
 
@@ -57,7 +59,7 @@ export class AuthComponent implements OnInit {
    * Xác thực tài khoản từ email
    */
   verifyEmail(token: string) {
-    this.http.get(`http://localhost:5000/api/auth/verify?token=${encodeURIComponent(token)}`)
+    this.http.get(`${apiUrl}/auth/verify?token=${encodeURIComponent(token)}`)
       .subscribe({
         next: () => {
           alert("✅ Xác thực email thành công! Hãy đăng nhập.");
@@ -74,7 +76,7 @@ export class AuthComponent implements OnInit {
    */
   onLogin() {
     if (this.loginForm.valid) {
-      this.http.post("http://localhost:5000/api/auth/login", this.loginForm.value)
+      this.http.post(`${apiUrl}/auth/login`, this.loginForm.value)
         .subscribe({
           next: (res: any) => {
             if (res.token) {
@@ -101,7 +103,7 @@ export class AuthComponent implements OnInit {
    */
   onRegister() {
     if (this.registerForm.valid) {
-      this.http.post("http://localhost:5000/api/auth/register", this.registerForm.value)
+      this.http.post(`${apiUrl}/auth/register`, this.registerForm.value)
         .subscribe({
           next: () => {
             alert("✅ Đăng ký thành công! Kiểm tra email để xác nhận tài khoản.");

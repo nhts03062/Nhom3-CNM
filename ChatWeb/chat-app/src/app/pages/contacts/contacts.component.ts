@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, TrackByFunction } from '@angular/core';
 import { ModalComponent } from '../modal/modal.component';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -10,11 +10,12 @@ import { ChatRoomService } from '../../services/chatRoom.service';
 import { SearchService } from '../../services/serachService.service';
 import { Router } from '@angular/router';
 import { ChatRoom } from '../../models/chatRoom.model';
+import { defaultAvatarUrl, defaulGrouptAvatarUrl } from '../../contants';
 
 @Component({
   standalone: true,
   selector: 'app-contacts',
-  imports: [ModalComponent, CommonModule,FormsModule, ModalProfileComponent],
+  imports: [ModalComponent, CommonModule, FormsModule, ModalProfileComponent],
   templateUrl: './contacts.component.html',
   styleUrls: ['./contacts.component.css']
 })
@@ -24,32 +25,34 @@ export class ContactsComponent implements OnInit {
   showModal = false;
   showProfileModal = false;
   selectedTab: number = 0;
+  defaultAvatarUrl = defaultAvatarUrl;
+  defaulGrouptAvatarUrl = defaulGrouptAvatarUrl;
   tabTitles: string[] = ['Friends List', 'Group List', 'Requests'];
-  defaultAvatarUrl = 'https://i1.rgstatic.net/ii/profile.image/1039614412341248-1624874799001_Q512/Meryem-Laval.jpg';
-  defaulGrouptAvatarUrl= 'https://static.vecteezy.com/system/resources/previews/026/019/617/original/group-profile-avatar-icon-default-social-media-forum-profile-photo-vector.jpg';
   searchTerm: string = '';
   searchTermGroup: string = '';
   friendsList: Userr[] = [];
-  groupsList: ChatRoom[]=[];
+  groupsList: ChatRoom[] = [];
   user: Userr | undefined;
   userMap: { [id: string]: Userr } = {};
-  currentUser : Userr | undefined;
-  foundUser : Userr | undefined;
-  friendRequests : Userr[]=[]; 
-  sentRequests:Userr[]=[];
+  currentUser: Userr | undefined;
+  foundUser: Userr | undefined;
+  friendRequests: Userr[] = [];
+  sentRequests: Userr[] = [];
 
-  constructor(private userService : UserService, 
+
+  constructor(private userService: UserService,
     private chatRoomService: ChatRoomService,
     private searchService: SearchService,
     private router: Router
-  ){}
+  ) { }
 
-  // Lifecycle Hook for Initialization
   ngOnInit(): void {
     this.loadFriends();
     this.loadUser();
+    console.log("🚀 ~ ContactsComponent ~ ngOnInit ~ this.loadUser();:")
+    this.loadChatRooms();
   }
-  
+
   toggleModal() {
     this.showModal = !this.showModal;
   }
@@ -60,7 +63,7 @@ export class ContactsComponent implements OnInit {
   onSelectTab(tab: number) {
     this.selectedTab = tab;
   }
-  
+
 
   selectedFriend: Userr | undefined;;
 
@@ -78,31 +81,37 @@ export class ContactsComponent implements OnInit {
     });
     return user$;
   }
-  
-  getFriendRequestsList(){
+
+  getFriendRequestsList() {
+    this.friendRequests = [];
     this.currentUser?.friendRequestsReceived.forEach(userId => {
       this.userService.getUserById(userId).subscribe({
         next: (user) => {
-          this.friendRequests = [...this.friendRequests, user]; 
+          this.friendRequests.push(user);
         },
         error: (err) => console.error('Failed to load friend request user:', err)
       });
     });
   }
 
-  getSentRequestsList(){
+  getSentRequestsList() {
+    this.sentRequests = [];
+    
+    console.log("🚀 ~ ContactsComponent ~ getSentRequestsList ~ requestfriends:", this.currentUser?.requestfriends)
     this.currentUser?.requestfriends.forEach(userId => {
       this.userService.getUserById(userId).subscribe({
         next: (user) => {
-          this.sentRequests = [...this.sentRequests,user];
+          this.sentRequests.push(user);
+          console.log("🚀 ~ ContactsComponent ~ this.userService.getUserById ~ this.sentRequests:", this.sentRequests)
         },
         error: (err) => console.error('Failed to load friend request user:', err)
       });
     });
   }
-  
+
   loadUser(): void {
-    const userId = sessionStorage.getItem('userId'); 
+    const userId = sessionStorage.getItem('userId');
+    console.log("🚀 ~ ContactsComponent ~ loadUser ~ userId:", userId)
     if (userId) {
       this.userService.getUserById(userId).subscribe({
         next: (user) => {
@@ -115,11 +124,10 @@ export class ContactsComponent implements OnInit {
       });
     }
   }
-  
 
   loadFriends(): void {
     console.log("🔄 Starting to load friends...");
-  
+
     this.userService.getFriends().subscribe({
       next: (friends: Userr[]) => {
         console.log("📥 Friends loaded:", friends);
@@ -141,7 +149,7 @@ export class ContactsComponent implements OnInit {
       }
     });
   }
-  
+
   get filteredFriends(): Userr[] {
     return this.friendsList.filter(friend =>
       friend.name.toLowerCase().includes(this.searchTerm.toLowerCase())
@@ -156,19 +164,21 @@ export class ContactsComponent implements OnInit {
   // Navigate directly to the chat room
   navigateToChatRoom(chatRoomId: string): void {
     console.log("Navigating to chat room with ID:", chatRoomId);
-    // For example, if you're using Angular Router:
     this.router.navigate([`/chat-room/${chatRoomId}`]);
   }
-  
+
 
 
   unFriend(friendId: string): void {
     this.userService.unFriendRequest(friendId).subscribe({
       next: (res: Userr) => {
-        this.user = res; console.log(" Unfriend:", this.user);
+        this.user = res;
+        console.log("Unfriend:", this.user);
+        alert('❌ Đã hủy kết bạn thành công');
       },
       error: (err) => {
-        console.error("Failed to add friend:", err);
+        console.error("Failed to unfriend:", err);
+        alert('⚠️ Hủy kết bạn thất bại');
       }
     });
   }
@@ -176,25 +186,32 @@ export class ContactsComponent implements OnInit {
 
   async requestResponse(code: string, userId: string): Promise<any> {
     try {
-      const reponse = await firstValueFrom(this.userService.requestResponse(code, userId));
-      return reponse;
+      const response = await firstValueFrom(this.userService.requestResponse(code, userId));
+      console.log("🚀 ~ ContactsComponent ~ requestResponse ~ response:", response);
+      alert('Yêu cầu đã được xử lý thành công ✅');
+      return response;
     } catch (err) {
       console.error("Request failed:", err);
+      alert('⚠️ Xử lý yêu cầu thất bại!');
       throw err;
     }
   }
   
-  
+
   async acceptRequest(requestId: string): Promise<void> {
     try {
-      const res = await this.requestResponse('1',requestId);
+      const res = await this.requestResponse('1', requestId);
       console.log('✅ Request accepted response:', res);
       // this.addNewFriend(requestId);
       this.loadFriends();
+      // Optional: alert here instead of/in addition to inside requestResponse
+      alert('✅ Bạn đã chấp nhận lời mời kết bạn');
     } catch (error) {
       console.error("Error accepting request:", error);
+      // Optional: additional alert here if you want more detailed feedback
     }
   }
+  
 
-   
+
 }

@@ -20,7 +20,7 @@
         <ng-container *ngIf="activeTab === 'group'">
           <div class="d-flex flex-row align-items-center gap-2 p-2">
             <i class="fa-solid fa-camera-retro"></i>
-            <input type="text" class="group-name" placeholder="Group name" />
+            <input type="text" class="group-name" placeholder="Group name" [(ngModel)]="groupName" />
           </div>
           <!-- Search Input -->
             <input
