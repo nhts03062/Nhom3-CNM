@@ -79,23 +79,31 @@ io.on("connection", (socket) => {
     })
   })
 
+  /**---start----Phần bạn bè--------------- */
+//Ý tưởng là những thứ như đồng ý kết bạn hay gửi kết bạn cần gửi id
+//  của người nhận và truyền vào data(thông tin của người gửi để khi 
+// lấy ra push vào mảng render luôn ko cần phải gọi route getUserbyId)
+
+//còn những thứ như hủy yêu cầu kết bạn, từ chối làm bạn, hủy bạn bè chỉ cần friendID Và nhận về 
+// id của thằng làm những thứ này sau đó trong fe sẽ filres để loại nó ra khỏi danh sách hiện lên thôi
+
 //gửi yêu cầu kết bạn
-  socket.on('send-friend-request', (friendId, data) => {
+  socket.on('send-friend-request', (friendId, data) => { //friendId chỉ có id của người muốn kết bạn
     console.log('Received friend request:', data);
-    socket.broadcast.to(friendId.toString()).emit('received-friend-request', data); //data là thông tin người gửi sự kiện di nguyên cái user
+    socket.broadcast.to(friendId.toString()).emit('received-friend-request', data); //data là thông tin người gửi sự kiện di nguyên cái user (object)
   });
     //hủy gửi kết bạn
-    socket.on('cancel-reqFriend', (userId) => {
-    socket.broadcast.to(userId).emit('reqFriend-canceled', socket.user);
-    console.log(`User ${socket.user} đã hủy yêu cầu kết bạn với ${userId}`); //data là userId người hủy kết bạn
+    socket.on('cancel-reqFriend', (userId) => { //userId là chỉ có id người muốn hủy kết bạn
+    socket.broadcast.to(userId).emit('reqFriend-canceled', socket.user); //data trả về là userId của người hủy kết bạn
+    console.log(`User ${socket.user} đã hủy yêu cầu kết bạn với ${userId}`); 
     }) 
 //đồng ý kết bạn
-  socket.on('accept-friend-request', (friendId, data) => {
+  socket.on('accept-friend-request', (friendId, data) => { //friendId chỉ có id của người muốn kết bạn, data là thông tin của người dùng gửi sự kiện di nguyên cái user
     console.log('Received friend request:', data);
-    socket.broadcast.to(friendId.toString()).emit('accepted-friend-request', data);//data là thông tin của người dùng gửi sự kiện di nguyên cái user
+    socket.broadcast.to(friendId.toString()).emit('accepted-friend-request', data);
   });
   //Nhận sự kiện từ chối yêu cầu kết bạn
-  socket.on('reject-friend-request', (friendId) => {
+  socket.on('reject-friend-request', (friendId) => { //friendId chỉ có id của người muốn kết bạn
     console.log('Received friend request:', friendId);
     socket.broadcast.to(friendId.toString()).emit('rejected-friend-request', socket.user);
   });
@@ -106,6 +114,8 @@ io.on("connection", (socket) => {
     socket.broadcast.to(userId).emit('unfriended', socket.user); //gửi lại người dùng hủy kết bạn là user đã hủyhủy
     console.log(`User ${socket.user} đã hủy kết bạn với ${userId}`);
   })
+  
+    /**---end----Phần bạn bè--------------- */
 
 
   //tạo phòng chat nhóm mới
