@@ -110,7 +110,7 @@
       </div>
     
       <div *ngIf="selectedTab === 2">
-        <!-- Requests content here -->
+        <!-- Yêu cầu kết bạn -->
         <div class="request-container">
           <ng-container *ngFor="let receivedRequest of friendRequests">
             <div class="card mb-3">
@@ -127,32 +127,8 @@
 
                 </div>
                 <div class="d-flex gap-2 mt-3">
-                  <button class="btn btn-outline-danger btn-sm" *ngIf="receivedRequest && receivedRequest._id" (click)="requestResponse('0', receivedRequest._id)">Decline</button>
-                  <button class="btn btn-outline-success btn-sm" (click)="acceptRequest(receivedRequest._id)">Accept</button>
-                </div>
-              </div>
-            </div>
-          </ng-container>
-          
-
-          <ng-container *ngFor="let sentRequest of sentRequests ">
-            <div class="card mb-3">
-              <div class="card-body">
-                <div class="d-flex align-items-center">
-                  <div class="photo me-3"
-                       [style.backgroundImage]="'url(' + (sentRequest.avatarUrl || defaultAvatarUrl) + ')'"
-                       style="width: 50px; height: 50px; background-size: cover; border-radius: 50%;">
-                  </div>
-                  <div>
-                    <h5 class="card-title mb-1">
-                      Sent request to {{ sentRequest?.name }}
-                    </h5>
-                    <p class="text-muted mb-2">{{ sentRequest?.createdAt }}</p>
-                  </div>
-                </div>
-                <div class="d-flex gap-2 mt-3">
-                  <button class="btn btn-outline-danger btn-sm" *ngIf="sentRequest && sentRequest._id" (click)="requestResponse('0', sentRequest._id)">Cancel</button>
-                  <button disabled class="btn btn-outline-success btn-sm">Pending</button>
+                  <button class="btn btn-outline-success btn-sm" (click)="requestResponse('1', receivedRequest._id)">Đồng ý kết bạn</button>
+                  <button class="btn btn-outline-danger btn-sm" *ngIf="receivedRequest && receivedRequest._id" (click)="requestResponse('0', receivedRequest._id)">Từ chối</button>
                 </div>
               </div>
             </div>

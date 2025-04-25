@@ -5,6 +5,7 @@ const authMiddelware = require('../middlewales/authMiddleware ')
 const SearchController= require('../controller/search.controller')
 
 // route tìm kiếm
+//body{searchTerm}
 // tìm kiếm người dùng theo email, số điện thoại hoặc tên đăng nhập
 // sử dụng phương thức POST để gửi dữ liệu tìm kiếm
 router.post('/', authMiddelware, SearchController.getUserByEmailPhoneNumberEmail);

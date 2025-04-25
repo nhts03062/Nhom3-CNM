@@ -11,11 +11,33 @@
         </h5>
       </header>
 
-
+      <!--Tab tìm kiếm bạn bè -->
       <section class="modal-container-body rtf">
         <ng-container *ngIf="activeTab === 'friend'">
-          <input type="text" class="email-searching" placeholder="Search friend's email" [(ngModel)]="searchTerm"/>
+          <input
+            type="text"
+            class="email-searching"
+            placeholder="Search friend email"
+            [(ngModel)]="searchTerm"
+            (keyup.enter)="searchFriend()"
+          />
+          <div *ngIf="isSearching" class="loading">Searching...</div>
+          <p class="error" *ngIf="searchError" style="color: red;">{{ searchError }}</p>
+
+          <ul class="search-results" *ngIf="danhSachNguoiDungSauKhiTimKiem.length > 0">
+            <li *ngFor="let user of danhSachNguoiDungSauKhiTimKiem">
+              <!-- Trả về user có name emaill, avartar của người đó -->
+               <!-- style lại chỗ này có avartar của người dùng và tên thôi khỏi email-->
+              {{ user.email }} ({{ user.name || user.username }})
+              <button *ngIf="kiemTraBanHayDaGuiYeuCauKetBan(user) === 'chuaKetBan'" class="add-friend-btn" (click)="guiYeuCauKetBan(user._id)">Kết bạn</button>
+              <p *ngIf="kiemTraBanHayDaGuiYeuCauKetBan(user) === 'ban'">Bạn bè</p>
+              <button *ngIf="kiemTraBanHayDaGuiYeuCauKetBan(user) === 'daGuiYeuCau'" class="cancel-request-btn" (click)="huyYeuCauKetBan(user._id)">Hủy yêu cầu</button>
+              <p *ngIf="kiemTraBanHayDaGuiYeuCauKetBan(user) === 'daNhanYeuCau'">Chờ kết bạn</p>          
+             </li>
+          </ul>
         </ng-container>
+
+        <!-- tab tạo group -->
 
         <ng-container *ngIf="activeTab === 'group'">
           <div class="d-flex flex-row align-items-center gap-2 p-2">
@@ -74,19 +96,19 @@
 
       <footer class="modal-container-footer">
         <button class="button is-ghost" (click)="close()">Cancel</button>
-        <button class="button is-primary" (click)="activeTab === 'friend' ? onSearchFriend() : createGroup(selectedFriends)">
+        <button class="button is-primary" (click)="activeTab === 'friend' ? searchFriend() : createGroup(selectedFriends)">
           {{ activeTab === 'friend' ? 'Search' : 'Create Group' }}
         </button>
         
       </footer>
     </article>
   </div>
-  <app-modal-profile
+  <!-- <app-modal-profile
     *ngIf="showProfileModal"
     [isOpen]="showProfileModal"
     [user]="foundUser"
     (closeModal)="toggleProfileModal()"
     title="Profile">
-  </app-modal-profile>
+  </app-modal-profile> -->
 
 </div>

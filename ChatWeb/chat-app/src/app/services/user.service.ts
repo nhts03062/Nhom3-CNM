@@ -55,6 +55,12 @@ export class UserService {
       headers: this.getHeaders()
     });
   }
+  cancelRequestFriend(userId: string): Observable<Userr>{
+    const body = {userId};
+    return this.http.post<Userr>(this.apiService.getApiUrl('user/cancelreqfriend'), body, {
+      headers: this.getHeaders()
+    });
+  }
 
   unFriendRequest(friendId: string): Observable<Userr> {
     const options = {

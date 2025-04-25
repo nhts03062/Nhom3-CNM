@@ -11,6 +11,7 @@ import { SearchService } from '../../services/serachService.service';
 import { Router } from '@angular/router';
 import { ChatRoom } from '../../models/chatRoom.model';
 import { defaultAvatarUrl, defaulGrouptAvatarUrl } from '../../contants';
+import { SocketService } from '../../socket.service';
 
 @Component({
   standalone: true,
@@ -37,20 +38,54 @@ export class ContactsComponent implements OnInit {
   currentUser: Userr | undefined;
   foundUser: Userr | undefined;
   friendRequests: Userr[] = [];
-  sentRequests: Userr[] = [];
+  idNguoiDungHienTai: string | null = sessionStorage.getItem('userId');
+  // sentRequests: Userr[] = [];
 
 
   constructor(private userService: UserService,
     private chatRoomService: ChatRoomService,
     private searchService: SearchService,
-    private router: Router
+    private router: Router,
+    private socketService: SocketService,
   ) { }
 
   ngOnInit(): void {
     this.loadFriends();
     this.loadUser();
-    console.log("🚀 ~ ContactsComponent ~ ngOnInit ~ this.loadUser();:")
     this.loadChatRooms();
+
+    const userId = sessionStorage.getItem('userId');
+    if (userId) {
+      // Đảm bảo người dùng tham gia phòng socket của họ sau khi refresh
+      this.socketService.joinRoom(userId);
+    }
+
+    this.socketService.nhanskThemBan((data:any) =>{
+      console.log('Đã nhận sự kiện thêm bạn')
+      this.friendRequests.push(data)
+    })
+
+    this.socketService.nhanskHuyKetBan((data:any) =>{
+      console.log('Đã nhận sự kiện hủy kết bạn' ,data)
+      this.friendRequests = this.friendRequests.filter(user => user._id !== data)
+    })
+
+    this.socketService.nhanskDongYKetBan((data:any) =>{
+      console.log('Đã nhận sự kiện đồng ý kết bạn')
+      this.friendsList.push(data)
+    })
+    this.socketService.nhanskHuyBanBe((data:any) =>{
+      console.log('Đã nhận sự kiện hủy bạn bè')
+      this.friendsList = this.friendsList.filter(user => user._id !== data)
+    })
+  }
+
+  ngOnDestroy(): void {
+    this.socketService.offNhanSkThemBan();
+    this.socketService.offNhanSkHuyKetBan();
+    this.socketService.offNhanSkDongYKetBan();
+
+    this.socketService.offNhanskHuyBanBe();
   }
 
   toggleModal() {
@@ -73,42 +108,8 @@ export class ContactsComponent implements OnInit {
       this.toggleProfileModal(); // Show the modal
     }
   }
-
-  getUserById(userId: string): Observable<Userr> {
-    const user$ = this.userService.getUserById(userId);
-    user$.subscribe(user => {
-      console.log("🚀 ~ ContactsComponent ~ getUserById ~ user:", user);
-    });
-    return user$;
-  }
-
-  getFriendRequestsList() {
-    this.friendRequests = [];
-    this.currentUser?.friendRequestsReceived.forEach(userId => {
-      this.userService.getUserById(userId).subscribe({
-        next: (user) => {
-          this.friendRequests.push(user);
-        },
-        error: (err) => console.error('Failed to load friend request user:', err)
-      });
-    });
-  }
-
-  getSentRequestsList() {
-    this.sentRequests = [];
-    
-    console.log("🚀 ~ ContactsComponent ~ getSentRequestsList ~ requestfriends:", this.currentUser?.requestfriends)
-    this.currentUser?.requestfriends.forEach(userId => {
-      this.userService.getUserById(userId).subscribe({
-        next: (user) => {
-          this.sentRequests.push(user);
-          console.log("🚀 ~ ContactsComponent ~ this.userService.getUserById ~ this.sentRequests:", this.sentRequests)
-        },
-        error: (err) => console.error('Failed to load friend request user:', err)
-      });
-    });
-  }
-
+  /**---start----load thông tin khi vừa mở lên------------ */
+  
   loadUser(): void {
     const userId = sessionStorage.getItem('userId');
     console.log("🚀 ~ ContactsComponent ~ loadUser ~ userId:", userId)
@@ -118,7 +119,7 @@ export class ContactsComponent implements OnInit {
           this.currentUser = user;
           console.log("Current User:", this.currentUser);
           this.getFriendRequestsList();
-          this.getSentRequestsList();
+          // this.getSentRequestsList();
         },
         error: (err) => console.error("Failed to load user:", err)
       });
@@ -138,6 +139,7 @@ export class ContactsComponent implements OnInit {
       }
     });
   }
+
   loadChatRooms(): void {
     this.chatRoomService.getChatRooms().subscribe({
       next: (rooms: ChatRoom[]) => {
@@ -149,6 +151,11 @@ export class ContactsComponent implements OnInit {
       }
     });
   }
+
+    /**-------load thông tin khi vừa mở lên----end-------- */
+
+
+    /**----------start--------------Xử lý thêm---------------------*/
 
   get filteredFriends(): Userr[] {
     return this.friendsList.filter(friend =>
@@ -167,50 +174,72 @@ export class ContactsComponent implements OnInit {
     this.router.navigate([`/chat-room/${chatRoomId}`]);
   }
 
+   /**------------------------Xử lý thêm-----------end----------*/
 
+  /**-----start-------Phần yêu cầu kết bạn -----------------*/
 
-  unFriend(friendId: string): void {
-    this.userService.unFriendRequest(friendId).subscribe({
-      next: (res: Userr) => {
-        this.user = res;
-        console.log("Unfriend:", this.user);
-        alert('❌ Đã hủy kết bạn thành công');
-      },
-      error: (err) => {
-        console.error("Failed to unfriend:", err);
-        alert('⚠️ Hủy kết bạn thất bại');
-      }
+  getFriendRequestsList() {
+    this.friendRequests = [];
+    this.currentUser?.friendRequestsReceived.forEach(userId => {
+      this.userService.getUserById(userId).subscribe({
+        next: (user) => {
+          this.friendRequests.push(user);
+        },
+        error: (err) => console.error('Failed to load friend request user:', err)
+      });
     });
   }
-  
 
-  async requestResponse(code: string, userId: string): Promise<any> {
+  async requestResponse(code: string, userId: string): Promise<void> {
     try {
       const response = await firstValueFrom(this.userService.requestResponse(code, userId));
-      console.log("🚀 ~ ContactsComponent ~ requestResponse ~ response:", response);
-      alert('Yêu cầu đã được xử lý thành công ✅');
-      return response;
+      console.log('✅ Request accepted response:', response);
+      if(code == '1'){
+        this.userService.getUserById(userId).subscribe({
+          next: async (res) =>{
+            this.friendsList.push(res);
+            this.friendRequests = this.friendRequests.filter(user => user._id !== userId);
+
+            const thongTinUser = await firstValueFrom(this.userService.getUserById(this.idNguoiDungHienTai!));
+            this.socketService.dongYKetBan(userId, thongTinUser);
+            console.log('Đã gửi sk socket thêm bạn')
+          },
+          error: (err) => {
+            console.error('Failed to load user:', err);
+          }
+        });
+      }else{
+        this.friendRequests = this.friendRequests.filter(user => user._id !== userId);
+        this.socketService.tuChoiKetBan(userId);
+      }
+      
     } catch (err) {
       console.error("Request failed:", err);
-      alert('⚠️ Xử lý yêu cầu thất bại!');
       throw err;
     }
   }
   
 
-  async acceptRequest(requestId: string): Promise<void> {
-    try {
-      const res = await this.requestResponse('1', requestId);
-      console.log('✅ Request accepted response:', res);
-      // this.addNewFriend(requestId);
-      this.loadFriends();
-      // Optional: alert here instead of/in addition to inside requestResponse
-      alert('✅ Bạn đã chấp nhận lời mời kết bạn');
-    } catch (error) {
-      console.error("Error accepting request:", error);
-      // Optional: additional alert here if you want more detailed feedback
-    }
+   /**------------Phần yêu cầu kết bạn -----end------------*/
+
+  /**-----start-------Phần xử lý trong bạn bè -----------------*/
+
+  unFriend(friendId: string): void {
+    this.userService.unFriendRequest(friendId).subscribe({
+      next: (res: Userr) => {
+        this.friendsList = this.friendsList.filter(friend => friend._id !== friendId);
+        this.socketService.huyBanBe(friendId);
+        console.log('Đã gửi sk socket hủy bạn')
+      },
+      error: (err) => {
+        console.error("Failed to unfriend:", err);
+      }
+    });
   }
+  /**------------------------Phần xử lý trong bạn bè----------end----------*/
+  
+
+
   
 
 
