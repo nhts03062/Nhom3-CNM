@@ -93,10 +93,12 @@ chatRoomController.deleteByChatRoomId = async (req, res) => {
         .status(404)
         .json({ msg: `Lỗi không tìm thấy phòng chat: ${chatRoomId}` });
     }
-    if(chatRoom.admin.toString() !== req.user._id.toString() && chatRoom.isGroupChat){
-      return res.status(403).json({msg: 'Chỉ có admin mới có thể xoa phòng chat'})
+    if(chatRoom.isGroupChat){
+      if(chatRoom.admin.toString() !== req.user._id.toString()){
+        return res.status(403).json({msg: 'Chỉ có admin mới có thể xoa phòng chat'})
+      }
     }
-
+    
     await ChatRoom.findByIdAndDelete(chatRoomId);
     return res.status(200).json({msg: 'phòng chat đã xóa'})
 
@@ -157,6 +159,7 @@ chatRoomController.inviteToGroupChat = async(req,res) =>{
 chatRoomController.updateChatRoom = async(req,res) => {
   try{
     const {chatRoomId,chatRoomName,members,image,newAdminId} = req.body
+    console.log('body',req.body)
 
       const chatRoom = await ChatRoom.findById(chatRoomId)
 

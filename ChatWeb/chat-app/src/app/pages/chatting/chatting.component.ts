@@ -1,5 +1,4 @@
-
-import { Component, OnInit,ElementRef, ViewChild  } from '@angular/core';
+import { Component, OnInit, ElementRef, ViewChild, HostListener, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { formatDistanceToNow } from 'date-fns';
@@ -15,59 +14,96 @@ import { ChatRoomService } from '../../services/chatRoom.service';
 import { Userr } from '../../models/user.model';
 import { ActivatedRoute } from '@angular/router';
 import { MessageService } from '../../services/message.service';
+import { defaultAvatarUrl, apiUrl, defaulGrouptAvatarUrl } from '../../contants';
+import { ModalProfileComponent } from '../profile/modal-profile/modal-profile.component';
+import { MembersModalComponent } from "./members-modal/members-modal.component";
+
 
 @Component({
   selector: 'app-chatting',
   standalone: true,
-  imports: [CommonModule, FormsModule, ModalComponent, PickerComponent,HttpClientModule],
+  imports: [CommonModule, FormsModule, ModalComponent, PickerComponent, HttpClientModule, ModalProfileComponent, MembersModalComponent],
   templateUrl: './chatting.component.html',
   styleUrl: './chatting.component.css',
 })
 export class ChattingComponent implements OnInit {
+  editingName: any;
+
   @ViewChild('imageInput') imageInput!: ElementRef<HTMLInputElement>;
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
-
-  defaultAvatarUrl = 'https://i1.rgstatic.net/ii/profile.image/1039614412341248-1624874799001_Q512/Meryem-Laval.jpg';
-  defaulGrouptAvatarUrl= 'https://static.vecteezy.com/system/resources/previews/026/019/617/original/group-profile-avatar-icon-default-social-media-forum-profile-photo-vector.jpg';
-  idNguoiDungHienTai: string | null  = sessionStorage.getItem('userId')
-  chatRooms: ChatRoom [] = [];
-  messagees : Messagee [] = [];
+  @ViewChild('sidebarRef') sidebarRef!: ElementRef;
+  addedMembers: string[] = [];
+  idNguoiDungHienTai: string | null = sessionStorage.getItem('userId')
+  chatRooms: ChatRoom[] = [];
+  messagees: Messagee[] = [];
   messageText: string = '';
   chatRoomIdDuocChon: string | null = null;
   imageFiles: File[] = [];
   docFiles: File[] = [];
-  nguoiDung:Userr [] =[];
+  nguoiDung: Userr[] = [];
   showEmojiPicker: boolean = false;
   showModal = false;
   searchTerm: string = '';
-  selectedRoom? : ChatRoom | undefined;
-  otherUsersChat: Userr | undefined;
+  selectedRoom?: ChatRoom | undefined;
+  otherUsersChat: Userr[] = [];
+  isSidebarOpen: boolean = false;
+  searchTermMember: string = '';
 
+  private baseApiUrl = apiUrl;
+  defaulGrouptAvatarUrl = defaulGrouptAvatarUrl;
+  defaultAvatarUrl = defaultAvatarUrl;
+  membersList: Userr[] = [];
+  showProfileModal = false;
 
-  constructor(private http :HttpClient, private socketService : SocketService , 
-    private userService : UserService, 
+  usersList: Userr[] = [];
+  showMembers: boolean = false;
+
+  constructor(
+    private http: HttpClient,
+    private socketService: SocketService,
+    private userService: UserService,
     private chatRoomService: ChatRoomService,
     private route: ActivatedRoute,
     private messageService: MessageService
-  
-  ){};
-  
+  ) { };
+
   ngOnInit(): void {
     this.getChatRooms();
 
-    this.socketService.onNewMessage( msg =>{
-      this.messagees.push(msg);
-      console.log('tin nhắn tới',msg)
-    })
+    this.socketService.onNewMessage(msg => {
+      console.log('New message received:', msg);
 
-    if(this.idNguoiDungHienTai){
-      this.socketService.joinRoom(this.idNguoiDungHienTai)
+      console.log('Message chatId:', msg.chatId);
+      console.log('Current room:', this.chatRoomIdDuocChon);
+
+      const messageData = msg.data || msg;
+
+      if (messageData.chatId === this.chatRoomIdDuocChon ||
+        (messageData.chatId && messageData.chatId._id === this.chatRoomIdDuocChon)) {
+        this.messagees.push(messageData);
+
+        console.log('Message added to conversation');
+
+        setTimeout(() => {
+          const chatContainer = document.querySelector('.messages-chat');
+          if (chatContainer) {
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+          }
+        }, 100);
+      } else {
+        console.log('Message not for current chat room');
+      }
+    });
+
+    if (this.idNguoiDungHienTai) {
+      this.socketService.joinRoom(this.idNguoiDungHienTai);
     }
 
-    this.socketService.onNewRecall( recal =>{
-      this.messagees = this.messagees.map(msg => msg._id === recal._id ? recal : msg )
-      console.log('thu hồi đã được gọi', recal)
-    })
+    this.socketService.onNewRecall(recal => {
+      this.messagees = this.messagees.map(msg => msg._id === recal._id ? recal : msg);
+      console.log('Message recall processed:', recal);
+    });
+
     this.route.queryParams.subscribe(params => {
       this.chatRoomIdDuocChon = params['roomId'];
       console.log("Selected chat room ID:", this.chatRoomIdDuocChon);
@@ -75,92 +111,147 @@ export class ChattingComponent implements OnInit {
         this.getRoom(this.chatRoomIdDuocChon);
       }
     });
-
-    
   }
+
   toggleModal(): void {
     this.showModal = !this.showModal;
   }
+  toggleSidebar(event: MouseEvent) {
+    event.stopPropagation();
+    this.isSidebarOpen = !this.isSidebarOpen;
+  }
+
+  @HostListener('document:click', ['$event'])
+  onClickOutside(event: MouseEvent) {
+    const clickedInside = this.sidebarRef?.nativeElement.contains(event.target);
+    if (!clickedInside && this.isSidebarOpen) {
+      this.isSidebarOpen = false;
+    }
+  }
+  selectedMember: Userr | undefined;
+
+  filteredMembers(room: ChatRoom): Userr[] {
+    const roomUsers = (room.members as any[]).filter((member: any) => {
+      const memberId = typeof member === 'string' ? member : member._id;
+      return memberId;
+    }).filter((member: any) => typeof member !== 'string');
+
+    return roomUsers;
+  }
+
+  loadChattedUsers(): void {
+    this.chatRoomService.getChatRooms().subscribe({
+      next: (rooms: ChatRoom[]) => {
+        console.log("📥 rooms loaded:", rooms);
+        this.chatRooms = rooms;
   
+      },
+      error: err => {
+        console.error("❌ Failed to load rooms:", err);
+      }
+    });
+  }
+  
+
   getHeaders(): HttpHeaders {
     const token = sessionStorage.getItem('token');
     return new HttpHeaders({ 'Authorization': `${token}` });
   }
 
-  
-
-  // layNguoiDungKhac(room: ChatRoom, allUsers: Userr[]): { isGroupChat: boolean, avatarUrl?: string, name?: string, chatRoomName?: string, latestMessage?: string } {
-  //   const otherIds = room.members.filter(id => id !== this.idNguoiDungHienTai);
-  //   // If only one member left (the current user is excluded), it's not a group chat
-  //   if (otherIds.length > 1) {
-  //     return {
-  //       isGroupChat: true,
-  //       avatarUrl: room.image || this.defaulGrouptAvatarUrl,
-  //       chatRoomName: room.chatRoomName,  // Group name
-  //       latestMessage: room.latestMessage
-  //     };
-  //   } else {
-  //     // User chat logic
-  //     const user = allUsers.find(user => user._id === otherIds[0]);
-  //     return {
-  //       isGroupChat: false,
-  //       avatarUrl: user?.avatarUrl || this.defaultAvatarUrl,
-  //       name: user?.name,
-  //       latestMessage: room.latestMessage
-  //     };
-  //   }
-  // }
-
   layNguoiDungKhac(room: ChatRoom): Userr[] {
-    // We assume members are now full user objects (after create or fetch)
     const otherUsers = (room.members as any[]).filter((member: any) => {
-      // Get member._id if it's an object, otherwise just use the string
       const memberId = typeof member === 'string' ? member : member._id;
       return memberId !== this.idNguoiDungHienTai;
-    }).filter((member: any) => typeof member !== 'string'); // Only keep objects (Userr)
+    }).filter((member: any) => typeof member !== 'string');
 
     return otherUsers;
   }
 
-  
   getMessageById(id: string): Messagee | undefined {
     return this.messagees.find(m => m._id === id);
   }
-  
 
-  getChatRooms(): void{
+  getChatRooms(): void {
     this.chatRoomService.getChatRooms().subscribe({
-      next: (res : any) => {
-        const updatedChatRooms = res.map((room: ChatRoom)=>{
-          return {...room,
-          otherMembers: this.layNguoiDungKhac(room)
-        }})
+      next: (res: any) => {
+        const updatedChatRooms = res.map((room: ChatRoom) => {
+          return {
+            ...room,
+            otherMembers: this.layNguoiDungKhac(room)
+          }
+        })
         this.chatRooms = updatedChatRooms;
-        
-        console.log('các phòng chat: ',this.chatRooms)
-      }, error: err =>{
+
+        console.log('các phòng chat: ', this.chatRooms)
+      }, error: err => {
         console.log(err)
       }
     })
   }
+
   getRoom(roomId: string): void {
+    // this.chatRoomIdDuocChon = roomId
     if (!roomId) {
       console.error('⛔️ roomId không tồn tại khi gọi getRoom');
+
       return;
     }
-
-    console.log("🚀 Gọi getRoom với roomId:", this.chatRoomIdDuocChon);
-    this.selectedRoom = this.chatRooms.find(room=>room._id.toString() === roomId)
+    this.selectedRoom = this.chatRooms.find(room => room._id.toString() === roomId)
+    
     console.log("🚀 ~ ChattingComponent ~ getRoom ~ this.selectedRoom:", this.selectedRoom)
     if (roomId) {
       this.chatRoomDuocChon(roomId);
     }
+    if (this.selectedRoom) {
+      this.membersList = this.filteredMembers(this.selectedRoom);
+    }
   }
-  
 
+  selectMember(member: any): void {
+    this.selectedMember = member;
+    if (this.selectedMember) {
+      this.toggleProfileModal();
+    }
+  }
+  toggleProfileModal() {
+    this.showProfileModal = !this.showProfileModal;
+  }
+  showAddMembersModal: boolean = false;
+
+  toggleAddMembersModal(): void {
+    this.showAddMembersModal = !this.showAddMembersModal;
+  }
+  toggleMembersModal(): void {
+    this.showMembers = !this.showMembers;
+
+  }
+  showGroupsToInvite = false;
+  toggleGroupsToInviteModal(): void {
+    this.showGroupsToInvite = !this.showGroupsToInvite;
+  }
+
+
+  foundUser?: Userr;
+  onSearchUser() {
+    this.userService.getUsers().subscribe({
+      next: users => {
+        const found = users.find(u => u.email === this.searchTerm);
+        if (found) {
+          this.foundUser = found;
+          console.log('Found User:', this.foundUser);
+          this.showProfileModal = true; // open modal
+        } else {
+          console.log('No user found.');
+        }
+      },
+      error: err => {
+        console.error('Failed to fetch users:', err);
+      }
+    });
+  }
 
   chatRoomDuocChon(id: string): void {
-  
+
     this.messageService.getAllMessages(id).subscribe({
       next: (res: any) => {
         this.messagees = res;
@@ -169,14 +260,13 @@ export class ChattingComponent implements OnInit {
         const allSendIDs = this.messagees.map(msg => msg.sendID);
         console.log('🔍 Tất cả sendID:', allSendIDs);
         console.log('🙋‍♂️ idNguoiDungHienTai:', this.idNguoiDungHienTai);
-        
+
       },
       error: err => {
         console.log(err);
       }
     });
   }
-
 
   chonHinhAnh() {
     this.imageInput.nativeElement.value = ''; // reset input
@@ -209,14 +299,11 @@ export class ChattingComponent implements OnInit {
       this.docFiles.splice(index, 1);
     }
   }
-  
 
   createMessage(text: string): void {
     const chatRoom = this.selectedRoom?._id; // Đây phải là một đối tượng ChatRoom
     const user = this.idNguoiDungHienTai; // Đây phải là một đối tượng Userr
 
-    console.log('chatRoom',chatRoom)
-    console.log('user',user)
     // Kiểm tra nếu thiếu thông tin cần thiết
     if (!chatRoom || !user) {
       console.warn("Chat room or user information is missing.");
@@ -225,174 +312,407 @@ export class ChattingComponent implements OnInit {
     const hasFiles = this.imageFiles?.length || this.docFiles?.length;
 
     if (!hasFiles) {
-    if (this.replyingTo){
-      const newReplyMessage : any = {
-        _id : this.replyingTo._id,
-        content: {
-          type: "text",
-          text: text,
-          media: [],
-          files: [],
-        },
+      if (this.replyingTo) {
+        const newReplyMessage: any = {
+          _id: this.replyingTo._id,
+          content: {
+            type: "text",
+            text: text,
+            media: [],
+            files: [],
+          },
+        };
+
+        this.http.post<Messagee>(`${this.baseApiUrl}/message/reply/`, newReplyMessage, {
+          headers: this.getHeaders()
+        }).subscribe({
+          next: (res: Messagee) => {
+            console.log("Tin nhắn vừa trả lời: ", res);
+            this.messagees.push(res);
+
+            this.socketService.sendMessage(chatRoom, res);
+
+            this.replyingTo = null;
+            this.messageText = "";
+
+            setTimeout(() => {
+              const chatContainer = document.querySelector('.messages-chat');
+              if (chatContainer) {
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+              }
+            }, 100);
+          },
+          error: (err) => {
+            console.error("Error replying to message:", err);
+          }
+        });
+      } else {
+        // Tạo dữ liệu tin nhắn mới
+        const newMessage: any = {
+          chatId: chatRoom, // Gán đối tượng ChatRoom
+          sendID: user, // Gán đối tượng Userr
+          content: {
+            type: "text",
+            text: text,
+            media: [],
+            files: [],
+          },
+          replyToMessage: this.replyingTo || null,
+        };
+        console.log("newMessage", newMessage);
+
+        this.http.post<Messagee>(`${this.baseApiUrl}/message/`, newMessage, {
+          headers: this.getHeaders(),
+        }).subscribe({
+          next: (res: Messagee) => {
+            console.log("Tin nhắn vừa tạo xong: ", res);
+
+            // Đẩy tin nhắn mới vào danh sách tin nhắn hiện tại
+            this.messagees.push(res);
+
+            this.socketService.sendMessage(chatRoom, res);
+
+
+            // Xóa trạng thái trả lời (replyingTo) sau khi gửi
+            this.replyingTo = null;
+
+            // Xóa nội dung input
+            this.messageText = "";
+
+            setTimeout(() => {
+              const chatContainer = document.querySelector('.messages-chat');
+              if (chatContainer) {
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+              }
+            }, 100);
+          },
+          error: (err) => {
+            console.error("Lỗi khi tạo tin nhắn: ", err);
+          },
+        });
       }
-      this.http.post<Messagee>(`http://localhost:5000/api/message/reply/`, newReplyMessage,{
-        headers : this.getHeaders()
-      }).subscribe({
-        next: (res :Messagee) =>{
-          console.log("Tin nhắn vừa trả lời: ", res);
-          this.messagees.push(res);
-          this.replyingTo = null;
-          this.messageText = "";
-        }
-      })
-    }else{
-       // Tạo dữ liệu tin nhắn mới
-    const newMessage: any = {
-      chatId: chatRoom, // Gán đối tượng ChatRoom
-      sendID: user, // Gán đối tượng Userr
-      content: {
-        type: "text",
-        text: text,
+    } else {
+      const formData = new FormData();
+
+      const content = {
+        type: this.imageFiles?.length ? 'media' : 'file',
+        text: this.messageText || '',
         media: [],
         files: [],
-      },
-      replyToMessage: this.replyingTo || null,
+      };
+
+      formData.append('chatId', chatRoom);
+      formData.append('content', JSON.stringify(content)); // Gửi content dưới dạng stringified JSON
+
+      if (this.imageFiles?.length) {
+        this.imageFiles.forEach(file => formData.append('media', file));
+      }
+
+      if (this.docFiles?.length) {
+        this.docFiles.forEach(file => formData.append('file', file)); // Quan trọng: key là `file` để backend bắt đúng
+      }
+
+      if (this.replyingTo) {
+        this.http.post<Messagee>(`${this.baseApiUrl}/message/reply/`, formData, {
+          headers: this.getHeaders()
+        }).subscribe({
+          next: (res: Messagee) => {
+            console.log("Tin nhắn vừa trả lời: ", res);
+            this.messagees.push(res);
+
+            this.socketService.sendMessage(chatRoom, res);
+
+            this.replyingTo = null;
+            this.messageText = "";
+            this.imageFiles = [];
+            this.docFiles = [];
+
+            setTimeout(() => {
+              const chatContainer = document.querySelector('.messages-chat');
+              if (chatContainer) {
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+              }
+            }, 100);
+          },
+          error: (err) => {
+            console.error("Error replying with files:", err);
+          }
+        });
+      } else {
+        this.http.post<Messagee>(`${this.baseApiUrl}/message/`, formData, {
+          headers: this.getHeaders(),
+        }).subscribe({
+          next: (res: Messagee) => {
+            console.log("Tin nhắn vừa tạo xong: ", res);
+
+            // Đẩy tin nhắn mới vào danh sách tin nhắn hiện tại
+            this.messagees.push(res);
+
+            this.socketService.sendMessage(chatRoom, res);
+
+            // Xóa trạng thái trả lời (replyingTo) sau khi gửi
+            this.replyingTo = null;
+
+            // Xóa nội dung input
+            this.messageText = "";
+            this.imageFiles = [];
+            this.docFiles = [];
+
+            setTimeout(() => {
+              const chatContainer = document.querySelector('.messages-chat');
+              if (chatContainer) {
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+              }
+            }, 100);
+          },
+          error: (err) => {
+            console.error("Lỗi khi tạo tin nhắn: ", err);
+          },
+        });
+      }
+    }
+  }
+
+  onImageSelected(event: any): void {
+    const file = event.target.files[0];
+    if (file) {
+      const img = new Image();
+      const reader = new FileReader();
+  
+      reader.onload = (e: any) => {
+        img.src = e.target.result;
+  
+        img.onload = () => {
+          const size = 200; // desired size for avatar
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return;
+  
+          canvas.width = size;
+          canvas.height = size;
+  
+          // Draw circle mask
+          ctx.beginPath();
+          ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+          ctx.closePath();
+          ctx.clip();
+  
+          // Draw the image centered
+          const scale = Math.max(size / img.width, size / img.height);
+          const x = (size - img.width * scale) / 2;
+          const y = (size - img.height * scale) / 2;
+  
+          ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+  
+          const base64Image = canvas.toDataURL('image/jpeg', 0.9);
+          this.changedImage = base64Image;
+          this.updateChatRoom();
+        };
+      };
+  
+      reader.readAsDataURL(file);
+    }
+  }
+  
+  
+
+  editedRoomName: string = '';
+  changedImage: string = '';
+  changedAdmin: string = '';
+  updateChatRoom(): void {
+    const updateData: any = {
+      chatRoomId: this.selectedRoom?._id
     };
-    console.log("newMessage",newMessage);
   
-    // Gửi tin nhắn đến API
-    this.http.post<Messagee>(`http://localhost:5000/api/message/`, newMessage, {
-      headers: this.getHeaders(),
-    }).subscribe({
-      next: (res: Messagee) => {
-        console.log("Tin nhắn vừa tạo xong: ", res);
+    if (this.editedRoomName && this.editedRoomName !== this.selectedRoom?.chatRoomName) {
+      updateData.chatRoomName = this.editedRoomName;
+    }
   
-        // Đẩy tin nhắn mới vào danh sách tin nhắn hiện tại
-        this.messagees.push(res);
+    if (this.addedMembers.length > 0) {
+      updateData.members = this.addedMembers;
+    }
   
-        // Xóa trạng thái trả lời (replyingTo) sau khi gửi
-        this.replyingTo = null;
+    if (this.changedImage) {
+      updateData.image = this.changedImage;
+    }
   
-        // Xóa nội dung input
-        this.messageText = "";
+    if (this.changedAdmin) {
+      updateData.newAdminId = this.changedAdmin;
+      console.log("🚀 ~ ChattingComponent ~ updateChatRoom ~ updateData.newAdmin:", updateData.newAdmin)
+    }
+  
+    this.chatRoomService.updateChatRoom(updateData).subscribe({
+      next: (updatedRoom) => {
+        // alert('Phòng chat đã được cập nhật thành công ✅'); // 🟢 Alert user
+        this.selectedRoom = updatedRoom; // 🔄 Refresh selectedRoom
+        console.log("🚀 ~ ChattingComponent ~ this.chatRoomService.updateChatRoom ~ this.selectedRoom:", this.selectedRoom)
+        this.membersList = this.filteredMembers(updatedRoom); // ✅ Update members list if needed
+  
+        // Reset form values/UI states
+        this.showAddMembersModal = false;
+        this.editingName = false;
+        this.addedMembers = [];
+        this.changedImage = '';
+        this.changedAdmin = '';
       },
       error: (err) => {
-        console.error("Lỗi khi tạo tin nhắn: ", err);
-      },
+        console.error('Update failed', err);
+        alert('Không thể cập nhật phòng chat: ' + (err.error?.msg || 'Lỗi không xác định ❌'));
+      }
     });
-    }
-  }else{
-    const formData = new FormData();
-
-    const content = {
-      type: this.imageFiles?.length ? 'media' : 'file',
-      text: this.messageText || '',
-      media: [],
-      files: [],
+  }
+  
+  addMemChatRoom(): void {
+    const updateData: any = {
+      chatRoomId: this.selectedRoom?._id
     };
-
-    formData.append('chatId', chatRoom);
-    formData.append('content', JSON.stringify(content)); // Gửi content dưới dạng stringified JSON
-
-    if (this.imageFiles?.length) {
-      this.imageFiles.forEach(file => formData.append('media', file));
+  
+    if (this.addedMembers.length > 0) {
+      updateData.members = this.addedMembers;
     }
 
-    if (this.docFiles?.length) {
-      this.docFiles.forEach(file => formData.append('file', file)); // Quan trọng: key là `file` để backend bắt đúng
-    }
+    this.chatRoomService.inviteToChatRoom(updateData).subscribe({
+      next: (updatedRoom) => {
+        // alert('Phòng chat đã được cập nhật thành công ✅'); // 🟢 Alert user
+        this.selectedRoom = updatedRoom; // 🔄 Refresh selectedRoom
+        console.log("🚀 ~ ChattingComponent ~ this.chatRoomService.updateChatRoom ~ this.selectedRoom:", this.selectedRoom)
+        this.membersList = this.filteredMembers(updatedRoom); // ✅ Update members list if needed
+  
+        // Reset form values/UI states
+        this.showAddMembersModal = false;
+        this.addedMembers = [];
+      },
+      error: (err) => {
+        console.error('Update failed', err);
+        alert('Không thể cập nhật phòng chat: ' + (err.error?.msg || 'Lỗi không xác định ❌'));
+      }
+    });
+  }
+  removeMember(memberId: string): void {
+    if (!this.selectedRoom) return;
+  
+    // Confirm before removing
+    const confirmDelete = confirm('Bạn có chắc chắn muốn xóa thành viên này khỏi nhóm không?');
+    if (!confirmDelete) return;
+  
+    // Remove the member
+    const updatedMembers = this.selectedRoom.members
+      .map((m: any) => typeof m === 'string' ? m : m._id)
+      .filter(id => id !== memberId);
+  
+    const updateData = {
+      chatRoomId: this.selectedRoom._id,
+      members: updatedMembers
+    };
+  
+    this.chatRoomService.updateChatRoom(updateData).subscribe({
+      next: (updatedRoom) => {
+        alert('Đã xóa thành viên khỏi nhóm');
+        this.selectedRoom = updatedRoom; // 🔄 Refresh selectedRoom
+        this.membersList = this.filteredMembers(updatedRoom); // ✅ Update members list if you're using this
+      },
+      error: (err) => {
+        console.error('Xóa thành viên thất bại:', err);
+        alert('Không thể xóa thành viên: ' + (err.error?.msg || 'Lỗi không xác định'));
+      }
+    });
+  }
+ 
 
-    if (this.replyingTo){
-     
-      this.http.post<Messagee>(`http://localhost:5000/api/message/reply/`, formData,{
-        headers : this.getHeaders()
-      }).subscribe({
-        next: (res :Messagee) =>{
-          console.log("Tin nhắn vừa trả lời: ", res);
-          this.messagees.push(res);
-          this.replyingTo = null;
-          this.messageText = "";
+  deleteChatRoom(): void {
+    if (!this.selectedRoom) {
+      console.error('Chưa chọn phòng chat');
+      return;
+    }
+    
+    // Hỏi xác nhận trước khi xóa
+    if (confirm('Bạn có chắc chắn muốn xóa phòng chat này không?')) {
+      this.chatRoomService.deleteChatRoom(this.selectedRoom._id).subscribe({
+        next: () => {
+          console.log('Đã xóa phòng chat thành công');
+          // Xóa phòng chat khỏi danh sách
+          this.chatRooms = this.chatRooms.filter(room => room._id !== this.selectedRoom?._id);
+          // Reset phòng chat đã chọn
+          this.selectedRoom = undefined;
+          // Xóa tin nhắn
+          this.messagees = [];
+          // Hiển thị thông báo thành công
+          alert('Đã xóa phòng chat');
+        },
+        error: (err) => {
+          console.error('Không thể xóa phòng chat:', err);
+          alert('Không thể xóa phòng chat: ' + (err.error?.msg || 'Lỗi không xác định'));
         }
-      })
-    }else{
-    // Gửi tin nhắn đến API
-    this.http.post<Messagee>(`http://localhost:5000/api/message/`, formData, {
-      headers: this.getHeaders(),
-    }).subscribe({
-      next: (res: Messagee) => {
-        console.log("Tin nhắn vừa tạo xong: ", res);
-  
-        // Đẩy tin nhắn mới vào danh sách tin nhắn hiện tại
-        this.messagees.push(res);
-  
-        // Xóa trạng thái trả lời (replyingTo) sau khi gửi
-        this.replyingTo = null;
-  
-        // Xóa nội dung input
-        this.messageText = "";
-        this.imageFiles = [];
-        this.docFiles =[];
-      },
-      error: (err) => {
-        console.error("Lỗi khi tạo tin nhắn: ", err);
-      },
-    });
+      });
     }
-
   }
-   
+
+  
+  
+  toggleEditName(){
+    this.editedRoomName = this.selectedRoom?.chatRoomName || '';
+    this.editingName = true;
   }
   
-  recallMessage(idMsg : string, index : number, code : number):void{
 
+  recallMessage(idMsg: string, index: number, code: number): void {
     const msg = this.messagees[index];
-    console.log(code)
-    if(code === 2){
-      this.http.post<Messagee>(`http://localhost:5000/api/message/recall/${code}`, {_id :idMsg}, {
-        headers : this.getHeaders()}).subscribe({
-          next : (res : Messagee) =>{
-              console.log('Tin nhắn đẵ thu hồi voi code là 2', res)
-              msg.recall = '2'
-              msg.content.text= ''
-              msg.content.files= []
-              msg.content.media= []
-            console.log('2')
-          }
-        })
-        
-    }else if (code === 1){
-      this.http.post<Messagee>(`http://localhost:5000/api/message/recall/${code}`, {_id :idMsg}, {
-        headers : this.getHeaders()}).subscribe({
-          next : (res : Messagee) =>{
-              console.log('Tin nhắn đẵ thu hồi với code là 1', res)
-              msg.recall = '1'
-              msg.content.text= ''
-              msg.content.files= []
-              msg.content.media= []
-          }
-        })
-        console.log('1')
+    console.log(code);
+
+    if (code === 2) {
+      this.http.post<Messagee>(`${this.baseApiUrl}/message/recall/${code}`, { _id: idMsg }, {
+        headers: this.getHeaders()
+      }).subscribe({
+        next: (res: Messagee) => {
+          console.log('Tin nhắn đẵ thu hồi voi code là 2', res);
+          msg.recall = '2';
+          msg.content.text = '';
+          msg.content.files = [];
+          msg.content.media = [];
+          console.log('2');
+        }
+      });
+    } else if (code === 1) {
+      this.http.post<Messagee>(`${this.baseApiUrl}/message/recall/${code}`, { _id: idMsg }, {
+        headers: this.getHeaders()
+      }).subscribe({
+        next: (res: Messagee) => {
+          console.log('Tin nhắn đẵ thu hồi với code là 1', res);
+          msg.recall = '1';
+          msg.content.text = '';
+          msg.content.files = [];
+          msg.content.media = [];
+        }
+      });
+      console.log('1');
     }
 
     this.closeMessageOptions();
   }
 
-
   toggleEmojiPicker(): void {
     this.showEmojiPicker = !this.showEmojiPicker;
   }
+
   addEmoji($event: any) {
     const emoji = $event.emoji.native;
     this.messageText += emoji;
     this.showEmojiPicker = false;
-    }
+  }
+
   getDisplayName(userId: string): string {
     const user = this.nguoiDung.find(u => u._id === userId);
     if (!user) {
       return 'Me';
-    } else{
-      return user.name;}
+    } else {
+      return user.name;
+    }
   }
+  // getReplySenderId(sendID: any): string {
+  //   // If it's an object, return the _id, otherwise return the value directly
+  //   return typeof sendID === 'object' && sendID !== null ? sendID._id : sendID;
+  // }
+  
   selectedMessageIndex: number | null = null;
   replyingTo: Messagee | null = null;
 
@@ -404,8 +724,6 @@ export class ChattingComponent implements OnInit {
     this.selectedMessageIndex = null;
   }
 
-
-
   replyToMessage(index: number): void {
     this.replyingTo = this.messagees[index];
     console.log("Đang reply đến:", this.replyingTo);
@@ -416,22 +734,6 @@ export class ChattingComponent implements OnInit {
     this.replyingTo = null;
   }
 
-  // get filteredChats(): ChatRoom[] {
-  //   return this.chatRooms.filter(chatRoom => {
-  //     return chatRoom.members.some((member:Userr) =>
-  //       member.name.toLowerCase().includes(this.searchTerm.toLowerCase())
-  //       );
-  //     })  
-  //   }
-  //   getUserFromChats(chatRoomId: string): Userr[] {
-  //     const chatRoom = this.chatRooms.find(room => room._id === chatRoomId);
-    
-  //     if (!chatRoom) return [];
-    
-  //     return chatRoom.members.filter((member: Userr) =>
-  //       member.name.toLowerCase().includes(this.searchTerm.toLowerCase())
-  //     );
-  //   }
   get filteredChats(): ChatRoom[] {
     return this.chatRooms.filter(chatRoom => {
       return chatRoom.members.some((memberId: string) => {
@@ -440,110 +742,40 @@ export class ChattingComponent implements OnInit {
       });
     });
   }
-  
+
   getUserFromChats(chatRoomId: string): Userr[] {
     const chatRoom = this.chatRooms.find(room => room._id === chatRoomId);
-  
+
     if (!chatRoom) return [];
-  
+
     return chatRoom.members
       .map((memberId: string) => this.nguoiDung.find(u => u._id === memberId))
       .filter((user): user is Userr =>
         !!user && user.name.toLowerCase().includes(this.searchTerm.toLowerCase())
       );
   }
+
   getUserFromId(userId: string): Userr | undefined {
     return this.nguoiDung.find(user => user._id === userId);
-  }  
+  }
+
   getUserName(userId: string): string {
     const user = this.getUserFromId(userId);
     return user ? user.name : 'Unknown User';
   }
-  
-  
-}    
 
+  processIncomingMessage(msg: any): void {
+    console.log('Processing incoming message:', msg);
 
-  
+    const messageData = msg.data || msg;
 
+    this.messagees.push(messageData);
 
-
-  /**
-   * ---------------------------------------------------------
-   */
-  // users: User[] = sampleUsers;
-  // conversations: Conversation[] = sampleConversations;
-  // currentUserId: string = this.users.length > 0 ? this.users[0].id : '';
-  // selectedConversationId: string | null = null;
-  // messageText: string = '';
-
-
-
-
-  // selectConversation(id: string): void {
-  //   this.selectedConversationId = id;
-
-  //   const convo = this.activeConversation;
-  //   const user = this.currentUser;
-  //   if (convo && user) {
-  //     convo.messages.forEach(msg => {
-  //       if (msg.senderId !== user.id && !msg.readBy.includes(user.id)) {
-  //         msg.readBy.push(user.id);
-  //       }
-  //     });
-  //   }
-  // }
-
-
-
-  // getUserLastSeen(userId: string): Date {
-  //   const user = this.users.find(u => u.id === userId);
-  //   return user?.lastSeen ? new Date(user.lastSeen) : new Date();
-  // }
-  
-  // getOtherUser(convo: Conversation): User | undefined {
-  //   return this.users.find(u => u.id !== this.currentUserId && convo.participantIds.includes(u.id));
-  // }
-
-  // getTimeAgo(convo: Conversation): string {
-  //   if (!convo.lastMessage) return '';
-  
-  //   const messageDate = new Date(convo.lastMessage.timestamp);
-  //   const now = new Date();
-  //   const diffMs = now.getTime() - messageDate.getTime();
-  //   const diffSec = Math.floor(diffMs / 1000);
-  //   const diffMin = Math.floor(diffSec / 60);
-  //   const diffHr = Math.floor(diffMin / 60);
-  
-  //   const isYesterday =
-  //     messageDate.getDate() === now.getDate() - 1 &&
-  //     messageDate.getMonth() === now.getMonth() &&
-  //     messageDate.getFullYear() === now.getFullYear();
-  
-  //   if (diffSec < 60) return 'just now';
-  //   if (diffMin < 60) return `${diffMin} min ago`;
-  //   if (diffHr < 24) return `${diffHr} hr ago`;
-  //   if (isYesterday) return 'yesterday';
-  
-  //   const diffDay = Math.floor(diffHr / 24);
-  //   return `${diffDay}d`;
-  // }  
-  
-
-  // getLastSeenText(date: Date): string {
-  //   return formatDistanceToNow(date, { addSuffix: true });
-  // }
-
-  // countUnreadMsgs(convo: Conversation): number {
-  //   const user = this.currentUser;
-  //   if (!user) return 0;
-  //   return convo.messages.filter(
-  //     msg => msg.senderId !== user.id && !msg.readBy.includes(user.id)
-  //   ).length;
-  // }
-
-  // isLastOfSenderGroup(index: number, messages: Message[]): boolean {
-  //   if (!messages || index >= messages.length - 1) return true;
-  //   return messages[index].senderId !== messages[index + 1].senderId;
-  // }
-
+    setTimeout(() => {
+      const chatContainer = document.querySelector('.messages-chat');
+      if (chatContainer) {
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+      }
+    }, 100);
+  }
+}

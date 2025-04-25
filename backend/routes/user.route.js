@@ -44,9 +44,11 @@ router.post('/resfriend/:code', authMiddelware, UserController.responseFriend)
 //body : {friendId}
 router.delete('/unfriend', authMiddelware, UserController.unFriend)
 
-
-
-// router.post('/cancelreqfriend',authMiddelware, UserController.cancelResquestFriend)
+//hủy lời mời kết bạn
+// cung cấp
+//token
+//body: {userId} //người muốn hủy kết bạn
+router.post('/cancelreqfriend',authMiddelware, UserController.cancelResquestFriend)
 
 
 module.exports = router;

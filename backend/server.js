@@ -79,42 +79,46 @@ io.on("connection", (socket) => {
     })
   })
 
+//gửi yêu cầu kết bạn
   socket.on('send-friend-request', (friendId, data) => {
     console.log('Received friend request:', data);
-    socket.broadcast.to(friendId.toString()).emit('received-friend-request', data);
+    socket.broadcast.to(friendId.toString()).emit('received-friend-request', data); //data là thông tin người gửi sự kiện di nguyên cái user
   });
-
+    //hủy gửi kết bạn
+    socket.on('cancel-reqFriend', (userId) => {
+    socket.broadcast.to(userId).emit('reqFriend-canceled', socket.user);
+    console.log(`User ${socket.user} đã hủy yêu cầu kết bạn với ${userId}`); //data là userId người hủy kết bạn
+    }) 
+//đồng ý kết bạn
   socket.on('accept-friend-request', (friendId, data) => {
     console.log('Received friend request:', data);
-    socket.broadcast.to(friendId.toString()).emit('accepted-friend-request', data);
+    socket.broadcast.to(friendId.toString()).emit('accepted-friend-request', data);//data là thông tin của người dùng gửi sự kiện di nguyên cái user
   });
-
+  //Nhận sự kiện từ chối yêu cầu kết bạn
+  socket.on('reject-friend-request', (friendId) => {
+    console.log('Received friend request:', friendId);
+    socket.broadcast.to(friendId.toString()).emit('rejected-friend-request', socket.user);
+  });
   //Nhận vào sự kiện cấp cho người mình muốn unfriend
   //phát sự kiện unfriend cho người dùng đó
   //Người dùng nhận sự kiện unfriend và hủy kết bạn với người đó
-  socket.on('unfriend', async (userId) => {
-    socket.broadcast.to(userId).emit('unfriended', socket.user);
+  socket.on('unfriend', (userId) => { //người gọi truyền vào userId muốn hủy kết bạn
+    socket.broadcast.to(userId).emit('unfriended', socket.user); //gửi lại người dùng hủy kết bạn là user đã hủyhủy
     console.log(`User ${socket.user} đã hủy kết bạn với ${userId}`);
   })
 
-  //Nhận sự kiện đồng ý kết bạn
-
-  socket.on('accept-friend', async (userId) => {
-    socket.broadcast.to(userId).emit('friend-accepted', socket.user);
-    console.log(`User ${socket.user} đã đồng ý kết bạn với ${userId}`);
-  })
 
   //tạo phòng chat nhóm mới
   //người dùng tự động tham gia vào phòng chat nhóm mới
   // sau dó phát sự kiện cho tất cả người dùng online room-chat-created 
-  socket.on('create-chatRoom', async (chatRoomId, data) => {
+  socket.on('create-chatRoom', (chatRoomId, data) => {
     socket.join(chatRoomId.toString())
     socket.broadcast.emit('roomChat-created', data)
   })
   //Người dùng nhận sự kiện roomChat-created và 
   //và kiểm tra xem trong member có người dùng đó ko
   //có thì gọi join-chatRoom để tham gia vào phòng chat nhóm mới
-  socket.on('join-chatRoom', async (chatRoomId) => {
+  socket.on('join-chatRoom', (chatRoomId) => {
     socket.join(chatRoomId);
     console.log(`User ${socket.user._id} đã tham gia vào phòng chat ${chatRoomId}`);
   });
@@ -125,7 +129,7 @@ io.on("connection", (socket) => {
 
   //emit leave-chatRoom thì sever nhận
   //rời khỏi phòng chat nhóm và phát sự kiện user-left cho tất cả người dùng trong phòng chat nhóm đó
-  socket.on('leave-chatRoom', async (chatRoomId, data) => {
+  socket.on('leave-chatRoom', (chatRoomId, data) => {
     socket.leave(chatRoomId);
     socket.broadcast.to(chatRoomId).emit('user-left', data);
   });

@@ -37,9 +37,6 @@
     align-items: center;
     width:100%;
 }
-.photo{
-  width:60px;
-}
 
   .left-section.chat-conversation {
     display: flex;
@@ -66,9 +63,13 @@
     margin: 25px 25px 15px;
   }
 
-  .request-container{
+  .request-container {
     margin-top: 15px;
+    max-height: 83vh; /* or whatever height fits your layout */
+    overflow-y: auto;
+    overflow-x: hidden; /* optional, hides horizontal scroll if not needed */
   }
+  
 
  .fa-square-xmark{
     color: #8a8a8a;
