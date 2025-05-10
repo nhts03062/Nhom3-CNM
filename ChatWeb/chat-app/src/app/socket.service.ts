@@ -65,7 +65,7 @@ taoPhongChat(chatRoomId:string,data:any) :void{
   console.log('gửi sự kiện tạo phòng chat');
 }
 capNhatPhongChat(chatRoomId:string,data:any):void{
-  this.socket.emit('update-chatRoom',chatRoomId,data); //chatRoomId là id của phòng chat, data là object chatRoom
+  this.socket.emit('update-chatRoom',{chatRoomId,data}); //chatRoomId là id của phòng chat, data là object chatRoom
   console.log('gửi sự kiện cập nhật phòng chat');
 }
 xoaPhongChat(chatRoomId: string): void {
@@ -94,7 +94,7 @@ nhanskXoaPhongChat(callback: (chatRoomid: string) => void): void{
 nhanskMoiVaoPhongChat(callback: (data:any) => void):void{
   this.socket.on('user-invited', callback); //data là object user dc mời
 }
-nhanskRoiPhongChat(callback: (data:any) =>void):void{
+nhanskRoiPhongChat(callback: (chatRoomId:string, userId:string) =>void):void{
   this.socket.on('user-left', callback); //data là object chatRoom
   console.log('Nhận sự kiện rời phòng chat');
 }

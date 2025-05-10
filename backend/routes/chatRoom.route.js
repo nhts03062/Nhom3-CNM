@@ -46,6 +46,13 @@ router.post('/invite', authMiddelware, ChatRoomController.inviteToGroupChat)
 //Kiểm tra người gọi phải là admin ko  là người tạo phòng
 router.put('/', authMiddelware, ChatRoomController.updateChatRoom)
 
+//Rời khỏi phòng chat
+//Cung cấp:
+//token
+//params chatRoomId
+//Người rời nhận lại thông báo: đã rời khỏi phòng chat
+router.delete('/leave/:chatRoomId', authMiddelware, ChatRoomController.leaveChatRoom)
+
 
 
 module.exports = router

@@ -18,9 +18,9 @@ export interface ChatRoom {
   _id: string;
   isGroupChat: boolean;
   chatRoomName?: string;
-  members: string[]; // user IDs
+  members: any[]; // user IDs
   image?: string;
-  admin?: string; // user ID
+  admin?: any; // user ID
   latestMessage?: Messagee;
   createdAt: string;
   updatedAt: string;
