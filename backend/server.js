@@ -116,7 +116,6 @@ io.on("connection", (socket) => {
     socket.broadcast.to(userId).emit('unfriended', socket.user); //gửi lại người dùng hủy kết bạn là user đã hủyhủy
     console.log(`User ${socket.user} đã hủy kết bạn với ${userId}`);
   })
-    /**---end----Phần bạn bè--------------- */
 
 
  /**--------------Phòng chat--------------------*/ 
