@@ -8,6 +8,7 @@ import { Observable } from 'rxjs';
 import { Router } from '@angular/router';
 import { Messagee } from '../../../models/message.model';
 import { MessageService } from '../../../services/message.service';
+import { SocketService } from '../../../socket.service';
 
 @Component({
   selector: 'app-modal-profile',
@@ -32,7 +33,8 @@ export class ModalProfileComponent {
     private userService: UserService,
     private router: Router,
     private messageService : MessageService,
-    private cdRef: ChangeDetectorRef   
+    private cdRef: ChangeDetectorRef,
+    private socketService: SocketService
   ){}
 
   close() {
@@ -75,6 +77,7 @@ export class ModalProfileComponent {
           this.chatRoomService.createChatRoom(roomData).subscribe({
             next: (newRoom) => {
               console.log('Chat Room Created:', newRoom);
+              this.socketService.taoPhongChat(newRoom._id, newRoom);
               this.navigateToChatRoom(newRoom._id);
               this.isOpen = false;
             },

@@ -74,7 +74,6 @@ messageController.create = async(req,res) =>{
 }
 }
 
-
 //Lấy tất cả tin nhắn
 
 messageController.getAll = async(req, res) =>{
@@ -84,7 +83,7 @@ messageController.getAll = async(req, res) =>{
         if(!chatId){
             return res.status(400).json({msg: 'Thiếu chatRoom Id'})
         }
-        const messages = await Message.find({chatId}).populate({
+        const messages = await Message.find({chatId,'content.type': { $ne: 'first' } }).populate({
             path: 'replyToMessage',
             select: 'content sendID createdAt',
         }) // Chỉ nhận object key value nếu truyền vào chatId = value thoi nên ko dc

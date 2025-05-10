@@ -53,18 +53,20 @@
             />
 
             <!-- Show only filtered friends -->
+            <p *ngIf="errorGroup" style="color: red;">{{errorGroup}}</p>
             <ng-container *ngFor="let friend of filteredFriends; let i = index">
               <div 
                 class="left-section friends" 
                 [class.active]="selectedFriends.includes(friend._id)"
-                (click)="toggleFriendSelection(friend._id)">
-            
+                >
+    
                 <div class="checkbox-wrapper-15">
                   <input 
                     class="inp-cbx" 
                     [id]="'cbx-15-' + i" 
                     type="checkbox" 
                     [checked]="selectedFriends.includes(friend._id)"
+                    (change)="toggleFriendSelection(friend._id)"
                     style="display: none;" />
             
                   <label class="cbx" [for]="'cbx-15-' + i">

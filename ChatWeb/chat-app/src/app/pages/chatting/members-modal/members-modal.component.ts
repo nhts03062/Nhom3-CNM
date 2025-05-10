@@ -11,7 +11,7 @@ import { SearchService } from '../../../services/serachService.service';
 import { UserService } from '../../../services/user.service';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-
+import { SocketService } from '../../../socket.service';
 @Component({
   selector: 'app-members-modal',
   imports: [CommonModule,FormsModule],
@@ -48,12 +48,29 @@ export class MembersModalComponent implements OnInit {
   // memberList: Userr[] = [];
   constructor(private userService: UserService,
     private chatRoomService: ChatRoomService,
+    private socketService : SocketService,
   ) { }
 
   ngOnInit(): void {
     this.loadChatRooms();
     this.getFriends();
     this.chooseTitle();
+
+    //đồng ý kết bạn
+    this.socketService.nhanskDongYKetBan((data:any) =>{
+      console.log('Đã nhận sự kiện đồng ý kết bạn', data)
+      this.usersList.push(data)
+    })
+    //hủy kết bạn
+       this.socketService.nhanskHuyBanBe((data:any) =>{
+        console.log('Đã nhận sự kiện hủy kết bạn', data)
+        this.usersList = this.usersList.filter((user:any) => user._id.toString() !== data.toString())
+        })
+  }
+
+  ngOnDestroy(): void {
+    this.socketService.offNhanSkDongYKetBan();
+    this.socketService.offNhanSkHuyKetBan();
   }
 
   toggleModal() {
@@ -93,7 +110,7 @@ export class MembersModalComponent implements OnInit {
     }
     this.changedMembers.emit(this.addedMembers);
   }
-  
+
 
   titleHeader: string = '';
 
