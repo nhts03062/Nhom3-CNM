@@ -76,30 +76,54 @@
         
             <!-- GROUP CHAT -->
             <ng-container *ngIf="selectedRoom.isGroupChat; else oneAndOne">
-
-              <div (click)="chonHinhAnh()" style="cursor: pointer;">
+              <!-- Hiển thị hình ảnhảnh -->
+              <div class="group-avatar position-relative">
                 <img
                   [src]="selectedRoom.image || defaulGrouptAvatarUrl"
                   alt="Group"
                   class="rounded-circle p-1 bg-primary"
                   width="110"
                 >
+                <div *ngIf="editingImage" class="image-edit-overlay">
+                  <input #imageInput type="file" accept="image/*" (change)="onImageSelected($event)"
+                  style="display: none;" />
+                  <button class="btn btn-sm btn-light mt-2" (click)=" chonHinhAnhGroup()">
+                    <i class="fa-solid fa-camera"></i>
+                  </button>
+                  <div class="mt-2">
+                    <button class="btn btn-sm btn-success" (click)="saveImage()">
+                      <i class="fa-solid fa-check"></i>
+                    </button>
+                    <button class="btn btn-sm btn-danger ml-2" (click)="cancelEditImage()">
+                      <i class="fa-solid fa-times"></i>
+                    </button>
+                  </div>
+                </div>
+                <button *ngIf="!editingImage" class="btn btn-light btn-sm edit-image-btn" (click)="toggleEditImage()">
+                  <i class="fa-solid fa-pen"></i>
+                </button>
               </div>
-              <input #imageInput type="file" accept="image/*" (change)="onImageSelected($event)"
-              style="display: none;" />
-
-              <div class="username mt-4 d-flex flex-row align-items-center text-center">
-                <ng-container *ngIf="!editingName; else editMode">
-                  <p class="name mr-3 mb-0" (click)="toggleEditName()">
-                    {{ selectedRoom.chatRoomName }}
-                  </p>
-                  <i class="fa-solid fa-pen ml-2 clickable" (click)="toggleEditName()"></i>
-                </ng-container>
-              
-                <ng-template #editMode>
-                  <input [(ngModel)]="editedRoomName" (blur)="updateChatRoom()" (keydown.enter)="updateChatRoom()" class="form-control w-50" />
-                </ng-template>
-              </div>
+              <!-- Hiển thị ten chat group -->
+                <div class="username mt-4 d-flex flex-row align-items-center text-center">
+                  <ng-container *ngIf="!editingName; else editMode">
+                    <p class="name mr-3 mb-0">
+                      {{ selectedRoom.chatRoomName }}
+                    </p>
+                    <i class="fa-solid fa-pen ml-2 clickable" (click)="toggleEditName()"></i>
+                  </ng-container>
+                
+                  <ng-template #editMode>
+                    <div class="d-flex align-items-center">
+                      <input [(ngModel)]="editedRoomName" class="form-control" />
+                      <button class="btn btn-sm btn-success ml-2" (click)="saveRoomName()">
+                        <i class="fa-solid fa-check"></i>
+                      </button>
+                      <button class="btn btn-sm btn-danger ml-2" (click)="cancelEditName()">
+                        <i class="fa-solid fa-times"></i>
+                      </button>
+                    </div>
+                  </ng-template>
+                </div>
               
               <div class="mt-2 mb-1 w-100">
                 <div data-content="GROUP" class="divider-text"></div>
@@ -139,11 +163,22 @@
                         </div>
                       </div>
                     </div>
-                    <i 
-                      class="icon clickable fa-solid fa-square-xmark right ms-2" 
-                      aria-hidden="true" 
-                      (click)="removeMember(mem._id); $event.stopPropagation();"
-                    ></i>
+                   <!-- Nếu mem là admin thì luôn hiển thị chữ "Admin" cho tất cả -->
+                    <ng-container *ngIf="getId(mem) === getId(selectedRoom?.admin)">
+                      <p style="font-size: small; margin: center;">
+                        Admin
+                      </p>
+                    </ng-container>
+
+                    <!-- Nếu mem không phải là admin và người dùng hiện tại là admin thì hiển thị nút xoá -->
+                    <ng-container *ngIf="getId(mem) !== getId(selectedRoom?.admin) && getId(selectedRoom?.admin) === getId(idNguoiDungHienTai)">
+                      <i 
+                        class="icon clickable fa-solid fa-square-xmark right ms-2" 
+                        aria-hidden="true" 
+                        (click)="removeMember(mem._id); $event.stopPropagation();">
+                      </i>
+                    </ng-container>
+
                   </div>
                 </ng-container>
                 <div class="mb-1 w-100" *ngIf="selectedRoom.admin === idNguoiDungHienTai">
@@ -191,7 +226,7 @@
             <button *ngIf="selectedRoom.isGroupChat === false" type="button" class="btn btn-outline-danger mb-2" (click)="deleteChatRoom()">Xóa cuộc trò chuyện</button>
             <p *ngIf=""></p>
             <button *ngIf="selectedRoom.isGroupChat === true" type="button" class="btn btn-outline-danger mb-2" (click)="leaveChatRoom()">Rời nhóm</button>
-            <button *ngIf="selectedRoom.isGroupChat === true && selectedRoom.admin === idNguoiDungHienTai" type="button" class="btn btn-outline-danger mb-2" (click)="deleteChatRoom()">Xóa nhóm</button>
+            <button *ngIf="selectedRoom.isGroupChat === true &&  getId(selectedRoom.admin) === idNguoiDungHienTai" type="button" class="btn btn-outline-danger mb-2" (click)="deleteChatRoom()">Xóa nhóm</button>
           </div>
               <!-- Invite to group modal -->
               <app-members-modal

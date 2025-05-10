@@ -130,12 +130,13 @@ io.on("connection", (socket) => {
   //có thì gọi join-chatRoom để tham gia vào phòng chat nhóm mới
   socket.on('join-chatRoom', (chatRoomId) => {
     socket.join(chatRoomId);
-    console.log(`User ${socket.user._id} đã tham gia vào phòng chat ${chatRoomId}`);
+    console.log(`User ${socket.user} đã tham gia vào phòng chat ${chatRoomId}`);
   });
 
 //update là chỉ admin gọi đượcđược: kick thành viên, chỉnh sửa tên/ảnh nhóm
   socket.on('update-chatRoom', ({ chatRoomId, data }) => {  //chatRoomId là id của phòng chat, data là object chatRoom
     socket.broadcast.to(chatRoomId).emit('chatRoom-updated', data);
+    console.log('cap65 nhay phong chat',data)
   })
   //delete là chỉ adimin gọi được: xóa phòng chat nhóm
   socket.on('delete-chatRoom', (chatRoomId) => { //chatRoomId là id của phòng chat
@@ -150,7 +151,8 @@ io.on("connection", (socket) => {
   // giá trị trả về là id của user đã rời phòng chat
   socket.on('leave-chatRoom', (chatRoomId) => { //chatRoomId là id của phòng chat
     socket.leave(chatRoomId);
-    socket.broadcast.to(chatRoomId).emit('user-left', socket.user);
+    console.log(`User ${socket.user} đã rời khỏi phòng chat ${chatRoomId}`);
+    socket.broadcast.to(chatRoomId).emit('user-left', chatRoomId, socket.user); //Nhận về userid,chatRoomID đã rời phòng chat
   });
    /**--------------Phòng chat--------------------*/ 
    

@@ -4,6 +4,12 @@ const router = express.Router();
 const authMiddelware = require('../middlewales/authMiddleware ')
 const UserController = require('../controller/user.controller')
 
+//update thông tin người dùng
+// cung cấp
+//token
+//body : {name, avatar, phone, address}
+router.put('/updateuser', authMiddelware, UserController.updateUser)
+
 //Lấy danh sách tất cả người dùng
 // cung cấp
 //token

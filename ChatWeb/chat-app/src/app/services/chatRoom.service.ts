@@ -61,7 +61,13 @@ export class ChatRoomService {
       { headers: this.getHeaders() }
     );
   }
-  
+
+  roiPhongChat(chatRoomId:string):Observable<any>{
+    return this.http.delete<any>(
+      this.apiService.getApiUrl(`chatroom/leave/${chatRoomId}`),
+      { headers: this.getHeaders() }
+    );
+  }
 
   deleteChatRoom(chatRoomId: string): Observable<ChatRoom> {
     return this.http.delete<ChatRoom>(this.apiService.getApiUrl(`chatroom/${chatRoomId}`), {

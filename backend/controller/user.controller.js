@@ -3,6 +3,30 @@ const UserUtil = require("../utils/user-util");
 
 const userController = {};
 
+userController.updateUser =async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { name, avatarUrl, phone, address } = req.body;
+    const user = await User.findByIdAndUpdate(
+      userId,
+      {
+        name,
+        avatarUrl,
+        phone,
+        address,
+      },
+      { new: true, runValidators: true }
+    );
+    if (!user) {
+      return res.status(404).json({ msg: "Không tìm thấy người dùng" });
+    }
+    return res.status(200).json(user);
+  } catch (err) {
+    console.log("Lỗi updateUser", err);
+    return res.status(500).json("Lỗi updateUser");
+  }
+};
+
 userController.getAllUser = async (req, res) => {
   try {
     const users = await User.find({});

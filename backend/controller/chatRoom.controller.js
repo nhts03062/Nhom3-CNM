@@ -248,5 +248,28 @@ chatRoomController.updateChatRoom = async (req, res) => {
     res.status(500).json({ msg: "Lỗi update chat Room" });
   }
 };
+//Rời khỏi phòng chat
+chatRoomController.leaveChatRoom = async (req, res) => {
+  try {
+    const { chatRoomId } = req.params;
+    const chatRoom = await ChatRoom.findById(chatRoomId);
+    if (!chatRoom) {
+      return res.status(404).json("Không tìm thấy phòng chat");
+    }
+    if (chatRoom.admin.toString() === req.user._id.toString()) {
+      return res
+        .status(403)
+        .json({ msg: "Người tạo phòng không thể rời khỏi phòng" });
+    }
+    chatRoom.members = chatRoom.members.filter(
+      (member) => member.toString() !== req.user._id.toString()
+    );
+    const chatRoomSave = await chatRoom.save();
+    return res.status(200).json(chatRoomSave);
+  } catch (err) {
+    console.log("Lỗi rời khỏi phòng", err);
+    res.status(500).json({ msg: "Lỗi rời khỏi phòng" });
+  }
+};
 
 module.exports = chatRoomController;

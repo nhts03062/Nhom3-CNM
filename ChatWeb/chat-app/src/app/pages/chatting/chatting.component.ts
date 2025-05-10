@@ -7,6 +7,7 @@ import { PickerComponent } from '@ctrl/ngx-emoji-mart';
 import { HttpClient, HttpHeaders, HttpClientModule } from '@angular/common/http';
 
 import { ChatRoom } from '../../models/chatRoom.model';
+import { UploadService } from '../../services/upload.service';
 import { Messagee } from '../../models/message.model';
 import { SocketService } from '../../socket.service';
 import { UserService } from '../../services/user.service';
@@ -27,7 +28,7 @@ import { MembersModalComponent } from "./members-modal/members-modal.component";
   styleUrl: './chatting.component.css',
 })
 export class ChattingComponent implements OnInit {
-  editingName: any;
+ 
 
   @ViewChild('imageInput') imageInput!: ElementRef<HTMLInputElement>;
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
@@ -65,7 +66,8 @@ export class ChattingComponent implements OnInit {
     private userService: UserService,
     private chatRoomService: ChatRoomService,
     private route: ActivatedRoute,
-    private messageService: MessageService
+    private messageService: MessageService,
+     private uploadService: UploadService
   ) { };
 
   ngOnInit(): void {
@@ -151,6 +153,42 @@ export class ChattingComponent implements OnInit {
       }
     })
 
+    //Xử lý khi nhận sự kiện cập nhật phòng chat
+    this.socketService.nhanskCapNhatPhongChat((room: any) => {
+      const index = this.chatRooms.findIndex(r => r._id === room._id);
+      if (index !== -1) {
+        this.chatRooms[index] = room;
+        if (!this.chatRooms[index].members.some(member => member?._id.toString() === this.idNguoiDungHienTai)) {
+          this.chatRooms.splice(index, 1);
+           if (this.chatRoomIdDuocChon === room._id) {
+            this.chatRoomIdDuocChon = null;
+            this.selectedRoom = undefined;
+            this.messagees = [];
+        }
+        }
+        if (this.chatRoomIdDuocChon === room._id) {
+          this.selectedRoom = room;
+          this.membersList = this.filteredMembers(room);
+        }
+      }
+    });
+
+    //Xử lý khi nhận sự kiện rời phòng chat
+    this.socketService.nhanskRoiPhongChat((chatRoomId: string, userId: string) => {
+      const index = this.chatRooms.findIndex(r => r._id === chatRoomId);
+
+      if (index !== -1) {
+          const room = this.chatRooms[index];
+          room.members = room.members.filter((mem: any) => {
+            return this.getId(mem) !== userId;
+          })
+           if(this.chatRoomIdDuocChon === chatRoomId) {
+             this.selectedRoom = room;
+           }
+          this.membersList = this.filteredMembers(room);
+
+      }
+    });
 
     if (this.idNguoiDungHienTai) {
       this.socketService.joinRoom(this.idNguoiDungHienTai);
@@ -550,6 +588,52 @@ export class ChattingComponent implements OnInit {
     }
   }
 
+  leaveChatRoom():void{
+   if(this.chatRoomIdDuocChon){
+      this.chatRoomService.roiPhongChat(this.chatRoomIdDuocChon).subscribe({
+      next: (res) => {
+        console.log('Đã rời khỏi phòng chat:', res);
+        this.chatRooms = this.chatRooms.filter(room => room._id !== this.chatRoomIdDuocChon);
+         if(this.chatRoomIdDuocChon) 
+          this.socketService.roiPhongChat(this.chatRoomIdDuocChon);
+        this.chatRoomIdDuocChon = null;
+        this.selectedRoom = undefined;
+        this.messagees = [];
+      },
+      error: (err) => {
+        console.error('Lỗi khi rời phòng chat:', err);
+      }
+    });
+   }
+  }
+  /**----------------Xử lý update nhóm---------------- */
+  changedAdmin: string = '';
+  editingName: boolean = false;
+  editingImage: boolean = false;
+  editedRoomName: string = '';
+  tempImageFile: any = null;
+  changedImage: string = '';
+
+    toggleEditName(): void {
+    this.editingName = true;
+    this.editedRoomName = this.selectedRoom?.chatRoomName || '';
+  }
+    saveRoomName(): void {
+    if (this.editedRoomName && this.editedRoomName !== this.selectedRoom?.chatRoomName) {
+      this.updateChatRoom();
+    }
+    this.editingName = false;
+  }
+    cancelEditName(): void {
+    this.editingName = false;
+    this.editedRoomName = this.selectedRoom?.chatRoomName || '';
+  }
+    toggleEditImage(): void {
+    this.editingImage = true;
+  }
+    chonHinhAnhGroup(): void {
+    this.imageInput.nativeElement.click();
+  }
   onImageSelected(event: any): void {
     const file = event.target.files[0];
     if (file) {
@@ -583,27 +667,49 @@ export class ChattingComponent implements OnInit {
   
           const base64Image = canvas.toDataURL('image/jpeg', 0.9);
           this.changedImage = base64Image;
-          this.updateChatRoom();
+          // Không gọi updateChatRoom() ngay lập tức - đợi người dùng nhấn lưu
         };
       };
   
       reader.readAsDataURL(file);
     }
   }
-  leaveChatRoom():void{
-    
+  saveImage(): void {
+    if (this.changedImage) {
+      this.uploadService.uploadBase64Image(this.changedImage).subscribe({
+        next: (res) => {
+          if (res) {
+            this.changedImage = res; // cập nhật lại thành URL trả về từ server      // sau đó mới gọi update
+            if(this.selectedRoom){
+              this.selectedRoom.image = res;
+            }
+             this.updateChatRoom(); 
+          } else {
+            alert('Upload ảnh thất bại ❌');
+          }
+        },
+        error: (err) => {
+          console.error('Lỗi upload ảnh:', err);
+          alert('Lỗi upload ảnh ❌');
+        }
+      });
+    } else {
+      this.editingImage = false;
+    }
   }
-  
 
-  editedRoomName: string = '';
-  changedImage: string = '';
-  changedAdmin: string = '';
-  updateChatRoom(): void {
+  cancelEditImage(): void {
+    this.editingImage = false;
+    this.changedImage = '';
+    this.tempImageFile = null;
+  }
+   updateChatRoom(): void {
     const updateData: any = {
       chatRoomId: this.selectedRoom?._id
-    };
+    };    
+
   
-    if (this.editedRoomName && this.editedRoomName !== this.selectedRoom?.chatRoomName) {
+    if (this.editingName && this.editedRoomName && this.editedRoomName !== this.selectedRoom?.chatRoomName) {
       updateData.chatRoomName = this.editedRoomName;
     }
   
@@ -617,30 +723,45 @@ export class ChattingComponent implements OnInit {
   
     if (this.changedAdmin) {
       updateData.newAdminId = this.changedAdmin;
-      console.log("🚀 ~ ChattingComponent ~ updateChatRoom ~ updateData.newAdmin:", updateData.newAdmin)
     }
   
-    this.chatRoomService.updateChatRoom(updateData).subscribe({
-      next: (updatedRoom) => {
-        // alert('Phòng chat đã được cập nhật thành công ✅'); // 🟢 Alert user
-        this.selectedRoom = updatedRoom; // 🔄 Refresh selectedRoom
-        console.log("🚀 ~ ChattingComponent ~ this.chatRoomService.updateChatRoom ~ this.selectedRoom:", this.selectedRoom)
-        this.membersList = this.filteredMembers(updatedRoom); // ✅ Update members list if needed
+    // Chỉ gọi API nếu có thay đổi
+    if (Object.keys(updateData).length > 1) { // Vì luôn có chatRoomId
+      this.chatRoomService.updateChatRoom(updateData).subscribe({
+        next: (updatedRoom) => {
+
+          const index = this.chatRooms.findIndex(r => r._id === updatedRoom._id);
+          if (index !== -1) {
+            this.chatRooms[index] = updatedRoom;
+          }
+          this.selectedRoom = updatedRoom;
+
+          if(this.selectedRoom)
+            this.socketService.capNhatPhongChat(this.selectedRoom._id, this.selectedRoom);
+
+          // Reset form values/UI states
+          this.showAddMembersModal = false;
+          this.editingName = false;
+          this.editingImage = false;
+          this.addedMembers = [];
+          this.changedImage = '';
+          this.changedAdmin = '';
+          this.tempImageFile = null;
+        },
+        error: (err) => {
+          console.error('Update failed', err);
+          alert('Không thể cập nhật phòng chat: ' + (err.error?.msg || 'Lỗi không xác định ❌'));
+        }
+      });
+    } else {
+      // Reset UI nếu không có thay đổi
+      this.editingName = false;
+      this.editingImage = false;
+
   
-        // Reset form values/UI states
-        this.showAddMembersModal = false;
-        this.editingName = false;
-        this.addedMembers = [];
-        this.changedImage = '';
-        this.changedAdmin = '';
-      },
-      error: (err) => {
-        console.error('Update failed', err);
-        alert('Không thể cập nhật phòng chat: ' + (err.error?.msg || 'Lỗi không xác định ❌'));
-      }
-    });
+    }
   }
-  
+   /**----------End------Xử lý update nhóm---------------- */
   addMemChatRoom(): void {
     const updateData: any = {
       chatRoomId: this.selectedRoom?._id
@@ -667,6 +788,9 @@ export class ChattingComponent implements OnInit {
       }
     });
   }
+  getId(admin: any): string {
+  return typeof admin === 'string' ? admin : admin?._id;
+}
   removeMember(memberId: string): void {
     if (!this.selectedRoom) return;
   
@@ -687,8 +811,15 @@ export class ChattingComponent implements OnInit {
     this.chatRoomService.updateChatRoom(updateData).subscribe({
       next: (updatedRoom) => {
         alert('Đã xóa thành viên khỏi nhóm');
+          const index = this.chatRooms.findIndex(r => r._id === updatedRoom._id);
+          if (index !== -1) {
+            this.chatRooms[index] = updatedRoom;
+          }
         this.selectedRoom = updatedRoom; // 🔄 Refresh selectedRoom
         this.membersList = this.filteredMembers(updatedRoom); // ✅ Update members list if you're using this
+        console.log('chatRoom sau khi xoa', updatedRoom)
+        if (this.selectedRoom)
+          this.socketService.capNhatPhongChat(this.selectedRoom._id, this.selectedRoom);
       },
       error: (err) => {
         console.error('Xóa thành viên thất bại:', err);
@@ -732,10 +863,7 @@ export class ChattingComponent implements OnInit {
 
   
   
-  toggleEditName(){
-    this.editedRoomName = this.selectedRoom?.chatRoomName || '';
-    this.editingName = true;
-  }
+
   
 
   recallMessage(idMsg: string, index: number, code: number): void {
