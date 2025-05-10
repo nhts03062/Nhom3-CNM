@@ -14,7 +14,7 @@ const MessageSchema = new mongoose.Schema({
     sendID: {type: mongoose.Schema.Types.ObjectId, ref: "User"},
     replyToMessage:{type: mongoose.Schema.Types.ObjectId, ref: "Message", default: null},
     content:{
-        type: {type: String, enum:['text','file','media'],default: 'text'},
+        type: {type: String, enum:['text','file','media','first'],default: 'text'},
         text:{type:String,default: ''},
         media: [{type: String, default: null}], // Vì muốn mỗi phần từ là phần tử bình thường thì thêm [] vào trong string với default là []
         files: [

@@ -23,29 +23,104 @@ export class SocketService {
     });
   }
 
-  joinRoom(userId: string): void {
-    this.socket.emit("join", userId);
-    console.log('User joined room:', userId);
-  }
+ /**--------------------Tin nhắn socket -------------*/
+//Gửi sự kiện tin nhắn
+sendMessage(chatRoomId: string, message: any): void {
+  this.socket.emit('create-message', { chatRoomId, data: message });
+}
+xoaTinNhan(chatRoomId: string, data: any): void {
+  this.socket.emit('delete-message', { chatRoomId, data });
+}
 
+//Nhận sự kiện tin nhắn
+  nhanskXoaTinNhan(callback: (recallmessage: any) => void): void {
+    this.socket.on('message-deleted', callback);
+  }
   onNewMessage(callback: (message: any) => void): void {
     this.socket.on("message-created", callback);
   }
 
-  onNewChatRoom(callback: (chatRoom: any) => void): void {
-    this.socket.on("new-chatRoom", callback);
+  //off sự kiện tin nhắn
+  offNhanskXoaTinNhan():void {
+    this.socket.off('message-deleted');
   }
-
-  onNewRecall(callback: (recallmessage: any) => void): void {
-    this.socket.on('recall', callback);
+  offOnNewMessage(): void {
+    this.socket.off("message-created");
   }
+  /**--------------------Tin nhắn socket -------------*/
 
-  sendMessage(chatRoomId: string, message: any): void {
-    console.log('Sending message via socket:', { chatRoomId, message });
 
-    this.socket.emit('create-message', { chatRoomId, data: message });
+ /**--------------------Phòng chat socket -------------*/
+ //Gửi sự kiện phòng chat
+ joinRoom(userId: string): void {
+  this.socket.emit("join", userId);
+  console.log('User joined room:', userId);
+}
+thamGiaPhongChat(chatRoomId:string) :void{
+  this.socket.emit('join-chatRoom',chatRoomId)
+  console.log('gửi sự kiện tham gia phòng chat');
+}
+taoPhongChat(chatRoomId:string,data:any) :void{
+  this.socket.emit('create-chatRoom',chatRoomId,data); //chatRoomId là id của phòng chat, data là object chatRoom
+  console.log('gửi sự kiện tạo phòng chat');
+}
+capNhatPhongChat(chatRoomId:string,data:any):void{
+  this.socket.emit('update-chatRoom',chatRoomId,data); //chatRoomId là id của phòng chat, data là object chatRoom
+  console.log('gửi sự kiện cập nhật phòng chat');
+}
+xoaPhongChat(chatRoomId: string): void {
+  this.socket.emit('delete-chatRoom', chatRoomId);
+}
+moiVaoPhongChat(chatRoomId: string, data: any): void {
+  this.socket.emit('invite-user', { chatRoomId, data }); //chatRoomId là id của phòng chat, data là object user dc mời
+}
+roiPhongChat(chatRoomId: string): void{
+  this.socket.emit('leave-chatRoom', chatRoomId); //chatRoomId là id của phòng chat
+  console.log('gửi sự kiện rời phòng chat');
+}
 
-  }
+//Nhận sự kiện phòng chat
+nhanskTaoPhongChat(callback: (data:any) => void):void{
+  this.socket.on('roomChat-created', callback); //data là object chatRoom
+  console.log('Nhận sự kiện tạo phòng chat');
+}
+nhanskCapNhatPhongChat(callback: (data:any) => void):void{
+  this.socket.on('chatRoom-updated', callback);
+  console.log('Nhận sự kiện cập nhật phòng chat');
+}
+nhanskXoaPhongChat(callback: (chatRoomid: string) => void): void{
+  this.socket.on('chatRoom-deleted',callback)
+}
+nhanskMoiVaoPhongChat(callback: (data:any) => void):void{
+  this.socket.on('user-invited', callback); //data là object user dc mời
+}
+nhanskRoiPhongChat(callback: (data:any) =>void):void{
+  this.socket.on('user-left', callback); //data là object chatRoom
+  console.log('Nhận sự kiện rời phòng chat');
+}
+
+//off sk phòng chat
+offNhanskTaoPhongChat(): void {
+  this.socket.off('roomChat-created');
+}
+offNhanskCapNhatPhongChat(): void {
+  this.socket.off('chatRoom-updated');
+}
+offNhanskXoaPhongChat():void{
+  this.socket.off('chatRoom-deleted');
+}
+offNhanskMoiVaoPhongChat():void{
+  this.socket.off('user-invited');
+}
+offNhanskRoiPhongChat():void{
+  this.socket.off('user-left');
+}
+
+
+  /**--------------------Phòng chat socket -------------*/
+  
+
+
  /**--------------------Kết bạn socket -------------*/
   //Gửi sự kiện kết bạn
   themBan(friendId: string, data: any):void{

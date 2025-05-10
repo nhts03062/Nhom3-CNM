@@ -13,6 +13,7 @@ import { ChatRoom } from '../../models/chatRoom.model';
 import { defaultAvatarUrl, defaulGrouptAvatarUrl } from '../../contants';
 import { SocketService } from '../../socket.service';
 
+
 @Component({
   standalone: true,
   selector: 'app-contacts',
@@ -203,6 +204,21 @@ export class ContactsComponent implements OnInit {
             const thongTinUser = await firstValueFrom(this.userService.getUserById(this.idNguoiDungHienTai!));
             this.socketService.dongYKetBan(userId, thongTinUser);
             console.log('Đã gửi sk socket thêm bạn')
+
+            //tạo phòng chat
+            this.chatRoomService.createChatRoom({
+              members: [this.idNguoiDungHienTai!, userId],
+            }).subscribe({
+              next: (room) => {
+                console.log('Đã tạo phòng chat:', room);
+                this.socketService.taoPhongChat(room._id, room); // Gửi sự kiện tạo phòng chat
+                // console.log('chatRoom duoc gui qua soket',room)
+                console.log('Đã gửi sk socket mời vào phòng chat');
+              },
+              error: (err) => {
+                console.error('Lỗi tạo phòng chat ở contacts', err);
+              }
+            });
           },
           error: (err) => {
             console.error('Failed to load user:', err);

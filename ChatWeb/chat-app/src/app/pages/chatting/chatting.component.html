@@ -188,7 +188,10 @@
             <div class="w-100">
               <div class="divider-text"> </div>
             </div>
-            <button type="button" class="btn btn-outline-danger mb-2" (click)="deleteChatRoom()">Delete chat</button>
+            <button *ngIf="selectedRoom.isGroupChat === false" type="button" class="btn btn-outline-danger mb-2" (click)="deleteChatRoom()">Xóa cuộc trò chuyện</button>
+            <p *ngIf=""></p>
+            <button *ngIf="selectedRoom.isGroupChat === true" type="button" class="btn btn-outline-danger mb-2" (click)="leaveChatRoom()">Rời nhóm</button>
+            <button *ngIf="selectedRoom.isGroupChat === true && selectedRoom.admin === idNguoiDungHienTai" type="button" class="btn btn-outline-danger mb-2" (click)="deleteChatRoom()">Xóa nhóm</button>
           </div>
               <!-- Invite to group modal -->
               <app-members-modal
@@ -233,7 +236,7 @@
     </div>
   </div>
 
-
+  <!--start------Phần hiển thị chat Room-->
 
   <section class="Left-section">
     <div *ngFor="let room of chatRooms" class="left-section message"
@@ -252,7 +255,33 @@
             </p>
           </div>
 
-          <p class="message">{{ room.latestMessage?.content?.text }}</p>
+          <!-- Hiển thị tin nhắn đã thu hồi với chính mình -->
+          <div class="message"
+            *ngIf="room.latestMessage?.recall === '1' &&
+              (room.latestMessage?.sendID?._id || room.latestMessage?.sendID) === idNguoiDungHienTai">
+            <i>Thu hồi với chính mình</i>
+          </div>
+
+                  <!-- Hiển thị tin nhắn cuối cùng -->
+          <div class="message" *ngIf="room.latestMessage?.content?.type === 'text'">
+            {{ room.latestMessage?.content?.text }}
+          </div>
+
+          <!-- Hiển thị tin nhắn cuối cùng nhiều file -->
+          <div class="message" *ngIf="room.latestMessage?.content?.type === 'file'">
+            [Tệp tin]
+          </div>
+
+          <!-- Hiển thị tin nhắn cuối cùng nhiều ảnh -->
+          <div class="message" *ngIf="room.latestMessage?.content?.type === 'media'">
+            [Hình ảnh]
+          </div>
+         
+          <!-- Hiển thị tin nhắn đã thu hồi với tất cả -->
+          <div class="message" *ngIf="room.latestMessage?.recall === '2'">
+            <i>Tin nhắn đã bị thu hồi.</i>
+          </div>
+
         </div>
       </ng-container>
     </div>
@@ -261,6 +290,7 @@
       Không có cuộc hội thoại nào hãy bắt đầu
     </div>
   </section>
+    <!--end-----Phần hiển thị chat Room-->
 
   <section class="Right-section">
     <div *ngIf="selectedRoom?._id && idNguoiDungHienTai && selectedRoom">
@@ -434,9 +464,9 @@
               <!-- Tuỳ chọn bên phải -->
               <div class="message-options right" *ngIf="selectedMessageIndex === i">
                 <ul>
-                  <li (click)="recallMessage(msg._id, i, 1)">Recall only for me</li>
+                  <li (click)="recallMessage(msg._id, i, 1)">Thu hồi chỉ với mình</li>
                   <li (click)="recallMessage(msg._id, i, 2)">Thu hồi tin nhắn</li>
-                  <li (click)="replyToMessage(i)">Reply to</li>
+                  <li (click)="replyToMessage(i)">Trả lời tin nhắn</li>
                 </ul>
               </div>
             </div>

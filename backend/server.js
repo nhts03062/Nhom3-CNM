@@ -50,6 +50,8 @@ app.use('/api/message', require('./routes/message.route'))
 app.use('/api/search', require('./routes/search.route'))
 //Sử dụng API cho user
 app.use('/api/user', require('./routes/user.route'))
+//Sử dụng API cho upload file
+app.use('/api/upload', require('./routes/upload.route'))
 
 // emit là gửi sự kiện với 2 tham số là tên sự kiện và giá trị gửi di
 //on là nhận sử kiện  với 2 tham số là tên sự kiện và giá trị đã gửi(giá trị nhận được)
@@ -114,16 +116,14 @@ io.on("connection", (socket) => {
     socket.broadcast.to(userId).emit('unfriended', socket.user); //gửi lại người dùng hủy kết bạn là user đã hủyhủy
     console.log(`User ${socket.user} đã hủy kết bạn với ${userId}`);
   })
-  
-    /**---end----Phần bạn bè--------------- */
 
 
-  //tạo phòng chat nhóm mới
+ /**--------------Phòng chat--------------------*/ 
   //người dùng tự động tham gia vào phòng chat nhóm mới
   // sau dó phát sự kiện cho tất cả người dùng online room-chat-created 
-  socket.on('create-chatRoom', (chatRoomId, data) => {
+  socket.on('create-chatRoom', (chatRoomId, data) => { //chatRoomId là id của phòng chat, data là object chatRoom
     socket.join(chatRoomId.toString())
-    socket.broadcast.emit('roomChat-created', data)
+    io.emit('roomChat-created', data)
   })
   //Người dùng nhận sự kiện roomChat-created và 
   //và kiểm tra xem trong member có người dùng đó ko
@@ -133,17 +133,29 @@ io.on("connection", (socket) => {
     console.log(`User ${socket.user._id} đã tham gia vào phòng chat ${chatRoomId}`);
   });
 
-  socket.on('update-chatRoom', ({ chatRoomId, data }) => {
+//update là chỉ admin gọi đượcđược: kick thành viên, chỉnh sửa tên/ảnh nhóm
+  socket.on('update-chatRoom', ({ chatRoomId, data }) => {  //chatRoomId là id của phòng chat, data là object chatRoom
     socket.broadcast.to(chatRoomId).emit('chatRoom-updated', data);
   })
-
-  //emit leave-chatRoom thì sever nhận
-  //rời khỏi phòng chat nhóm và phát sự kiện user-left cho tất cả người dùng trong phòng chat nhóm đó
-  socket.on('leave-chatRoom', (chatRoomId, data) => {
-    socket.leave(chatRoomId);
-    socket.broadcast.to(chatRoomId).emit('user-left', data);
+  //delete là chỉ adimin gọi được: xóa phòng chat nhóm
+  socket.on('delete-chatRoom', (chatRoomId) => { //chatRoomId là id của phòng chat
+    socket.broadcast.to(chatRoomId).emit('chatRoom-deleted', chatRoomId);
   });
+//Mời người dùng vào phòng chat: tất cả thành viên đều gọi được
+  socket.on('invite-user', ({ chatRoomId, data }) => { //chatRoomId là id của phòng chat, data là object user
+    socket.broadcast.to(chatRoomId).emit('user-invited', data);
+  });
+  //rời khỏi phòng chat nhóm và phát sự kiện user-left 
+  // cho tất cả người dùng trong phòng chat nhóm đó và
+  // giá trị trả về là id của user đã rời phòng chat
+  socket.on('leave-chatRoom', (chatRoomId) => { //chatRoomId là id của phòng chat
+    socket.leave(chatRoomId);
+    socket.broadcast.to(chatRoomId).emit('user-left', socket.user);
+  });
+   /**--------------Phòng chat--------------------*/ 
+   
 
+  /**--------------Messages--------------------*/
   //emit create-message thì sever nhận
   //phát sự kiện message-created cho tất cả người dùng trong phòng chat nhóm đó
   socket.on('create-message', ({ chatRoomId, data }) => {
@@ -159,10 +171,10 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on('delete-message', ({ chatRoomId, data }) => {
+  socket.on('delete-message', ({ chatRoomId, data }) => { //chatRoomId là id của phòng chat, data là object message
     socket.broadcast.to(chatRoomId).emit('message-deleted', data);
   });
-
+/**--------------Messages--------------------*/
 
 
   socket.on('disconnect', () => {

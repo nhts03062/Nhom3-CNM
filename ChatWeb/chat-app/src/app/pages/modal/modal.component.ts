@@ -41,7 +41,9 @@ export class ModalComponent implements OnInit {
   activeTab: 'friend' | 'group' = 'friend';
   searchTerm: string = '';
   currentUserId = sessionStorage.getItem('userId');
+  //tab group
   groupName = '';
+  errorGroup = '';
 
   constructor(private userService : UserService,
     private chatRoomService: ChatRoomService,
@@ -67,7 +69,7 @@ export class ModalComponent implements OnInit {
         if(user._id.toString() === data._id.toString()){
           return{ 
             ...user,
-            friendRequestsReceived: [...user.friendRequestsReceived, this.userIdNguoiDungHienTai]
+            requestfriends: [...user.requestfriends, this.userIdNguoiDungHienTai]
           }
         }
         return user;
@@ -79,7 +81,7 @@ export class ModalComponent implements OnInit {
           if(user._id.toString() === data.toString()){
             return{ 
               ...user,
-              friendRequestsReceived: user.friendRequestsReceived.filter((friendId: string) => friendId !== this.userIdNguoiDungHienTai)
+              requestfriends: user.requestfriends.filter((friendId: string) => friendId !== this.userIdNguoiDungHienTai)
             }
           }
           return user;
@@ -96,7 +98,9 @@ export class ModalComponent implements OnInit {
             }
           }
           return user;
-        })})
+        })
+        this.friendsList.push(data)
+      })
         //sk tu choi ket ban
       this.socketService.nhanskTuChoiKetBan((data:any) =>{
         console.log('Đã nhận sự kiện từ chối kết bạn', data)
@@ -105,7 +109,7 @@ export class ModalComponent implements OnInit {
             if(user._id.toString() === data.toString()){
               return{ 
                 ...user,
-                requestfriends: user.requestfriends.filter((friendId: string) => friendId.toString() !== this.userIdNguoiDungHienTai?.toString())
+                friendRequestsReceived: user.friendRequestsReceived.filter((friendId: string) => friendId.toString() !== this.userIdNguoiDungHienTai?.toString())
               }
             }
             console.log('Danh sach sau',user.requestfriends.length)
@@ -124,9 +128,10 @@ export class ModalComponent implements OnInit {
               }
             }
             return user;
-          })})
+          })
+          this.friendsList = this.friendsList.filter((friend: any) => friend._id.toString() !== data.toString())
+        })
     }
-  
   }
 
   ngOnDestroy(): void {
@@ -142,17 +147,21 @@ export class ModalComponent implements OnInit {
     this.searchTerm='';
     this.danhSachNguoiDungSauKhiTimKiem = [];
     this.searchError= ''; 
+    this.errorGroup = '';
+    this.selectedFriends = [];
+    this.groupName = '';
   }
 
   setTab(tab: 'friend' | 'group') {
     this.activeTab = tab;
+    this.searchTerm = ''
   }
   toggleProfileModal() {
     this.showProfileModal = !this.showProfileModal;
   }
   
 
-//Xử lý kêt bạn
+/**--------------Xử lý kêt bạn------------------*/
 searchFriend() {
   if (!this.searchTerm) {
     this.searchError = 'Chưa nhập từ khóa tìm kiếm';
@@ -187,10 +196,10 @@ searchFriend() {
 
 // Kiểm tra đã là bạn hay chưa hay đã gửi yêu cầu kết bạn hay chưa hay đã nhận yêu cầu kết bạn hay chưa
 kiemTraBanHayDaGuiYeuCauKetBan(user: any): string{
-  const ban = user.friends.includes(this.userIdNguoiDungHienTai); //Đã là bạn bè
-  const daNhanYeuCau = user.friendRequestsReceived.includes(this.userIdNguoiDungHienTai); //Mình đã gửi yêu cầu kết bạn cho user đó
-  const daGuiYeuCau = user.requestfriends.includes(this.userIdNguoiDungHienTai); //User đó đã gửi yêu cầu kết bạn cho mình
-  return ban ? 'ban' : daGuiYeuCau ? 'daGuiYeuCau' : daNhanYeuCau ? 'daNhanYeuCau' : 'chuaKetBan';
+  const ban = user.friends.includes(this.userIdNguoiDungHienTai); // Đã là bạn
+  const daGuiYeuCau = user.friendRequestsReceived.includes(this.userIdNguoiDungHienTai); // Mình đã gửi yêu cầu kết bạn
+  const daNhanYeuCau = user.requestfriends.includes(this.userIdNguoiDungHienTai); // Mình đã nhận yêu cầu kết bạn
+  return ban ? 'ban' : daNhanYeuCau ? 'daNhanYeuCau' : daGuiYeuCau ? 'daGuiYeuCau' : 'chuaKetBan';
 }
 
 //Gửi yêu cầu kết bạn
@@ -202,7 +211,7 @@ guiYeuCauKetBan(userId :string){
         if(user._id.toString() === userId.toString()){
           return{ 
             ...user,
-            requestfriends: [...user.requestfriends, this.userIdNguoiDungHienTai]
+            friendRequestsReceived: [...user.friendRequestsReceived, this.userIdNguoiDungHienTai]
           }
         }
         return user;
@@ -235,7 +244,7 @@ huyYeuCauKetBan(userId: string){
         if(user._id.toString() === userId.toString()){
           return{ 
             ...user,
-            requestfriends: user.requestfriends.filter((friendId: string) => friendId !== this.userIdNguoiDungHienTai)
+            friendRequestsReceived: user.friendRequestsReceived.filter((friendId: string) => friendId !== this.userIdNguoiDungHienTai)
           }
         }
         return user;
@@ -249,35 +258,32 @@ huyYeuCauKetBan(userId: string){
     }
   })
 }
+/**-------end-------Xử lý kêt bạn------------------*/
 
 
-  //Không biết đây của phần xử lý nào ???
+/**--------------Xử lý sự kiện tạo nhóm------------------*/
+   // Tải danh sách bạn bè
+    friendsList: Userr[] = [];
+    loadFriends(): void {
+      this.userService.getFriends().subscribe({
+        next: (friends: Userr[]) => {
+          this.friendsList = friends;
+        },
+        error: (err) => {
+          console.error('❌ Failed to load friends:', err);
+        }
+      });
+    }
+    
+    //Lọc danh sách bạn bè được chọn trên htmlhtml
+    get filteredFriends(): Userr[] {
+      return this.friendsList.filter(friend =>
+        friend.name.toLowerCase().includes(this.searchTerm.toLowerCase())
+      );
+    }
 
-  friendsList: Userr[] = [];
-
-  loadFriends(): void {
-    this.userService.getFriends().subscribe({
-      next: (friends: Userr[]) => {
-        this.friendsList = friends;
-      },
-      error: (err) => {
-        console.error('❌ Failed to load friends:', err);
-      }
-    });
-  }
-  
-  
-  get filteredFriends(): Userr[] {
-    return this.friendsList.filter(friend =>
-      friend.name.toLowerCase().includes(this.searchTerm.toLowerCase())
-    );
-  }
-
-
-  // Xử lý sự kiện tạo nhóm 
-
+// Xử lý sự kiện khi người dùng chọn bạn bè
   selectedFriends: string[] = [];
-
   toggleFriendSelection(friendId: string): void {
     if (this.selectedFriends.includes(friendId)) {
       this.selectedFriends = this.selectedFriends.filter(id => id !== friendId);
@@ -286,9 +292,12 @@ huyYeuCauKetBan(userId: string){
     }
   }
 
+  //tạo nhóm
   createGroup(friendIds: string[]): void {
+    this.errorGroup ='';
+
     if (friendIds.length < 2) {
-      alert("Please select at least 2 friends");
+      this.errorGroup = 'Cân ít nhất 2 thành viên để tạo nhóm';
       return;
     }
   
@@ -301,10 +310,15 @@ huyYeuCauKetBan(userId: string){
       currentUserId: this.currentUserId,
       friendIds: friendIds
     });
+
+    if(!this.groupName){
+      this.errorGroup = 'Tên nhóm không được để trống';
+      return;
+    }
   
     const roomData = {
       members: [...friendIds],
-      chatRoomName: this.groupName ?? '', // Use nullish coalescing to provide an empty string as default
+      chatRoomName: this.groupName ,
       image: this.defaulGrouptAvatarUrl
     };
   
@@ -317,10 +331,15 @@ huyYeuCauKetBan(userId: string){
         this.navigateToChatRoom(newRoom._id);
         this.socketService.joinRoom(newRoom._id);
         // Navigate to the new chat room or handle it accordingly
+        this.socketService.taoPhongChat(newRoom._id, newRoom);
+
+        this.selectedFriends = []
+        this.groupName = '';
       },
       error: (err) => console.error('Failed to create chat room:', err)  // Handle errors here
     });
   }
+  /**---------end-----Xử lý sự kiện tạo nhóm------------------*/
   
   navigateToChatRoom(chatRoomId: string): void {
     console.log("Navigating to chat room with ID:", chatRoomId);
