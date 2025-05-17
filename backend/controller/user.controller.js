@@ -251,7 +251,7 @@ userController.responseFriend = async (req, res) => {
     }
   }
 
-  userController.synchronizeContacts = async (req, res) => {
+userController.synchronizeContacts = async (req, res) => {
   try {
     const userId = req.user._id;
     const { contacts } = req.body;
@@ -262,34 +262,47 @@ userController.responseFriend = async (req, res) => {
       return res.status(404).json({ msg: 'Người dùng không tồn tại' });
     }
 
-    await User.updateOne(
-      { _id: userId },
-      {
-        $set: {
-          isSynchronized: true,
-          contacts
-        }
-      }
-    );
+    // Cập nhật trực tiếp
+    userDangNhap.contacts = contacts;
+    userDangNhap.isSynchronized = true;
 
-    const danhSachNguoiDungCoTrongDanhBa = await db.users.find({
+    const danhSachNguoiDungCoTrongDanhBa = await User.find({
       phone: { $in: contacts },
-      isSynchronized: true
-    }).toArray();
+      isSynchronized: true,
+      _id: { $ne: userDangNhap._id }
+    });
 
     for (const user of danhSachNguoiDungCoTrongDanhBa) {
       const daLaBan = user.friends.map(id => id.toString()).includes(userDangNhap._id.toString());
-      if (user.contacts.includes(userDangNhap.phone) && !daLaBan) {
-        userDangNhap.friends.push(user._id);
-        user.friends.push(userDangNhap._id);
+      const hoCoSoCuaToi = Array.isArray(user.contacts) && user.contacts.includes(userDangNhap.phone);
 
-        await userDangNhap.save();
+      if (hoCoSoCuaToi && !daLaBan) {
+        if (!userDangNhap.friends.includes(user._id)) {
+          userDangNhap.friends.push(user._id);
+        }
+        if (!user.friends.includes(userDangNhap._id)) {
+          user.friends.push(userDangNhap._id);
+        }
+
         await user.save();
 
-        io.to(user._id.toString()).emit('accepted-friend-request', userDangNhap);
-        io.to(userDangNhap._id.toString()).emit('accepted-friend-request', user);
+        io.to(user._id.toString()).emit('accepted-friend-request', {
+          _id: userDangNhap._id,
+          name: userDangNhap.name,
+          avatarUrl: userDangNhap.avatarUrl,
+          phone: userDangNhap.phone
+        });
+
+        io.to(userDangNhap._id.toString()).emit('accepted-friend-request', {
+          _id: user._id,
+          name: user.name,
+          avatarUrl: user.avatarUrl,
+          phone: user.phone
+        });
       }
     }
+
+    await userDangNhap.save();
 
     return res.status(200).json({ msg: 'Đồng bộ danh bạ thành công' });
   } catch (err) {
@@ -297,6 +310,7 @@ userController.responseFriend = async (req, res) => {
     return res.status(500).json({ msg: 'Lỗi đồng bộ danh bạ' });
   }
 };
+
 
   
 
