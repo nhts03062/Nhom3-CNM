@@ -250,6 +250,54 @@ userController.responseFriend = async (req, res) => {
       return res.status(500).json({ msg: "Lỗi hủy kết bạn" });
     }
   }
+
+  userController.synchronizeContacts = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { contacts } = req.body;
+    const io = req.io;
+
+    const userDangNhap = await User.findById(userId);
+    if (!userDangNhap) {
+      return res.status(404).json({ msg: 'Người dùng không tồn tại' });
+    }
+
+    await User.updateOne(
+      { _id: userId },
+      {
+        $set: {
+          isSynchronized: true,
+          contacts
+        }
+      }
+    );
+
+    const danhSachNguoiDungCoTrongDanhBa = await db.users.find({
+      phone: { $in: contacts },
+      isSynchronized: true
+    }).toArray();
+
+    for (const user of danhSachNguoiDungCoTrongDanhBa) {
+      const daLaBan = user.friends.map(id => id.toString()).includes(userDangNhap._id.toString());
+      if (user.contacts.includes(userDangNhap.phone) && !daLaBan) {
+        userDangNhap.friends.push(user._id);
+        user.friends.push(userDangNhap._id);
+
+        await userDangNhap.save();
+        await user.save();
+
+        io.to(user._id.toString()).emit('accepted-friend-request', userDangNhap);
+        io.to(userDangNhap._id.toString()).emit('accepted-friend-request', user);
+      }
+    }
+
+    return res.status(200).json({ msg: 'Đồng bộ danh bạ thành công' });
+  } catch (err) {
+    console.error('Lỗi đồng bộ danh bạ', err);
+    return res.status(500).json({ msg: 'Lỗi đồng bộ danh bạ' });
+  }
+};
+
   
 
 module.exports = userController;

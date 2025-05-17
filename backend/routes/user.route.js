@@ -56,5 +56,11 @@ router.delete('/unfriend', authMiddelware, UserController.unFriend)
 //body: {userId} //người muốn hủy kết bạn
 router.post('/cancelreqfriend',authMiddelware, UserController.cancelResquestFriend)
 
+//Đồng bộ danh bạ 
+// cung cấp
+//token
+//body : {contacts} danh bạ người dùng(sdt định dạng cho giống phàn update để dễ sử dụng/// chứ ko cái 09*** cái +084 chịu))
+router.patch('/synccontact', authMiddelware, UserController.synchronizeContacts)
+
 
 module.exports = router;

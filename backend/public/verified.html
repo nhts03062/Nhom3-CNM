@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Xác thực thành công</title>
+  <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+</head>
+<body>
+  <h2>Xác thực thành công</h2>
+  <p>Vui lòng quay lại ứng dụng để đặt lại mật khẩu.</p>
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get("token");
+    const roomId = urlParams.get("room");
+
+    fetch("https://chat.fff3l.click/api/auth/verify-token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ token }),
+    })
+    .then(res => res.json())
+    .then(({ userId }) => {
+      if (!userId) return;
+
+      const socket = io("https://chat.fff3l.click");
+      socket.emit("reset-password-verified", { roomId, userId });
+    })
+    .catch(err => {
+      console.error("Token không hợp lệ hoặc đã hết hạn:", err);
+    });
+  </script>
+</body>
+</html>

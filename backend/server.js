@@ -4,11 +4,15 @@ const http = require('http')
 const connectDB = require("./db");
 const { Server } = require('socket.io')
 require("dotenv").config();
+const path = require('path');
+
+
 
 const socketAuthMiddleware = require('./middlewales/socketAuthMiddleware')
 const chatRoomSocket = require('./sockets/chatRoom.socket');
 const userSocket = require('./sockets/user.socket')
-const ChatRoom = require('./models/Chatroom')
+const ChatRoom = require('./models/Chatroom');
+const User = require("./models/User");
 
 const app = express();
 const server = http.createServer(app) //Tạo sever http tử express để có thể xử lý API RESTREST(express) và socket.io
@@ -32,6 +36,8 @@ connectDB()
     process.exit(1); // Thoát chương trình nếu kết nối thất bại
   });
 
+// Cấu hình file tĩnh
+app.use(express.static(path.join(__dirname, 'public')));
 
 
 //Chia sẻ io cho các route khác
@@ -79,7 +85,25 @@ io.on("connection", (socket) => {
       socket.join(chatRoomId._id.toString())
       console.log(`${socket.user} Đã tham gia vào phòng chat ${chatRoomId._id} `)
     })
+    
+    await User.findByIdAndUpdate(socket.user, { online: true }) //Cập nhật trạng thái online cho người dùng
+    socket.broadcast.emit('onlined', socket.user)
   })
+
+  /**-----start------reset password----------- */
+// Khi frontend join vào phòng cá nhân
+socket.on("join-reset-room", (roomId) => {
+  socket.join(roomId);
+});
+
+// Khi xác thực thành công từ email HTML
+socket.on("reset-password-verified", ({ roomId, userId }) => {
+  console.log("✅ Reset verified:", roomId, userId);
+  io.to(roomId).emit("reset-password-verified", userId); // Gửi userId cho client đang chờ
+});
+
+  /**----ende-------reset password------------- */
+ 
 
   /**---start----Phần bạn bè--------------- */
 //Ý tưởng là những thứ như đồng ý kết bạn hay gửi kết bạn cần gửi id
@@ -179,8 +203,10 @@ io.on("connection", (socket) => {
 /**--------------Messages--------------------*/
 
 
-  socket.on('disconnect', () => {
+  socket.on('disconnect', async () => {
     console.log('Người dùng đã ngắt kết nối')
+    await User.findByIdAndUpdate(socket.user, { online: false }) //Cập nhật trạng thái online cho người dùng
+    socket.broadcast.emit('offlined', socket.user) //Gửi lại cho người dùng đã ngắt kết nối
   })
 })
 
