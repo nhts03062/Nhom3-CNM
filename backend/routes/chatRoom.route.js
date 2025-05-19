@@ -53,6 +53,12 @@ router.put('/', authMiddelware, ChatRoomController.updateChatRoom)
 //Người rời nhận lại thông báo: đã rời khỏi phòng chat
 router.delete('/leave/:chatRoomId', authMiddelware, ChatRoomController.leaveChatRoom)
 
+//Cập nhật trạng thái lastSeenAt
+//Cung cấp:
+//token
+//params chatRoomId
+//Người cập nhật nhận lại thông báo: đã cập nhật trạng thái
+router.put('/lastseen/:chatRoomId', authMiddelware, ChatRoomController.updateLastSeen)
 
 
 module.exports = router

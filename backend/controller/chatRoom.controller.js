@@ -1,6 +1,7 @@
 const ChatRoom = require("../models/Chatroom");
 const User = require("../models/User");
 const chatRoomUtil = require("../utils/chatRoom-util");
+const Message = require( "../models/Message");
 
 const chatRoomController = {};
 
@@ -101,27 +102,27 @@ chatRoomController.getAllChatRoomByUserId = async (req, res) => {
 
     const chatRooms = await ChatRoom.aggregate([
       {
-        $match: {
+        $match: { //Lọc các document trong collection dựa trên điều kiện
           members: userId,
         },
       },
       {
-        $lookup: {
-          from: "messages", // tên collection thật trong MongoDB
-          localField: "latestMessage",
-          foreignField: "_id",
-          as: "latestMessage",
+        $lookup: { //Kết hợp dữ liệu từ collection khác vào collection hiện tại
+          from: "messages", // tên collection thật trong MongoDB muốn kết hợp vào
+          localField: "latestMessage", //trường trong collection hiện tại dùng để so sánh 
+          foreignField: "_id", //trường trong collection messages để so sánh 
+          as: "latestMessage", // tên mảng kết quả được tạo ra
         },
       },
       {
-        $unwind: {
-          path: "$latestMessage",
-          preserveNullAndEmptyArrays: true,
+        $unwind: { //Chuyển đổi mảng thành các document riêng biệt
+          path: "$latestMessage", //trường mảng muốn chuyển đổi
+          preserveNullAndEmptyArrays: true, //giữ nguyên các document không có giá trị
         },
       },
       {
         $sort: {
-          "latestMessage.createdAt": -1,
+          "latestMessage.createdAt": -1, //Sắp xếp theo trường latestMessage theo thứ tự giảm dần
         },
       },
     ]);
@@ -131,6 +132,21 @@ chatRoomController.getAllChatRoomByUserId = async (req, res) => {
       path: "members",
       select: "name email avatarUrl",
     });
+
+    for (const room of chatRooms) {
+    const lastSeenArray = room.lastSeenAt || [];
+    const lastSeenRecord = lastSeenArray.find(
+      (item) => item.user.toString() === userId.toString()
+    );
+    const lastSeen = lastSeenRecord ? lastSeenRecord.lastSeen : new Date(0);
+
+    const unreadCount = await Message.countDocuments({
+      chatId: room._id,
+      createdAt: { $gt: lastSeen }
+    });
+
+    room.unreadCount = unreadCount; // Thêm trường unreadCount vào object trả về 
+  }
 
     res.status(200).json(chatRooms);
   } catch (err) {
@@ -271,5 +287,33 @@ chatRoomController.leaveChatRoom = async (req, res) => {
     res.status(500).json({ msg: "Lỗi rời khỏi phòng" });
   }
 };
+//Cập nhật trạng thái đã đọc
+chatRoomController.updateLastSeen = async (req, res) => {
+  try {
+    const { chatRoomId } = req.params;
+    const userId = req.user._id;
+
+    const chatRoom = await ChatRoom
+      .findById(chatRoomId)
+      .populate("members", "name email avatarUrl");
+    if (!chatRoom) {
+      return res.status(404).json("Không tìm thấy phòng chat");
+    }
+    const lastSeen = chatRoom.lastSeenAt.find(
+      (item) => item.user.toString() === userId.toString()
+    );
+    if (lastSeen) {
+      lastSeen.lastSeen = Date.now();
+    } else {
+      chatRoom.lastSeenAt.push({ user: userId, lastSeen: Date.now() });
+    }
+    await chatRoom.save();
+    return res.status(200).json(chatRoom);
+  }
+  catch (err) {
+    console.log("Lỗi cập nhật trạng thái đã đọc", err);
+    res.status(500).json({ msg: "Lỗi cập nhật trạng thái đã đọc" });
+  }
+}
 
 module.exports = chatRoomController;
