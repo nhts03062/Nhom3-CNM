@@ -163,7 +163,7 @@ router.post("/forgot-password", async (req, res) => {
     await transporter.sendMail(mailOptions);
     // Tạo mã phòng tạm khi gửi email
     
-    res.json({ roomId });
+    res.status(200).json({ roomId });
 
   } catch (error) {
     console.error(error);
@@ -207,7 +207,7 @@ router.post("/verify-token", async (req, res) => {
 
     if (!user) return res.status(404).json({ msg: "User không tồn tại" });
     console.log('Đã xác thực token cho user',user)
-    res.json({ userId: user._id });
+    res.status(200).json({ userId: user._id });
   } catch (err) {
     res.status(400).json({ msg: "Token không hợp lệ hoặc đã hết hạn" });
   }
