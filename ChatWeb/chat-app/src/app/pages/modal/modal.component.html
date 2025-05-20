@@ -5,8 +5,8 @@
         <h5 class="modal-container-title">          
           <!-- Tabs -->
           <div class="modal-tabs">
-            <button [class.active]="activeTab === 'friend'" (click)="setTab('friend')">Add Friend</button>
-            <button [class.active]="activeTab === 'group'" (click)="setTab('group')">Create Group</button>
+            <button [class.active]="activeTab === 'friend'" (click)="setTab('friend')">Thêm bạn</button>
+            <button [class.active]="activeTab === 'group'" (click)="setTab('group')">Tạo nhóm</button>
           </div>
         </h5>
       </header>
@@ -17,37 +17,62 @@
           <input
             type="text"
             class="email-searching"
-            placeholder="Search friend email"
+            placeholder="Tìm email bạn bè"
             [(ngModel)]="searchTerm"
             (keyup.enter)="searchFriend()"
           />
           <div *ngIf="isSearching" class="loading">Searching...</div>
           <p class="error" *ngIf="searchError" style="color: red;">{{ searchError }}</p>
 
-          <ul class="search-results" *ngIf="danhSachNguoiDungSauKhiTimKiem.length > 0">
-            <li *ngFor="let user of danhSachNguoiDungSauKhiTimKiem">
-              <!-- Trả về user có name emaill, avartar của người đó -->
-               <!-- style lại chỗ này có avartar của người dùng và tên thôi khỏi email-->
-              {{ user.email }} ({{ user.name || user.username }})
-              <button *ngIf="kiemTraBanHayDaGuiYeuCauKetBan(user) === 'chuaKetBan'" class="add-friend-btn" (click)="guiYeuCauKetBan(user._id)">Kết bạn</button>
-              <p *ngIf="kiemTraBanHayDaGuiYeuCauKetBan(user) === 'ban'">Bạn bè</p>
-              <button *ngIf="kiemTraBanHayDaGuiYeuCauKetBan(user) === 'daGuiYeuCau'" class="cancel-request-btn" (click)="huyYeuCauKetBan(user._id)">Hủy yêu cầu</button>
-              <p *ngIf="kiemTraBanHayDaGuiYeuCauKetBan(user) === 'daNhanYeuCau'">Chờ kết bạn</p>          
+          <!-- <ul class="search-results mt-3" *ngIf="danhSachNguoiDungSauKhiTimKiem.length > 0">
+            <li 
+              *ngFor="let user of danhSachNguoiDungSauKhiTimKiem"  
+              class="d-flex flex-row align-items-center gap-3 mt-4 text-dark"
+              style="cursor: pointer;"
+              (click)="selectUser(user)">
+              Trả về user có name emaill, avartar của người đó
+               style lại chỗ này có avartar của người dùng và tên thôi khỏi email
+                <div class="photo" [style.backgroundImage]="'url(' + user.avatarUrl + ')'"></div>
+                {{ user.email }} ({{ user.name || user.username }})
+                <button *ngIf="kiemTraBanHayDaGuiYeuCauKetBan(user) === 'chuaKetBan'" class="add-friend-btn ms-auto text-nowrap" (click)="guiYeuCauKetBan(user._id)">Kết bạn</button>
+                <p *ngIf="kiemTraBanHayDaGuiYeuCauKetBan(user) === 'ban'" class=" m-0 d-flex justify-content-end ms-auto text-nowrap"><i class="fa-solid fa-user-check"></i></p>
+                <button *ngIf="kiemTraBanHayDaGuiYeuCauKetBan(user) === 'daGuiYeuCau'" class="cancel-request-btn ms-auto text-nowrap" (click)="huyYeuCauKetBan(user._id)">Hủy yêu cầu</button>
+                <p *ngIf="kiemTraBanHayDaGuiYeuCauKetBan(user) === 'daNhanYeuCau'" class=" d-flex justify-content-end ms-auto text-nowrap">Chờ kết bạn</p>      
              </li>
+          </ul> -->
+          <ul class="search-results mt-3" *ngIf="danhSachNguoiDungSauKhiTimKiem.length > 0">
+            <li 
+              *ngFor="let user of danhSachNguoiDungSauKhiTimKiem"  
+              class="d-flex flex-row align-items-center gap-3 mt-4 text-dark"
+              style="cursor: pointer;"
+              (click)="selectUser(user)">
+              <div class="photo" [style.backgroundImage]="'url(' + user.avatarUrl + ')'"></div>
+              {{ user.email }} ({{ user.name || user.username }})
+
+              <button *ngIf="user.trangThaiKetBan === 'chuaKetBan'" class="add-friend-btn ms-auto text-nowrap" (click)="guiYeuCauKetBan(user._id)">Kết bạn</button>
+              <p *ngIf="user.trangThaiKetBan === 'ban'" class=" m-0 d-flex justify-content-end ms-auto text-nowrap"><i class="fa-solid fa-user-check"></i></p>
+              <button *ngIf="user.trangThaiKetBan === 'daGuiYeuCau'" class="cancel-request-btn ms-auto text-nowrap" (click)="huyYeuCauKetBan(user._id)">Hủy yêu cầu</button>
+              <button *ngIf="user.trangThaiKetBan === 'daNhanYeuCau'" disabled class=" receive-request-btn ms-auto text-nowrap">Chờ kết bạn</button>      
+            </li>
           </ul>
+
         </ng-container>
 
         <!-- tab tạo group -->
 
         <ng-container *ngIf="activeTab === 'group'">
           <div class="d-flex flex-row align-items-center gap-2 p-2">
-            <i class="fa-solid fa-camera-retro"></i>
-            <input type="text" class="group-name" placeholder="Group name" [(ngModel)]="groupName" />
+            <div class="upload-img" (click)="chonHinhAnhGroup()">
+              <!-- <i class="fa-solid fa-camera-retro"></i> -->
+              <input #imageInput type="file" accept="image/*" (change)="onImageSelected($event)" style="display: none;" />
+            </div>
+
+            <input type="text" class="group-name" placeholder="Tên nhóm" [(ngModel)]="groupName" />
           </div>
           <!-- Search Input -->
             <input
             type="text"
-            placeholder="Search..."
+            placeholder="Tìm..."
             [(ngModel)]="searchTerm"
             class="friends-searchbar"
             />
@@ -99,18 +124,18 @@
       <footer class="modal-container-footer">
         <button class="button is-ghost" (click)="close()">Cancel</button>
         <button class="button is-primary" (click)="activeTab === 'friend' ? searchFriend() : createGroup(selectedFriends)">
-          {{ activeTab === 'friend' ? 'Search' : 'Create Group' }}
+          {{ activeTab === 'friend' ? 'Tìm kiếm' : 'Tạo nhóm' }}
         </button>
-        
       </footer>
     </article>
   </div>
-  <!-- <app-modal-profile
-    *ngIf="showProfileModal"
-    [isOpen]="showProfileModal"
-    [user]="foundUser"
-    (closeModal)="toggleProfileModal()"
-    title="Profile">
-  </app-modal-profile> -->
+    <app-modal-profile
+      *ngIf="showProfileModal"
+      [isOpen]="showProfileModal"
+      [user]="selectedUser"
+      [trangThaiKetBan]="trangThaiKetBan"
+      (closeModal)="toggleProfileModal()"
+      title="Profile">
+    </app-modal-profile>
 
 </div>

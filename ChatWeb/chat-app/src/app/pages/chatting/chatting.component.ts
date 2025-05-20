@@ -269,7 +269,9 @@ export class ChattingComponent implements OnInit {
         const updatedChatRooms = res.map((room: ChatRoom) => {
           return {
             ...room,
-            otherMembers: this.layNguoiDungKhac(room)
+            otherMembers: this.layNguoiDungKhac(room),
+            timeAgo: this.getTimeAgo(room.latestMessage?.createdAt || (''))
+            
           }
         })
         this.chatRooms = updatedChatRooms;
@@ -713,9 +715,9 @@ export class ChattingComponent implements OnInit {
       updateData.chatRoomName = this.editedRoomName;
     }
   
-    if (this.addedMembers.length > 0) {
+    if (this.addedMembers.length > 0  && !this.selectedRoom?.members.includes(this.addedMembers)) {
       updateData.members = this.addedMembers;
-    }
+    }else{}
   
     if (this.changedImage) {
       updateData.image = this.changedImage;
@@ -738,7 +740,7 @@ export class ChattingComponent implements OnInit {
 
           if(this.selectedRoom)
             this.socketService.capNhatPhongChat(this.selectedRoom._id, this.selectedRoom);
-
+          this.selectedRoom = this.selectedRoom
           // Reset form values/UI states
           this.showAddMembersModal = false;
           this.editingName = false;
@@ -993,4 +995,32 @@ export class ChattingComponent implements OnInit {
       }
     }, 100);
   }
+
+  //Thời gian sau khi nhận tin nhắn mới nhất được gởi
+
+  getTimeAgo(time: string): string {
+    if (!time) return '';
+  
+    const messageDate = new Date(time);
+    const now = new Date();
+    const diffMs = now.getTime() - messageDate.getTime();
+    const diffSec = Math.floor(diffMs / 1000);
+    const diffMin = Math.floor(diffSec / 60);
+    const diffHr = Math.floor(diffMin / 60);
+  
+    const isYesterday =
+      messageDate.getDate() === now.getDate() - 1 &&
+      messageDate.getMonth() === now.getMonth() &&
+      messageDate.getFullYear() === now.getFullYear();
+  
+    if (diffSec < 60) return 'just now';
+    if (diffMin < 60) return `${diffMin} phút trước`;
+    if (diffHr < 24) return `${diffHr} giờ trước`;
+    if (isYesterday) return 'Hôm qua';
+  
+    const diffDay = Math.floor(diffHr / 24);
+    console.log("🚀 ~ ChattingComponent ~ getTimeAgo ~ diffDay:", diffDay)
+    return `${diffDay} ngày trước`;
+  }  
+  
 }

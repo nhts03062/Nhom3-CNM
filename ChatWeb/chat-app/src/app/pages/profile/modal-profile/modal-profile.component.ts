@@ -20,14 +20,15 @@ import { SocketService } from '../../../socket.service';
 export class ModalProfileComponent {
   @Input() isOpen: boolean = false; 
   @Input() user: Userr | undefined; 
+  @Input() trangThaiKetBan?: string;
   @Output() closeModal: EventEmitter<void> = new EventEmitter<void>();
   chatRoom: ChatRoom | undefined;
   currentUserId: string | null  = sessionStorage.getItem('userId')
   isFriend:boolean = false;
   requestSent: boolean = false;
+  receiveRequest:boolean = false;
   defaulGroupAvatarUrl= 'https://static.vecteezy.com/system/resources/previews/026/019/617/original/group-profile-avatar-icon-default-social-media-forum-profile-photo-vector.jpg';
   messagees : Messagee [] = [];
-  personGotRequest: Userr | undefined;
 
   constructor(private chatRoomService : ChatRoomService, 
     private userService: UserService,
@@ -44,15 +45,8 @@ export class ModalProfileComponent {
   friendIds: string[] = [];
 
   ngOnInit(): void {
-    this.checkProfile();
 
   }
-  ngOnChanges(changes: SimpleChanges): void {
-    if (changes['isOpen'] && this.isOpen) {
-      this.checkProfile();
-    }
-  }
-  
   
   startChat(friendId: string): void {
     if (!this.user || !this.user._id) {
@@ -94,100 +88,61 @@ export class ModalProfileComponent {
     this.router.navigate([`/chat`], { queryParams: { roomId: chatRoomId } });
     
   }
+  thongBao: string = '';
+  loi: boolean = false;
 
-  
-
-  
-  checkProfile(){
-    if (!this.user) {
-      const userId = sessionStorage.getItem('userId');
-      if (userId) {
-        // this.loadUserData(userId);
-        this.loadFriendsAndCheck(userId);
+  sendRequest(userId:string){
+    if(this.trangThaiKetBan === "chuaKetBan"){
+        this.guiYeuCauKetBan(userId);
       }
+    if(this.trangThaiKetBan === 'daGuiYeuCau'){
+      this.huyYeuCauKetBan(userId);
     }
-    if (this.user) {
-      this.requestSent = this.checkIfSentRequest(this.user._id);
-      
-    }
+    this.close()
   }
 
 
-  loadFriendsAndCheck(userId: string): void {
-    this.userService.getFriends().subscribe({
-      next: (friends: Userr[]) => {
-        this.friendIds = friends.map(friend => friend._id);
-        this.isFriend = !this.checkIfFriend(userId);
-        console.log('Is friend:', this.isFriend);
-      },
-      error: err => {
-        console.error('Failed to fetch friends:', err);
+guiYeuCauKetBan(userId: string) {
+  this.userService.addFriend(userId).subscribe({
+    next: (res: any) => {
+      this.user = res;
+      console.log("Request sent to:", this.user);
+      alert("✅ Đã gửi yêu cầu kết bạn thành công!");
+      if (this.currentUserId) {
+        // Tìm kiếm thông tin người dùng hiện tại
+        this.userService.getUserById(this.currentUserId).subscribe({
+          next: (res: any) => {
+            const currentUser = res;
+            // socket
+            this.socketService.themBan(userId, currentUser);
+          },
+          error: (err) => {
+            console.error('Lỗi khi lấy thông tin người dùng hiện tại:', err);
+          }
+        });
       }
-    });
-    
-  }
-  
-  checkIfFriend(userId: string): boolean {
-    return this.friendIds.includes(userId);
-  }
-
-  checkIfSentRequest(id:string): boolean{
-    return this.user?.requestfriends?.includes(id) ?? false;
-  }
-  
-
-  sendAddFriend(friendId: string): void {
-    this.userService.addFriend(friendId).subscribe({
-      next: (res: Userr) => {
-        this.user = res;
-        this.requestSent = true;
-        console.log("Request sent to:", this.user);
-        
-      },
-      error: (err) => {
-        console.error("Failed to send friend request:", err);
-        alert('⚠️ Gửi lời mời kết bạn thất bại');
-      }
-    });
-  }
-  
-
-  
-  // cancelFriendRequest(friendId: string): void {
-  //   if (!this.user) return;
-  
-  //   this.user.requestfriends = this.user.requestfriends.filter(id => id !== friendId);
-  //   this.requestSent = false;
-  //   console.log('Friend request canceled:', friendId);
-  // }
-  loadUser(userId:string): void {
-    if (userId) {
-      this.userService.getUserById(userId).subscribe({
-        next: (user) => {
-          this.personGotRequest = user;
-        },
-        error: (err) => console.error("Failed to load user:", err)
-      });
+    },
+    error: (err) => {
+      console.error('Lỗi khi gửi yêu cầu kết bạn:', err);
+      alert("❌ Gửi yêu cầu kết bạn thất bại!");
     }
-  }
-  
-
-  sendRequest(friendId:string) {
-    if (this.isFriend) return;
-  
-    if (!this.requestSent) {
-      // Send request logic here
-       // Refreshes status
-      this.sendAddFriend(friendId)
-      this.checkProfile();
-      console.log("Friend request sent", friendId);
-    } else {
-      // Cancel request logic here
-      // this.cancelFriendRequest(friendId);
-      this.requestSent = false;
-      console.log("Friend request canceled",friendId);
-    }
-  }
-  
-  
+  });
 }
+
+huyYeuCauKetBan(userId: string) {
+  this.userService.cancelRequestFriend(userId).subscribe({
+    next: (res: any) => {
+      this.user = res;
+      this.socketService.huyKetBan(userId);
+      alert("✅ Đã hủy yêu cầu kết bạn!");
+      console.log("Cancel request sent to:", this.user);
+    },
+    error: (err) => {
+      console.error('Lỗi khi hủy yêu cầu kết bạn:', err);
+      alert("❌ Hủy yêu cầu kết bạn thất bại!");
+    }
+  });
+}
+
+}
+  

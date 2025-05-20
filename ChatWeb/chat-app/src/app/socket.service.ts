@@ -6,9 +6,9 @@ import { io, Socket } from 'socket.io-client';
 })
 export class SocketService {
   private socket: Socket;
-
   constructor() {
-    this.socket = io('https://chat.fff3l.click');
+    // this.socket = io('https://chat.fff3l.click');
+    this.socket = io('http://localhost:5000');
 
     this.socket.on('connect', () => {
       console.log('Socket connected successfully!');
@@ -73,6 +73,7 @@ xoaPhongChat(chatRoomId: string): void {
 }
 moiVaoPhongChat(chatRoomId: string, data: any): void {
   this.socket.emit('invite-user', { chatRoomId, data }); //chatRoomId là id của phòng chat, data là object user dc mời
+  console.log('đã gửi lời mời vào phòng chat');
 }
 roiPhongChat(chatRoomId: string): void{
   this.socket.emit('leave-chatRoom', chatRoomId); //chatRoomId là id của phòng chat

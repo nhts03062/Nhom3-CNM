@@ -162,12 +162,11 @@
                           <p class="name mb-0">{{ mem.name }}</p>
                         </div>
                       </div>
+
                     </div>
-                   <!-- Nếu mem là admin thì luôn hiển thị chữ "Admin" cho tất cả -->
-                    <ng-container *ngIf="getId(mem) === getId(selectedRoom?.admin)">
-                      <p style="font-size: small; margin: center;">
-                        Admin
-                      </p>
+                      <!-- Nếu mem là admin thì luôn hiển thị chữ "Admin" cho tất cả -->
+                    <ng-container *ngIf="getId(mem) === getId(selectedRoom?.admin)" class="m-0">
+                      <i class="fa-solid fa-user-tie right ms-2" style="font-size: 21px;"></i>
                     </ng-container>
 
                     <!-- Nếu mem không phải là admin và người dùng hiện tại là admin thì hiển thị nút xoá -->
@@ -216,7 +215,7 @@
                 <div class="mt-2 mb-2 w-100">
                   <div class="divider-text"></div>
                 </div>
-                <button class="mb-2 border-0 bg-transparent" (click)="toggleGroupsToInviteModal()">Invite to group</button>
+                <button class="mb-2 border-0 bg-transparent" (click)="toggleGroupsToInviteModal()">Mời vào nhóm</button>
               </div>
             </ng-template>            
 
@@ -234,7 +233,9 @@
                 [isOpen]="showGroupsToInvite"
                 [modalView]="0"
                 (closeModal)="toggleGroupsToInviteModal()"
-                (confirmUpdate)="addMemChatRoom()">
+                (confirmUpdate)="addMemChatRoom()"
+                [chatRooms]="chatRooms"
+                [selectedRoom]="selectedRoom">
               </app-members-modal>
               <!-- Add member modal -->
               <app-members-modal
@@ -317,6 +318,10 @@
             <i>Tin nhắn đã bị thu hồi.</i>
           </div>
 
+        </div>
+        <!-- Thời gian sau khi nhận được tin nhắn mới nhất -->
+        <div class="timer">
+           {{ room.timeAgo}}
         </div>
       </ng-container>
     </div>

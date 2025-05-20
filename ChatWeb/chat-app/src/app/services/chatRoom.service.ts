@@ -5,7 +5,6 @@ import { Userr } from '../models/user.model';
 import { Messagee } from '../models/message.model';
 import { ChatRoom } from '../models/chatRoom.model';
 import { ApiService } from './api.service';
-import { apiUrl } from '../contants';
 
 @Injectable({ providedIn: 'root' })
 export class ChatRoomService {
@@ -57,7 +56,7 @@ export class ChatRoomService {
   inviteToChatRoom(data:{userId: string, chatRoomId: string}): Observable<any> {
     return this.http.post<any>(
       this.apiService.getApiUrl('chatroom/invite'),
-      {data},
+      data,
       { headers: this.getHeaders() }
     );
   }

@@ -30,8 +30,8 @@ export class UserService {
     });
   }
 
-  updateUser(): Observable<Userr[]> {
-    return this.http.put<Userr[]>(this.apiService.getApiUrl('user/updateuser'), {
+  updateUser(newData:{name: string, avatar?: string, phone?:string, address?:string}): Observable<Userr[]> {
+    return this.http.put<Userr[]>(this.apiService.getApiUrl('user/updateuser'),newData, {
       headers: this.getHeaders()
     });
   }
