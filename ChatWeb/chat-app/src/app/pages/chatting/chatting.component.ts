@@ -39,8 +39,16 @@ export class ChattingComponent implements OnInit {
   messagees: Messagee[] = [];
   messageText: string = '';
   chatRoomIdDuocChon: string | null = null;
-  imageFiles: File[] = [];
-  docFiles: File[] = [];
+  imageFiles: {
+    file: File;
+    name: string;
+    preview: string;
+  }[] = [];
+  docFiles: {
+    file: File;
+    name: string;
+    preview: string;
+  }[] = [];
   nguoiDung: Userr[] = [];
   showEmojiPicker: boolean = false;
   showModal = false;
@@ -381,19 +389,31 @@ export class ChattingComponent implements OnInit {
 
     const arr = Array.from(files);
     if (loai === 'image') {
-      this.imageFiles = arr.filter(file => file.type.startsWith('image/'));
+      this.imageFiles = arr.filter(file => file.type.startsWith('image/'))
+       .map(file => {
+        return {
+          file,
+          name: file.name,
+          preview: URL.createObjectURL(file)  // tạo URL xem trước
+        };
+      });
     } else {
-      this.docFiles = arr.filter(file => !file.type.startsWith('image/'));
+      this.docFiles = arr.filter(file => !file.type.startsWith('image/'))
+       .map(file => ({
+        file,
+        name: file.name,
+        preview: URL.createObjectURL(file)
+      }));
     }
   }
-
-  xoaFile(loai: 'image' | 'doc', index: number) {
-    if (loai === 'image') {
-      this.imageFiles.splice(index, 1);
-    } else {
-      this.docFiles.splice(index, 1);
-    }
+xoaFile(type: 'image' | 'doc', index: number) {
+  if (type === 'image') {
+    URL.revokeObjectURL(this.imageFiles[index].preview);
+    this.imageFiles.splice(index, 1);
+  } else {
+    this.docFiles.splice(index, 1);
   }
+}
 
   createMessage(text: string): void {
     const chatRoom = this.selectedRoom?._id; // Đây phải là một đối tượng ChatRoom
@@ -510,11 +530,11 @@ export class ChattingComponent implements OnInit {
       formData.append('content', JSON.stringify(content)); // Gửi content dưới dạng stringified JSON
 
       if (this.imageFiles?.length) {
-        this.imageFiles.forEach(file => formData.append('media', file));
+        this.imageFiles.forEach(file => formData.append('media', file.file));
       }
 
       if (this.docFiles?.length) {
-        this.docFiles.forEach(file => formData.append('file', file)); // Quan trọng: key là `file` để backend bắt đúng
+        this.docFiles.forEach(file => formData.append('file', file.file)); // Quan trọng: key là `file` để backend bắt đúng
       }
 
       if (this.replyingTo) {

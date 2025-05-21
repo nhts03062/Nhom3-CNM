@@ -561,17 +561,33 @@
 
             <!-- Hiển thị ảnh đã chọn -->
             <div class="preview-container">
-              <div *ngFor="let file of imageFiles; let i = index" class="image-preview">
-                {{ file.name }}
+              <div *ngFor="let file of imageFiles; let i = index" class="image-wrapper">
+                <img [src]="file.preview" alt="preview" />
+                <div class="file-name">{{ file.file.name }}</div>
                 <button class="cancel-file" (click)="xoaFile('image', i)">❌</button>
               </div>
             </div>
+            <!-- Hiển thị file tài liệu đã chọn -->
             <div class="preview-container">
-              <!-- Hiển thị file tài liệu đã chọn -->
-              <div *ngFor="let file of docFiles; let i = index" class="file-preview">
-                {{ file.name }}
-                <button class="cancel-file" (click)="xoaFile('doc', i)">❌</button>
-              </div>
+              <div *ngFor="let file of docFiles; let i = index" class="file-wrapper">
+              <ng-container [ngSwitch]="file.file.type">
+                
+                <!-- PDF Preview -->
+                <iframe
+                  *ngSwitchCase="'application/pdf'"
+                  [src]="file.preview"
+                  class="doc-preview"
+                  type="application/pdf">
+                </iframe>
+
+                <!-- Word, Excel, ... -->
+                <div *ngSwitchDefault class="file-icon">
+                  📄 {{ file.name }}
+                </div>
+              </ng-container>
+
+              <button class="cancel-file" (click)="xoaFile('doc', i)">❌</button>
+            </div>
             </div>
           </div>
 
