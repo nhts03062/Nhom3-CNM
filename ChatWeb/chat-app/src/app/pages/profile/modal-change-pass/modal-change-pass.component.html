@@ -14,7 +14,7 @@
               <div class="box-container">
                 <div class="input-box">
                     <i class="fa-solid fa-lock"></i>
-                  <input type="password" formControlName="password" placeholder="Enter your new password">
+                  <input type="password" formControlName="password" placeholder="Nhập mật khẩu mới">
                 </div>
                 <div class="error">
                     <small *ngIf="changeNewPassForm.controls['password'].invalid && changeNewPassForm.controls['password'].touched">
@@ -24,13 +24,23 @@
                 </div>
                 <div class="input-box">
                     <i class="fa-solid fa-square-check"></i>
-                    <input type="password" formControlName="confirmPassword" placeholder="Confirm password">
+                    <input type="password" formControlName="confirmPassword" placeholder="Nhập lại mật khẩu mới">
                   </div>
                 <div class="error">
                     <small *ngIf="changeNewPassForm.get('confirmPassword')?.touched && changeNewPassForm.get('confirmPassword')?.value !== changeNewPassForm.get('password')?.value">
                         Passwords must be the same
                     </small>                      
                 </div>
+
+                 <div class="input-box">
+                    <i class="fa-solid fa-square-check"></i>
+                    <input type="password" formControlName="oldPassword" placeholder="Mật khẩu cũ">
+                  </div>
+                <!-- <div class="error">
+                    <small *ngIf="changeNewPassForm.get('confirmPassword')?.touched && changeNewPassForm.get('confirmPassword')?.value !== changeNewPassForm.get('password')?.value">
+                        Passwords must be the same
+                    </small>                      
+                </div> -->
 
               </div>
             </div>

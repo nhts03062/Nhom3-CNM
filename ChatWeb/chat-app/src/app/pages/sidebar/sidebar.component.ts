@@ -15,7 +15,7 @@ import { UserService } from '../../services/user.service';
 export class SidebarComponent implements OnInit, OnDestroy {
   router = inject(Router);
   activeIndex = 0;
-  user!: Userr;
+  user?: Userr;
   userId: string = sessionStorage.getItem('userId')!;
   defaultAvatarUrl = 'https://i1.rgstatic.net/ii/profile.image/1039614412341248-1624874799001_Q512/Meryem-Laval.jpg';
 
@@ -31,6 +31,20 @@ export class SidebarComponent implements OnInit, OnDestroy {
     ).subscribe((event: any) => {
       this.setActiveIndex(event.urlAfterRedirects);
     });
+
+    this.userService.getUserById(this.userId).subscribe({
+      next: (res: Userr) => {
+        this.user = res;
+      },
+      error: (err) => {
+        console.error('Failed to load user:', err);
+      }
+    });
+
+      this.userService.user$.subscribe(user => {
+      this.user = user;
+  });
+    
   }
 
   ngOnDestroy() {

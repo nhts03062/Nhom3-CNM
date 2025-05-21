@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { Userr } from '../models/user.model';
 import { Messagee } from '../models/message.model';
 import { ApiService } from './api.service';
+import { BehaviorSubject } from 'rxjs';
 
 @Injectable({ providedIn: 'root' })
 export class UserService {
@@ -13,6 +14,18 @@ export class UserService {
 
   constructor(private http: HttpClient, private apiService: ApiService) { }
 
+// Observable để theo dõi trạng thái người dùng
+  private userSource = new BehaviorSubject<any>(null); 
+  user$ = this.userSource.asObservable();
+
+  setUser(user: any) {
+    this.userSource.next(user);
+  }
+
+  getUserValue() {
+    return this.userSource.getValue();
+  }
+//------------------------------
   getHeaders(): HttpHeaders {
     const token = sessionStorage.getItem('token');
     return new HttpHeaders({ 'Authorization': `${token}` });
@@ -30,8 +43,9 @@ export class UserService {
     });
   }
 
-  updateUser(): Observable<Userr[]> {
-    return this.http.put<Userr[]>(this.apiService.getApiUrl('user/updateuser'), {
+  updateUser( name:string, avatarUrl:string, phone:string, address:string): Observable<Userr[]> {
+    const body = {name, avatarUrl, phone, address};
+    return this.http.put<Userr[]>(this.apiService.getApiUrl('user/updateuser'), body, {
       headers: this.getHeaders()
     });
   }
@@ -68,5 +82,11 @@ export class UserService {
       body: { friendId }
     };
     return this.http.delete<Userr>(this.apiService.getApiUrl('user/unfriend'), options);
+  }
+  changePassword(oldPassword: string, newPassword: string): Observable<any[]> {
+    const body = { oldPassword, newPassword };
+    return this.http.post<Userr[]>(this.apiService.getApiUrl('user/changepassword'), body, {
+      headers: this.getHeaders()
+    });
   }
 }

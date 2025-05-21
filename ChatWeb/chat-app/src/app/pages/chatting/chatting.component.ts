@@ -138,8 +138,10 @@ export class ChattingComponent implements OnInit {
       });
       if(kiemTraCoTrongPhong) {
       chatRoom.otherMembers = this.layNguoiDungKhac(chatRoom);
-      this.chatRooms.unshift(chatRoom);
-      this.socketService.thamGiaPhongChat(chatRoom._id);
+      if(!this.chatRooms.some(room => room._id === chatRoom._id)){
+        this.chatRooms.unshift(chatRoom);
+        this.socketService.thamGiaPhongChat(chatRoom._id);
+      }
       }
     })
 
