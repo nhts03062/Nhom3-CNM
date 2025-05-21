@@ -84,7 +84,6 @@ export class AuthComponent implements OnInit {
               sessionStorage.setItem('userId',res.userDaLoc._id);
               alert("✅ Đăng nhập thành công!");
               this.router.navigateByUrl("/chat");
-              console.log(res.UserDaLoc._id);
             } else {
               alert("❌ Lỗi đăng nhập: " + res.message);
             }
