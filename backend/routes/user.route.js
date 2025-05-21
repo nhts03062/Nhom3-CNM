@@ -62,5 +62,11 @@ router.post('/cancelreqfriend',authMiddelware, UserController.cancelResquestFrie
 //body : {contacts} danh bạ người dùng(sdt định dạng cho giống phàn update để dễ sử dụng/// chứ ko cái 09*** cái +084 chịu))
 router.patch('/synccontact', authMiddelware, UserController.synchronizeContacts)
 
+//Đổi mật khẩu
+// cung cấp
+//token
+//body : { oldPassword, newPassword }
+router.post('/changepassword', authMiddelware, UserController.changePassword)
+
 
 module.exports = router;

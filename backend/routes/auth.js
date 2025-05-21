@@ -6,6 +6,7 @@ const User = require("../models/User");
 require("dotenv").config();
 const UserUtil = require('../utils/user-util')
 const path = require("path");
+const crypto = require("crypto");
 
 const router = express.Router();
 
@@ -138,7 +139,6 @@ router.post("/forgot-password", async (req, res) => {
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "15m" });
 
     const roomId = crypto.randomBytes(16).toString("hex"); // 32 ký tự hex
-    redisClient.setex(roomId, 900, user._id.toString()); // Lưu 15 phút
 
     // Gửi email
     const transporter = nodemailer.createTransport({
