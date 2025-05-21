@@ -776,3 +776,61 @@ border: 3px solid #FAFAFA;
 .ml-2 {
   margin-left: 0.5rem;
 }
+.preview-container {
+  display: flex;
+  flex-wrap: wrap;           /* Cho phép xuống dòng khi quá rộng */
+  gap: 12px;                 /* Khoảng cách giữa các ảnh */
+  align-items: flex-start;
+  margin-top: 10px;
+}
+
+.image-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100px;
+}
+
+.image-wrapper img {
+  width: 100px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+}
+
+.file-name {
+  font-size: 12px;
+  text-align: center;
+  margin: 4px 0;
+  word-break: break-all;
+}
+
+.cancel-file {
+  background: none;
+  border: none;
+  color: red;
+  font-size: 16px;
+  cursor: pointer;
+}
+.file-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 150px;
+}
+
+.doc-preview {
+  width: 150px;
+  height: 200px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+
+.file-icon {
+  font-size: 14px;
+  text-align: center;
+  padding: 10px;
+  width: 100%;
+}
+
