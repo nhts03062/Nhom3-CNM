@@ -36,8 +36,15 @@ router.get('/:chatRoomId', authMiddelware, ChatRoomController.getOneChatRoomById
 //Cung cấp:
 // token
 // body: {userId, chatRoomId}
-//Người mời nhận lại thông báo: đã mời thành công
+//Người mời nhận lại chatRoom đã cập nhật
 router.post('/invite', authMiddelware, ChatRoomController.inviteToGroupChat)
+
+//Mời nhiều người vào phòng chat
+//Cung cấp:
+// token
+// body: {userIds, chatRoomId}
+//Người mời nhận lại chatRoom đã cập nhật
+router.post('/invitemany', authMiddelware, ChatRoomController.inviteMultipleToGroupChat)
 
 //Cập nhật phòng chat
 //Cung cấp:
