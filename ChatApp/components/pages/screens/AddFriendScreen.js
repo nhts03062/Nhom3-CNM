@@ -64,10 +64,15 @@ const AddFriendScreen = () => {
 
         try {
             setLoading(true);
-            // Mỗi lần tìm kiếm đều gọi API mới để lấy dữ liệu mới nhất
+            // Xác định nếu searchTerm là email hay số điện thoại
+            const isEmail = searchTerm.includes('@');
+
+            // Tạo object searchData để truyền đúng thông tin tìm kiếm
+            const searchData = { searchTerm: searchTerm.trim() };
+
             const response = await axios.post(
                 `${API_URL}/search`,
-                { searchTerm: searchTerm.trim() },
+                searchData,
                 {
                     headers: {
                         Authorization: token,
@@ -328,8 +333,7 @@ const styles = StyleSheet.create({
     chatButton: {
         backgroundColor: '#4CAF50',
         paddingVertical: 8,
-        paddingHorizontal:
-            16,
+        paddingHorizontal: 16,
         borderRadius: 20,
     },
     disabledButton: {

@@ -69,23 +69,35 @@ const ChatRoomListScreen = () => {
         // Listen for new messages
         socket.on('message-created', (data) => {
             console.log('New message received:', data);
-            console.log('Chat ID of new message:', data.chatId);
+            const chatId = typeof data.chatId === 'object' ? data.chatId._id : data.chatId;
 
             setChatRooms(prev => {
-                console.log('Current chat rooms:', prev.map(room => ({ id: room._id, unread: room.unread })));
                 const updatedRooms = prev.map(room => {
-                    if (room._id === data.chatId) {
-                        console.log(`Marking chat room ${room._id} as unread`);
+                    if (room._id === chatId) {
+                        // Kiểm tra xem tin nhắn có phải từ người khác không
+                        const isFromOther = data.sendID._id !== user._id;
+                        if (isFromOther) {
+                            console.log(`Marking chat room ${room._id} as unread`);
+                            return {
+                                ...room,
+                                latestMessage: data,
+                                unread: true,
+                                unreadCount: (room.unreadCount || 0) + 1
+                            };
+                        }
                         return {
                             ...room,
-                            latestMessage: data,
-                            unread: true // Mark as unread
+                            latestMessage: data
                         };
                     }
                     return room;
                 });
                 const sortedRooms = sortChatRooms(updatedRooms);
-                console.log('Updated chat rooms:', sortedRooms.map(room => ({ id: room._id, unread: room.unread })));
+                console.log('Updated rooms:', sortedRooms.map(room => ({
+                    id: room._id,
+                    unread: room.unread,
+                    unreadCount: room.unreadCount
+                })));
                 return sortedRooms;
             });
         });
@@ -157,12 +169,31 @@ const ChatRoomListScreen = () => {
         try {
             setLoading(true);
             const response = await axios.get(`${API_URL}/chatroom`);
-            const sortedRooms = sortChatRooms(response.data.map(room => ({
-                ...room,
-                unread: room.unread || false // Preserve unread status if already set
-            })));
+
+            const sortedRooms = sortChatRooms(response.data.map(room => {
+                const existingRoom = chatRooms.find(r => r._id === room._id);
+                if (existingRoom) {
+                    // Giữ nguyên trạng thái unread và unreadCount nếu phòng chat đã tồn tại
+                    return {
+                        ...room,
+                        unread: existingRoom.unread,
+                        unreadCount: existingRoom.unreadCount
+                    };
+                }
+                // Khởi tạo mới với unread và unreadCount = 0
+                return {
+                    ...room,
+                    unread: false,
+                    unreadCount: 0
+                };
+            }));
+
             setChatRooms(sortedRooms);
-            console.log('Fetched chat rooms:', sortedRooms.map(room => ({ id: room._id, unread: room.unread })));
+            console.log('Fetched chat rooms:', sortedRooms.map(room => ({
+                id: room._id,
+                unread: room.unread,
+                unreadCount: room.unreadCount
+            })));
             setError(null);
         } catch (error) {
             console.error('Error fetching chat rooms:', error);
@@ -235,26 +266,53 @@ const ChatRoomListScreen = () => {
                 setChatRooms(prev => {
                     const updatedRooms = prev.map(room =>
                         room._id === route.params.updatedChatRoom._id
-                            ? { ...route.params.updatedChatRoom, unread: room.unread }
+                            ? {
+                                ...route.params.updatedChatRoom,
+                                unread: false,
+                                unreadCount: 0 // Reset về 0 khi đã đọc
+                            }
                             : room
                     );
                     return sortChatRooms(updatedRooms);
                 });
             }
+
             // Handle read status when returning from ChatScreen
             if (route.params?.chatRoomRead) {
                 const { chatRoomId } = route.params.chatRoomRead;
                 console.log('Marking chat room as read:', chatRoomId);
+
+                // Cập nhật state local trước
                 setChatRooms(prev => {
                     const updatedRooms = prev.map(room =>
                         room._id === chatRoomId
-                            ? { ...room, unread: false }
+                            ? {
+                                ...room,
+                                unread: false,
+                                unreadCount: 0
+                            }
                             : room
                     );
-                    console.log('Chat rooms after marking as read:', updatedRooms.map(room => ({ id: room._id, unread: room.unread })));
+
+                    // Lưu trạng thái đã đọc vào local storage hoặc context
+                    const roomToUpdate = updatedRooms.find(room => room._id === chatRoomId);
+                    if (roomToUpdate) {
+                        // Cập nhật trạng thái đã đọc ngay lập tức
+                        roomToUpdate.unread = false;
+                        roomToUpdate.unreadCount = 0;
+                    }
+
                     return sortChatRooms(updatedRooms);
                 });
+
+                // Cập nhật lại danh sách phòng chat để giữ nguyên trạng thái đã đọc
+                fetchChatRooms();
             }
+
+            // Cleanup function nếu cần
+            return () => {
+                // Thực hiện cleanup nếu cần
+            };
         }, [route.params?.updatedChatRoom, route.params?.chatRoomRead])
     );
 
@@ -283,20 +341,37 @@ const ChatRoomListScreen = () => {
         return 'Nhóm chat';
     };
 
+    // Fixed avatar source function for chat rooms
     const getAvatarSource = (chatRoom) => {
-        if (chatRoom.image) {
+        console.log('Chat room avatar data:', {
+            isGroupChat: chatRoom.isGroupChat,
+            image: chatRoom.image,
+            members: chatRoom.members?.length
+        });
+
+        // Nếu là group chat và có ảnh
+        if (chatRoom.isGroupChat && chatRoom.image) {
             return { uri: chatRoom.image };
         }
 
+        // Nếu không phải group chat (chat 1-1)
         if (!chatRoom.isGroupChat && chatRoom.members) {
             const otherMember = chatRoom.members.find(member => member._id !== user._id);
-            if (otherMember && otherMember.avatarUrl) {
+            console.log('Other member:', otherMember);
+
+            if (otherMember && otherMember.avatarUrl &&
+                otherMember.avatarUrl !== "https://bookvexe.vn/wp-content/uploads/2023/04/chon-loc-25-avatar-facebook-mac-dinh-chat-nhat_2.jpg") {
                 return { uri: otherMember.avatarUrl };
             }
         }
 
+        // Tạo avatar mặc định từ tên
         const chatName = getChatRoomName(chatRoom);
-        return { uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(chatName)}&background=0999fa&color=fff` };
+        const encodedName = encodeURIComponent(chatName);
+        const fallbackUrl = `https://ui-avatars.com/api/?name=${encodedName}&background=0999fa&color=fff&size=128&format=png`;
+
+        console.log('Using fallback avatar for chat:', fallbackUrl);
+        return { uri: fallbackUrl };
     };
 
     const getLastMessageText = (chatRoom) => {
@@ -386,7 +461,7 @@ const ChatRoomListScreen = () => {
 
     const renderChatRoomItem = ({ item }) => {
         const chatName = getChatRoomName(item);
-        console.log(`Rendering chat room ${item._id}: unread=${item.unread}`);
+        console.log(`Rendering chat room ${item._id}: unread=${item.unread}, unreadCount=${item.unreadCount}`);
 
         return (
             <Swipeable renderRightActions={() => renderRightActions(item._id)}>
@@ -394,10 +469,24 @@ const ChatRoomListScreen = () => {
                     <View style={styles.avatarContainer}>
                         {item.isGroupChat ? (
                             <View style={styles.groupAvatar}>
-                                <Image source={getAvatarSource(item)} style={styles.avatar} />
+                                <Image
+                                    source={getAvatarSource(item)}
+                                    style={styles.avatar}
+                                    onError={(e) => {
+                                        console.log('Error loading chat avatar:', e.nativeEvent.error);
+                                    }}
+                                    onLoad={() => console.log('Chat avatar loaded successfully')}
+                                />
                             </View>
                         ) : (
-                            <Image source={getAvatarSource(item)} style={styles.avatar} />
+                            <Image
+                                source={getAvatarSource(item)}
+                                style={styles.avatar}
+                                onError={(e) => {
+                                    console.log('Error loading member avatar:', e.nativeEvent.error);
+                                }}
+                                onLoad={() => console.log('Member avatar loaded successfully')}
+                            />
                         )}
                     </View>
 
@@ -406,7 +495,7 @@ const ChatRoomListScreen = () => {
                         <Text
                             style={[
                                 styles.lastMessage,
-                                item.unread && styles.unreadMessage // Apply bold style if unread
+                                item.unread && styles.unreadMessage
                             ]}
                             numberOfLines={1}
                         >
@@ -585,6 +674,7 @@ const styles = StyleSheet.create({
         width: 50,
         height: 50,
         borderRadius: 25,
+        backgroundColor: '#e1e1e1', // Placeholder background color
     },
     groupAvatar: {
         width: 50,
@@ -593,6 +683,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#0068FF',
         justifyContent: 'center',
         alignItems: 'center',
+        overflow: 'hidden', // Ensure image fits within the circular container
     },
     chatInfo: {
         flex: 1,
