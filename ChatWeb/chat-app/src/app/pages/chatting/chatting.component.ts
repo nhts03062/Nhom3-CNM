@@ -34,7 +34,7 @@ export class ChattingComponent implements OnInit {
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
   @ViewChild('sidebarRef') sidebarRef!: ElementRef;
   addedMembers: string[] = [];
-  idNguoiDungHienTai: string | null = sessionStorage.getItem('userId')
+  idNguoiDungHienTai: string = sessionStorage.getItem('userId')!;
   chatRooms: ChatRoom[] = [];
   messagees: Messagee[] = [];
   messageText: string = '';
@@ -279,7 +279,9 @@ export class ChattingComponent implements OnInit {
         const updatedChatRooms = res.map((room: ChatRoom) => {
           return {
             ...room,
-            otherMembers: this.layNguoiDungKhac(room)
+            otherMembers: this.layNguoiDungKhac(room),
+            timeAgo: this.getTimeAgo(room.latestMessage?.createdAt || (''))
+
           }
         })
         this.chatRooms = updatedChatRooms;
@@ -290,7 +292,32 @@ export class ChattingComponent implements OnInit {
       }
     })
   }
-
+  kiemTraBanHayDaGuiYeuCauKetBan = (user: Userr): string => {
+    const ban = user?.friends?.includes(this.idNguoiDungHienTai);
+    const daGuiYeuCau = user?.friendRequestsReceived?.includes(this.idNguoiDungHienTai);
+    const daNhanYeuCau = user?.requestfriends?.includes(this.idNguoiDungHienTai);
+    const status = ban ? 'ban' : daNhanYeuCau ? 'daNhanYeuCau' : daGuiYeuCau ? 'daGuiYeuCau' : 'chuaKetBan';
+    return status;
+  };
+layPhongChat(roomId: string, callback?: () => void): void {
+    this.chatRoomService.getChatRoomById(roomId).subscribe({
+      next: (res) => {
+        this.selectedRoom = res;
+        this.membersList = this.filteredMembers(res);
+        console.log("✅ selectedRoom:", this.selectedRoom);
+        this.nguoiDung = this.layNguoiDungKhac(res);
+        if (this.nguoiDung) {
+          this.roomName = this.nguoiDung[0].name;
+          console.log("🚀 ~ ChattingComponent ~ getRoom ~ this.roomName:", this.roomName)
+        }
+        if (callback) callback();
+      },
+      error: (err) => {
+        console.log("❌ Lỗi:", err);
+      }
+    });
+  }
+  roomName: string = "Unknow";
   getRoom(roomId: string): void {
     // this.chatRoomIdDuocChon = roomId
     if (!roomId) {
@@ -298,17 +325,21 @@ export class ChattingComponent implements OnInit {
       return;
     }
     this.selectedRoom = this.chatRooms.find(room => room._id.toString() === roomId)
-    
+
     console.log("🚀 ~ ChattingComponent ~ getRoom ~ this.selectedRoom:", this.selectedRoom)
     if (roomId) {
       this.chatRoomDuocChon(roomId);
       console.log('Phòng chat đã chọn:', roomId);
       this.chatRoomIdDuocChon = roomId;
+      this.layPhongChat(this.chatRoomIdDuocChon, () => {
+        console.log("➡️ selectedRoom sau khi gọi xong:", this.selectedRoom);
+      });
+
     }
-    if (this.selectedRoom) {
-      this.membersList = this.filteredMembers(this.selectedRoom);
-    }
+
   }
+
+
 
   selectMember(member: any): void {
     this.selectedMember = member;
@@ -784,22 +815,26 @@ xoaFile(type: 'image' | 'doc', index: number) {
     }
   }
    /**----------End------Xử lý update nhóm---------------- */
-  addMemChatRoom(): void {
+  onConfirmUpdate(members: string[]): void {
+    this.addedMembers = members;
+    console.log("🚀 ~ ChattingComponent ~ onConfirmUpdate ~ members:", members)
+    this.addManyMemsChatRoom();
+  }
+
+  addManyMemsChatRoom(): void {
     const updateData: any = {
       chatRoomId: this.selectedRoom?._id
     };
-  
     if (this.addedMembers.length > 0) {
-      updateData.members = this.addedMembers;
+      updateData.userIds = this.addedMembers;
     }
 
-    this.chatRoomService.inviteToChatRoom(updateData).subscribe({
-      next: (updatedRoom) => {
-        // alert('Phòng chat đã được cập nhật thành công ✅'); // 🟢 Alert user
-        this.selectedRoom = updatedRoom; // 🔄 Refresh selectedRoom
-        console.log("🚀 ~ ChattingComponent ~ this.chatRoomService.updateChatRoom ~ this.selectedRoom:", this.selectedRoom)
-        this.membersList = this.filteredMembers(updatedRoom); // ✅ Update members list if needed
-  
+    this.chatRoomService.addMembersChatRoom(updateData).subscribe({
+      next: (updatedRoom: ChatRoom) => {
+        this.layPhongChat(updatedRoom._id);
+        if (this.selectedRoom) {
+          this.socketService.capNhatPhongChat(this.selectedRoom._id, this.selectedRoom);
+        }
         // Reset form values/UI states
         this.showAddMembersModal = false;
         this.addedMembers = [];
@@ -810,38 +845,68 @@ xoaFile(type: 'image' | 'doc', index: number) {
       }
     });
   }
+
+  addMemChatRoom(): void {
+    const updateData: any = {
+      chatRoomId: this.selectedRoom?._id
+    };
+
+    if (this.addedMembers.length > 0) {
+      updateData.members = this.addedMembers;
+    }
+
+    this.chatRoomService.inviteToChatRoom(updateData).subscribe({
+      next: (updatedRoom) => {
+        console.log("🚀 ~ ChattingComponent ~ this.chatRoomService.inviteToChatRoom ~ updatedRoom:", updatedRoom)
+        this.membersList = this.filteredMembers(updatedRoom); // ✅ Update members list if needed
+        if (this.selectedRoom) {
+          this.socketService.capNhatPhongChat(this.selectedRoom._id, this.selectedRoom);
+        }
+        // Reset form values/UI states
+        this.showAddMembersModal = false;
+        this.addedMembers = [];
+      },
+      error: (err) => {
+        console.error('Update failed', err);
+        alert('Không thể cập nhật phòng chat: ' + (err.error?.msg || 'Lỗi không xác định ❌'));
+      }
+    });
+  }
+
   getId(admin: any): string {
-  return typeof admin === 'string' ? admin : admin?._id;
-}
+    return typeof admin === 'string' ? admin : admin?._id;
+  }
+
   removeMember(memberId: string): void {
     if (!this.selectedRoom) return;
-  
+
     // Confirm before removing
-    const confirmDelete = confirm('Bạn có chắc chắn muốn xóa thành viên này khỏi nhóm không?');
-    if (!confirmDelete) return;
-  
+    // const confirmDelete = confirm('Bạn có chắc chắn muốn xóa thành viên này khỏi nhóm không?');
+    // if (!confirmDelete) return;
+
     // Remove the member
     const updatedMembers = this.selectedRoom.members
       .map((m: any) => typeof m === 'string' ? m : m._id)
       .filter(id => id !== memberId);
-  
+
     const updateData = {
       chatRoomId: this.selectedRoom._id,
       members: updatedMembers
     };
-  
+
     this.chatRoomService.updateChatRoom(updateData).subscribe({
       next: (updatedRoom) => {
-        alert('Đã xóa thành viên khỏi nhóm');
-          const index = this.chatRooms.findIndex(r => r._id === updatedRoom._id);
-          if (index !== -1) {
-            this.chatRooms[index] = updatedRoom;
-          }
+        // alert('Đã xóa thành viên khỏi nhóm');
+        const index = this.chatRooms.findIndex(r => r._id === updatedRoom._id);
+        if (index !== -1) {
+          this.chatRooms[index] = updatedRoom;
+        }
         this.selectedRoom = updatedRoom; // 🔄 Refresh selectedRoom
         this.membersList = this.filteredMembers(updatedRoom); // ✅ Update members list if you're using this
         console.log('chatRoom sau khi xoa', updatedRoom)
-        if (this.selectedRoom)
+        if (this.selectedRoom) {
           this.socketService.capNhatPhongChat(this.selectedRoom._id, this.selectedRoom);
+        }
       },
       error: (err) => {
         console.error('Xóa thành viên thất bại:', err);
@@ -849,14 +914,14 @@ xoaFile(type: 'image' | 'doc', index: number) {
       }
     });
   }
- 
+
 
   deleteChatRoom(): void {
     if (!this.selectedRoom) {
       console.error('Chưa chọn phòng chat');
       return;
     }
-    
+
     // Hỏi xác nhận trước khi xóa
     if (confirm('Bạn có chắc chắn muốn xóa phòng chat này không?')) {
       this.chatRoomService.deleteChatRoom(this.selectedRoom._id).subscribe({
@@ -864,7 +929,7 @@ xoaFile(type: 'image' | 'doc', index: number) {
           console.log('Đã xóa phòng chat thành công');
           // Xóa phòng chat khỏi danh sách
           this.chatRooms = this.chatRooms.filter(room => room._id !== this.selectedRoom?._id);
-          if(this.selectedRoom)
+          if (this.selectedRoom)
             this.socketService.xoaPhongChat(this.selectedRoom._id);
           // Reset phòng chat đã chọn
           this.selectedRoom = undefined;
@@ -873,7 +938,7 @@ xoaFile(type: 'image' | 'doc', index: number) {
           this.messagees = [];
           // Hiển thị thông báo thành công
           alert('Đã xóa phòng chat');
-     
+
         },
         error: (err) => {
           console.error('Không thể xóa phòng chat:', err);
@@ -883,10 +948,10 @@ xoaFile(type: 'image' | 'doc', index: number) {
     }
   }
 
-  
-  
 
-  
+
+
+
 
   recallMessage(idMsg: string, index: number, code: number): void {
     const msg = this.messagees[index];
@@ -904,7 +969,7 @@ xoaFile(type: 'image' | 'doc', index: number) {
           msg.content.media = [];
           console.log('2');
 
-          if(this.chatRoomIdDuocChon) 
+          if (this.chatRoomIdDuocChon)
             this.socketService.xoaTinNhan(this.chatRoomIdDuocChon, msg);
         }
       });
@@ -949,7 +1014,7 @@ xoaFile(type: 'image' | 'doc', index: number) {
   //   // If it's an object, return the _id, otherwise return the value directly
   //   return typeof sendID === 'object' && sendID !== null ? sendID._id : sendID;
   // }
-  
+
   selectedMessageIndex: number | null = null;
   replyingTo: Messagee | null = null;
 
@@ -995,7 +1060,6 @@ xoaFile(type: 'image' | 'doc', index: number) {
   getUserFromId(userId: string): Userr | undefined {
     return this.nguoiDung.find(user => user._id === userId);
   }
-
   getUserName(userId: string): string {
     const user = this.getUserFromId(userId);
     return user ? user.name : 'Unknown User';
@@ -1015,4 +1079,32 @@ xoaFile(type: 'image' | 'doc', index: number) {
       }
     }, 100);
   }
+
+  //Thời gian sau khi nhận tin nhắn mới nhất được gởi
+
+  getTimeAgo(time: string): string {
+    if (!time) return '';
+
+    const messageDate = new Date(time);
+    const now = new Date();
+    const diffMs = now.getTime() - messageDate.getTime();
+    const diffSec = Math.floor(diffMs / 1000);
+    const diffMin = Math.floor(diffSec / 60);
+    const diffHr = Math.floor(diffMin / 60);
+
+    const isYesterday =
+      messageDate.getDate() === now.getDate() - 1 &&
+      messageDate.getMonth() === now.getMonth() &&
+      messageDate.getFullYear() === now.getFullYear();
+
+    if (diffSec < 60) return 'just now';
+    if (diffMin < 60) return `${diffMin} phút trước`;
+    if (diffHr < 24) return `${diffHr} giờ trước`;
+    if (isYesterday) return 'Hôm qua';
+
+    const diffDay = Math.floor(diffHr / 24);
+    console.log("🚀 ~ ChattingComponent ~ getTimeAgo ~ diffDay:", diffDay)
+    return `${diffDay} ngày trước`;
+  }
+
 }

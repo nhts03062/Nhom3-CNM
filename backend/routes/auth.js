@@ -54,7 +54,7 @@ router.post("/register", async (req, res) => {
       html: `
         <h3>Chào ${name},</h3>
         <p>Nhấn vào link dưới đây để xác thực tài khoản:</p>
-        <a href="http://chat.fff3l.click/api/auth/verify?token=${encodeURIComponent(token)}">Xác thực tài khoản</a>
+        <a href="http://localhost:5000/api/auth/verify?token=${encodeURIComponent(token)}">Xác thực tài khoản</a>
       `,
     };
 
@@ -139,6 +139,7 @@ router.post("/forgot-password", async (req, res) => {
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "15m" });
 
     const roomId = crypto.randomBytes(16).toString("hex"); // 32 ký tự hex
+    // redisClient.setex(roomId, 900, user._id.toString()); // Lưu 15 phút
 
     // Gửi email
     const transporter = nodemailer.createTransport({
@@ -156,7 +157,7 @@ router.post("/forgot-password", async (req, res) => {
       html: `
         <h3>Chào ${user.name},</h3>
         <p>Nhấn vào link dưới đây để đặt lại mật khẩu:</p>
-        <a href="http://chat.fff3l.click/api/auth/verify-reset-password?token=${token}&room=${roomId}">Đặt lại mật khẩu</a>
+        <a href="http://localhost:5000/api/auth/verify-reset-password?token=${token}&room=${roomId}">Đặt lại mật khẩu</a>
       `,
     };
 
@@ -188,7 +189,11 @@ router.get("/verify-reset-password", async (req, res) => {
 
     // Nếu hợp lệ → trả về trang HTML xác nhận
     // Chú ý: thay đổi từ verify.html thành verified.html để khớp với file thực tế
-    res.sendFile(path.join(__dirname, '../public/verified.html'));
+    // res.sendFile(path.join(__dirname, '../public/verified.html'));
+
+     // Redirect về frontend app với token và room
+    return res.redirect(`http://localhost:4200/auth/change-password?token=${encodeURIComponent(token)}`);
+
   } catch (err) {
     console.error("Lỗi xác thực:", err);
     // Token không hợp lệ hoặc hết hạn

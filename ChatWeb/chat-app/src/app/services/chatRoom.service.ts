@@ -1,11 +1,10 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { BehaviorSubject, Observable } from 'rxjs';
 import { Userr } from '../models/user.model';
 import { Messagee } from '../models/message.model';
 import { ChatRoom } from '../models/chatRoom.model';
 import { ApiService } from './api.service';
-import { apiUrl } from '../contants';
 
 @Injectable({ providedIn: 'root' })
 export class ChatRoomService {
@@ -33,7 +32,7 @@ export class ChatRoomService {
     });
   }
 
-  getChatRoomsById(chatRoomId: string): Observable<ChatRoom> {
+  getChatRoomById(chatRoomId: string): Observable<ChatRoom> {
     return this.http.get<ChatRoom>(this.apiService.getApiUrl(`chatroom/${chatRoomId}`), {
       headers: this.getHeaders()
     });
@@ -57,11 +56,18 @@ export class ChatRoomService {
   inviteToChatRoom(data:{userId: string, chatRoomId: string}): Observable<any> {
     return this.http.post<any>(
       this.apiService.getApiUrl('chatroom/invite'),
-      {data},
+      data,
       { headers: this.getHeaders() }
     );
   }
 
+  addMembersChatRoom(data:{userIds: string[], chatRoomId: string}): Observable<any> {
+    return this.http.post<any>(
+      this.apiService.getApiUrl('chatroom/invitemany'),
+      data,
+      { headers: this.getHeaders() }
+    );
+  }
   roiPhongChat(chatRoomId:string):Observable<any>{
     return this.http.delete<any>(
       this.apiService.getApiUrl(`chatroom/leave/${chatRoomId}`),
@@ -73,5 +79,13 @@ export class ChatRoomService {
     return this.http.delete<ChatRoom>(this.apiService.getApiUrl(`chatroom/${chatRoomId}`), {
       headers: this.getHeaders()
     });
+  }
+
+  
+  private selectedRoomId = new BehaviorSubject<string | null>(null);
+  selectedRoomId$ = this.selectedRoomId.asObservable();
+
+  setRoomId(id: string) {
+    this.selectedRoomId.next(id);
   }
 }

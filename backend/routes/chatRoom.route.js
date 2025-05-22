@@ -59,6 +59,11 @@ router.delete('/leave/:chatRoomId', authMiddelware, ChatRoomController.leaveChat
 //params chatRoomId
 //Người cập nhật nhận lại thông báo: đã cập nhật trạng thái
 router.put('/lastseen/:chatRoomId', authMiddelware, ChatRoomController.updateLastSeen)
-
+//Mời nhiều người vào phòng chat
+//Cung cấp:
+// token
+// body: {userIds, chatRoomId}
+//Người mời nhận lại thông báo: đã mời thành công
+router.post('/invitemany', authMiddelware, ChatRoomController.inviteMultipleToGroupChat)
 
 module.exports = router

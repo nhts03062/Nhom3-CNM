@@ -22,6 +22,7 @@ export class MembersModalComponent implements OnInit {
   @Input() isOpen = false;
   @Input() modalView: number = 0;
   @Input() users: Userr[] = []; 
+  @Input() chatRooms: ChatRoom[] = [];
   @Input() addedMembers:string[] = [];
   @Output() newAdminSelected = new EventEmitter<string>();
   @Input() memberListFromChatRoom:Userr[] = [];
@@ -29,7 +30,9 @@ export class MembersModalComponent implements OnInit {
   @Output() changedMembers = new EventEmitter<string[]>();
   @Input() updateChatRoom: (() => void) | undefined;
   @Input() selectedRoom: ChatRoom | undefined;
-  @Output() confirmUpdate = new EventEmitter<void>();
+  // @Output() confirmUpdate = new EventEmitter<void>();
+  @Output() confirmUpdate = new EventEmitter<string[]>(); // Truyền danh sách userId
+
 
   showModal = false;
   showProfileModal = false;
@@ -37,13 +40,13 @@ export class MembersModalComponent implements OnInit {
   defaulGrouptAvatarUrl = defaulGrouptAvatarUrl;
   searchTerm: string = '';
   usersList: Userr[] = [];
-  chatRooms: ChatRoom[] = [];
   user: Userr | undefined;
   userMap: { [id: string]: Userr } = {};
   currentUserId = sessionStorage.getItem('userId');
   foundUser: Userr | undefined;
   searchTermGroup: string = '';
   searchMember: string = '';
+  roomInviteTo: ChatRoom[]=[];
 
   // memberList: Userr[] = [];
   constructor(private userService: UserService,
@@ -52,9 +55,10 @@ export class MembersModalComponent implements OnInit {
   ) { }
 
   ngOnInit(): void {
-    this.loadChatRooms();
+    // this.loadChatRooms();
     this.getFriends();
     this.chooseTitle();
+    this.filteredChatRoomsToInvite();
 
     //đồng ý kết bạn
     this.socketService.nhanskDongYKetBan((data:any) =>{
@@ -85,7 +89,7 @@ export class MembersModalComponent implements OnInit {
   }
 
   onConfirm(): void {
-    this.confirmUpdate.emit();
+    this.confirmUpdate.emit(this.seletedMemsId);
   }
 
   selecteds: string[] = [];
@@ -97,6 +101,8 @@ export class MembersModalComponent implements OnInit {
       this.selecteds.push(data);
     }
   }
+
+  seletedMemsId : string[] =[];
   toggleSelectionMembers(userId:string): void {
     const index = this.addedMembers.indexOf(userId);
     if (index > -1) {
@@ -105,8 +111,7 @@ export class MembersModalComponent implements OnInit {
       
       this.addedMembers = [...this.memberListFromChatRoom.map(user => user._id),
         ...(this.currentUserId ? [this.currentUserId] : []),userId];
-      console.log("🚀 ~ MembersModalComponent ~ toggleSelectionMembers ~ this.addedMembers:", this.addedMembers)
-      
+      this.seletedMemsId = [...this.addedMembers];
     }
     this.changedMembers.emit(this.addedMembers);
   }
@@ -136,8 +141,91 @@ export class MembersModalComponent implements OnInit {
       this.newAdminSelected.emit(this.selectedNewAdmin);
     }
   }
-  
-  
+
+  //Mời 1 người vào nhóm khi đang ở chat 1v1
+  selectedGroup: ChatRoom[] = [];
+
+  groupSelection(room: ChatRoom): void {
+    if (this.isSelected(room)) {
+      this.selectedGroup = this.selectedGroup.filter(r => r._id !== room._id);
+      console.log("After removal, selectedGroup:", this.selectedGroup);
+    } else {
+      this.selectedGroup.push(room);
+      console.log("After addition, selectedGroup:", this.selectedGroup);
+    }
+  }
+
+  isSelected(room: ChatRoom): boolean {
+    return this.selectedGroup.some(r => r._id === room._id);
+  }
+
+
+
+  filteredRooms: ChatRoom[] = [];
+    //Check xem người dùng có tồn tại trong chat group muốn mời không
+  filteredChatRoomsToInvite() {
+    // Lấy user còn lại trong phòng hiện tại (ngoại trừ currentUser)
+    const otherUser = this.selectedRoom?.members.find(
+      (member: Userr) => member._id.toString() !== this.currentUserId?.toString()
+    );
+
+    // otherUser là object Userr, lấy id thành chuỗi
+    const otherUserId = otherUser?._id.toString() || '';
+
+    // Lọc các phòng nhóm mà không chứa otherUserId
+    const rooms = this.chatRooms.filter(room =>
+      room.isGroupChat === true &&
+      !room.members.some((member: Userr) =>
+        member._id.toString() === otherUserId
+      )
+    );
+
+
+    console.log("🔍 Các group chat chưa có thành viên này (rooms):", rooms);
+
+    this.filteredRooms = rooms.filter(room => {
+      console.log("🚀 ~ room.chatRoomName:", room.chatRoomName);
+      return (room.chatRoomName || '').toLowerCase().includes(this.searchTermGroup?.trim().toLowerCase() || '');
+    });
+    console.log("🔎 Kết quả sau khi lọc theo searchTerm:", this.filteredRooms);
+  }
+
+
+  inviteToGroup(): void {
+    if (!this.selectedGroup || this.selectedGroup.length === 0) {
+      alert('Vui lòng chọn ít nhất một phòng chat.');
+      return;
+    }
+    const userId = this.selectedRoom?.otherMembers?.[0]?._id;
+      if (!userId) {
+        alert("Không thể xác định người dùng cần mời.");
+        return;
+      }
+
+    this.selectedGroup.forEach((room: ChatRoom) => {
+      const data = {
+        userId,
+        chatRoomId: room._id
+      }
+      this.chatRoomService.inviteToChatRoom(data).subscribe({
+      next: () => {
+        console.log("🚀 ~ MembersModalComponent ~ this.selectedGroup.forEach ~ this.selectedGroup:", this.selectedGroup)
+        this.socketService.moiVaoPhongChat(room._id,this.currentUserId);
+        console.log("📤 Gửi lời mời vào room:", room._id, "với user:", this.currentUserId);
+        if (this.selectedGroup){
+          this.socketService.capNhatPhongChat(room._id, room);
+        }
+
+      },
+      error: (err) => {
+        console.error('Lỗi khi gửi lời mời vào room:', err);
+        alert("❌ Gửi lời mời vào room thất bại!");
+      }})
+    });
+   
+    this.close();
+  }
+
   
   getFriends(){
     this.userService.getFriends().subscribe({
@@ -157,21 +245,6 @@ export class MembersModalComponent implements OnInit {
   getUsersToAddChat() : Userr[]{
     return this.usersList.filter(user => !this.isInChatRoom(user._id));
   }
-  
-  loadChatRooms(): void {
-    this.chatRoomService.getChatRooms().subscribe({
-      next: (rooms: ChatRoom[]) => {
-        console.log("📥 rooms loaded:", rooms);
-        this.chatRooms = rooms;
-         
-
-      },
-      error: err => {
-        console.error("❌ Failed to load rooms:", err);
-      }
-    });
-  }
-  
 
 
   get filteredUsers(): Userr[] {
@@ -179,11 +252,8 @@ export class MembersModalComponent implements OnInit {
       user.name.toLowerCase().includes(this.searchTerm.toLowerCase())
     );
   }
-  get filteredChatRooms(): ChatRoom[] {
-    return this.chatRooms.filter(room =>
-      room.chatRoomName?.toLowerCase().includes(this.searchTermGroup.toLowerCase())
-    );
-  }
+
+
   get filteredMembers(): Userr[] {
     return this.users.filter(mem =>
       mem.name.toLowerCase().includes(this.searchMember.toLowerCase())

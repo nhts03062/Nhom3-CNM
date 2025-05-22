@@ -40,7 +40,7 @@
                 </div>  
               </div>
               <div class="form-footer">
-                <div class="forgotpass text"><a (click)="onForgotPassWord()">Forgot password?</a></div>
+                <div class="forgotpass text"><a (click)="onNavigateForgotPassWord()">Forgot password?</a></div>
                 <div class="form-check">
                   <input class="form-check-input text" type="checkbox" id="autoSizingCheck2">
                   <label class="form-check-label " for="autoSizingCheck2">
@@ -49,7 +49,7 @@
                 </div>
               </div>
               <div class="button input-box">
-                <input type="button" value="Sumbit" (click)="onLogin()">
+                <input type="submit" value="Sumbit" (click)="onLogin()" (keydown.enter)="onLogin()">
               </div>
               <div class="text sign-up-text">Don't have an account? <label for="flip">Sigup now</label></div>
             </div>
@@ -92,7 +92,7 @@
                 </div>
               </div>
               <div class="button input-box">
-                <input type="button" value="Sumbit" (click)="onRegister()">
+                <input type="submit" value="Sumbit" (click)="onRegister()" (keydown.enter)="onRegister()">
               </div>
               <div class="text sign-up-text">Already have an account? <label for="flip">Login now</label></div>
             </div>

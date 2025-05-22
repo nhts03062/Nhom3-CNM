@@ -1,11 +1,10 @@
-import { Component, OnInit, ViewChild, ElementRef } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { Userr } from '../../models/user.model';
 import { ModalComponent } from './modal-change-pass/modal-change-pass.component';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { UserService } from '../../services/user.service';
-import { UploadService } from '../../services/upload.service'
 
 
 @Component({
@@ -17,19 +16,16 @@ import { UploadService } from '../../services/upload.service'
     FormsModule,ReactiveFormsModule]
 })
 export class ProfileComponent implements OnInit {
-  @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
-  user?: any;
+  user?: Userr;
   userId: string | null  = sessionStorage.getItem('userId')
   showModal = false;
   defaultAvatarUrl = 'https://i1.rgstatic.net/ii/profile.image/1039614412341248-1624874799001_Q512/Meryem-Laval.jpg';
   infoChangeForm: FormGroup;
   loading: boolean = false;
   formSubmitted: boolean = false;
-  selectedFile: File | null = null;
-  avatarUrlUpdate = this.user?.avatarUrl;
 
 
-  constructor(private fb: FormBuilder, private userService: UserService, private uploadService: UploadService) {
+  constructor(private fb: FormBuilder, private userService: UserService) {
     this.infoChangeForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
       name: ['', Validators.required],
@@ -63,28 +59,6 @@ export class ProfileComponent implements OnInit {
     this.showModal = !this.showModal;
   }
 
-  triggerFileInput() {
-    this.fileInput.nativeElement.click();
-  }
-
-
-onFileSelected(event: Event) {
-  const input = event.target as HTMLInputElement;
-  const file = input.files?.[0];
-
-  if (file) {
-    this.selectedFile = file;
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (this.user) {
-        this.user.avatarUrl = reader.result as string; // chỉ hiển thị ảnh preview
-      }
-    };
-    reader.readAsDataURL(file);
-  }
-}
-
 
   patchUserInfo() {
     this.infoChangeForm.patchValue({
@@ -101,70 +75,17 @@ onFileSelected(event: Event) {
   saveChanges() {
     if (this.infoChangeForm.valid) {
       this.loading = true;
-      const { name, email, phone, address } = this.infoChangeForm.value;
-
-       if (this.selectedFile) {
-        this.uploadService.uploadFile(this.selectedFile).subscribe({
-          next: (res) => {
-            this.avatarUrlUpdate = res;
-            console.log('Upload avatar thành công:', res);
-
-
-            this.userService.updateUser(name, this.avatarUrlUpdate, phone, address).subscribe({
-              next: (res) => {
-                this.loading = false;
-                this.isSuccess = true;
-                this.formSubmitted = true;
-                this.user = res;
-                this.user.avatarUrl = this.avatarUrlUpdate; // Cập nhật avatar mới vào user
-                console.log('Cập nhật thành công:', res);
-                this.userService.setUser(res)
-                
-                // reset trạng thái form submit sau 3s
-                setTimeout(() => {
-                  this.formSubmitted = false;
-                  this.isSuccess = false;
-                }, 3000);
-              },
-              error: (err) => {
-                console.error('Cập nhật thất bại:', err);
-                this.loading = false;
-                this.formSubmitted = true;
-                this.isSuccess = false;
-              }
-            });
-          },
-          error: (err) => {
-            console.error('Upload avatar thất bại:', err);
-            this.loading = false;
-            this.formSubmitted = true;
-            this.isSuccess = false;
-          }
-        });
-      } else {
-        // Trường hợp không chọn ảnh thì cập nhật bình thường
-        this.userService.updateUser(name, this.user?.avatarUrl || this.defaultAvatarUrl, phone, address).subscribe({
-          next: (res) => {
-            this.loading = false;
-            this.isSuccess = true;
-            this.formSubmitted = true;
-            this.user = res;
-            console.log('Cập nhật thành công:', res);
-
-            setTimeout(() => {
-              this.formSubmitted = false;
-              this.isSuccess = false;
-            }, 3000);
-          },
-          error: (err) => {
-            console.error('Cập nhật thất bại:', err);
-            this.loading = false;
-            this.formSubmitted = true;
-            this.isSuccess = false;
-          }
-        });
-      }
-
+      setTimeout(() => {
+        this.loading = false;
+        this.formSubmitted = true;
+        this.isSuccess = true;
+        console.log('Change info successfully');
+        // Optionally, reset formSubmitted and isSuccess after displaying the success message for a while
+        setTimeout(() => {
+          this.formSubmitted = false;
+          this.isSuccess = false;
+        }, 3000); // for example, show success for 3 seconds
+      }, 2000);
     } else {
       this.formSubmitted = true;
       this.isSuccess = false;

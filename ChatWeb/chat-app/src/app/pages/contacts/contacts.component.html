@@ -19,13 +19,13 @@
     </div>
     <section class="Left-section">
       <div class="left-section" [ngClass]="{ 'active': selectedTab === 0 }"  (click)="onSelectTab(0)">
-        <p> Friends list</p>
+        <p> Danh sách bạn bè</p>
       </div>
       <div class="left-section" [ngClass]="{ 'active': selectedTab === 1 }" (click)="onSelectTab(1)">
-        <p> Group list</p>
+        <p> Danh sách nhóm</p>
       </div>
       <div class="left-section" [ngClass]="{ 'active': selectedTab === 2 }" (click)="onSelectTab(2)">
-        <p>Requests</p>
+        <p>Lời mời</p>
       </div>
     </section>
     
@@ -40,7 +40,7 @@
         />
 
         <!-- Optional: only show this if you're *not* using dropdown-style search -->
-        <h6 class="friend-count">Friends ({{ filteredFriends.length }})</h6>
+        <h6 class="friend-count">Bạn bè ({{ filteredFriends.length }})</h6>
 
         <!-- Show only filtered friends -->
         <ng-container *ngFor="let friend of filteredFriends">
@@ -74,7 +74,7 @@
 
         <!-- Optional: No matches -->
         <div class="no-results" *ngIf="searchTerm && filteredFriends.length === 0">
-        No friends found.
+          Không tìm thấy.
         </div>
 
       </div>
@@ -88,7 +88,7 @@
         class="friends-searchbar"
         />
 
-        <h6 class="friend-count">Groups ({{ filteredGroups.length }})</h6>
+        <h6 class="friend-count">Nhóm ({{ filteredGroups.length }})</h6>
 
         <ng-container *ngFor="let group of filteredGroups">
           <div 
@@ -105,7 +105,7 @@
         </ng-container>
         
         <div class="no-results" *ngIf="searchTermGroup && filteredGroups.length === 0">
-        No groups found.
+          Không tìm thấy.
         </div>
       </div>
     
@@ -121,7 +121,7 @@
                     style="width: 50px; height: 50px; background-size: cover; border-radius: 50%;">
                   </div>
                   <div>
-                    <h5 class="card-title mb-1">Friend request from {{ receivedRequest?.name }}</h5>
+                    <h5 class="card-title mb-1">Lời mời kết bạn từ {{ receivedRequest?.name }}</h5>
                     <p class="text-muted mb-2">{{ receivedRequest?.createdAt }}</p>
                   </div>
 
@@ -129,6 +129,27 @@
                 <div class="d-flex gap-2 mt-3">
                   <button class="btn btn-outline-success btn-sm" (click)="requestResponse('1', receivedRequest._id)">Đồng ý kết bạn</button>
                   <button class="btn btn-outline-danger btn-sm" *ngIf="receivedRequest && receivedRequest._id" (click)="requestResponse('0', receivedRequest._id)">Từ chối</button>
+                </div>
+              </div>
+            </div>
+          </ng-container>
+            <!-- Lời mời đã gởi -->
+           <ng-container *ngFor="let sentRequest of sentRequests">
+            <div class="card mb-3">
+              <div class="card-body">
+                <div class="d-flex align-items-center">
+                  <div class="photo me-3"
+                    [style.backgroundImage]="'url(' + (sentRequest.avatarUrl || defaultAvatarUrl) + ')'"
+                    style="width: 50px; height: 50px; background-size: cover; border-radius: 50%;">
+                  </div>
+                  <div>
+                    <h5 class="card-title mb-1">Đã gởi lời mời kết bạn đến {{ sentRequest?.name }}</h5>
+                    <p class="text-muted mb-2">{{ sentRequest?.createdAt }}</p>
+                  </div>
+
+                </div>
+                <div class="d-flex gap-2 mt-3">
+                  <button class="btn btn-outline-danger btn-sm" *ngIf="sentRequest && sentRequest._id" (click)="huyYeuCauKetBan(sentRequest._id)">Hủy lời mời</button>
                 </div>
               </div>
             </div>
@@ -145,5 +166,6 @@
     [isOpen]="showProfileModal"
     [user]="selectedFriend"
     (closeModal)="toggleProfileModal()"
+    [trangThaiKetBan]="ban"
     title="Profile">
   </app-modal-profile>
