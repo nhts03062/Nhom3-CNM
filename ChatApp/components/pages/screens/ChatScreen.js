@@ -13,13 +13,15 @@ import {
     ActivityIndicator,
     Alert,
     Image,
-    Modal
+    Modal,
+    Linking
 } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import axios from 'axios';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
 import EmojiSelector, { Categories } from 'react-native-emoji-selector';
 import { useAuth } from '../../../contexts/AuthContext';
 import io from 'socket.io-client';
@@ -39,6 +41,7 @@ const ChatScreen = () => {
     const [selectedMessage, setSelectedMessage] = useState(null);
     const [showMessageOptions, setShowMessageOptions] = useState(false);
     const [newMessages, setNewMessages] = useState(new Set());
+    const [downloadingFile, setDownloadingFile] = useState(null);
     const scrollViewRef = useRef();
     const textInputRef = useRef(null);
     const route = useRoute();
@@ -49,6 +52,14 @@ const ChatScreen = () => {
     const chatRoomParam = route.params?.chatRoom;
     const userIdParam = route.params?.userId;
 
+    const formatFileSize = (bytes) => {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    };
+
     useFocusEffect(
         useCallback(() => {
             if (route.params?.updatedChatRoom) {
@@ -58,7 +69,6 @@ const ChatScreen = () => {
         }, [route.params?.updatedChatRoom])
     );
 
-    // Mark chat room as read when exiting, but only for messages present when entering
     useEffect(() => {
         if (chatRoom) {
             return () => {
@@ -70,12 +80,9 @@ const ChatScreen = () => {
         }
     }, [chatRoom, navigation]);
 
-    // Initialize socket connection
     useEffect(() => {
         const newSocket = io(API_URL.replace('/api', ''), {
-            auth: {
-                token: token
-            }
+            auth: { token }
         });
 
         setSocket(newSocket);
@@ -89,38 +96,39 @@ const ChatScreen = () => {
         if (!socket || !chatRoom) return;
 
         if (!isJoin) {
-            socket.emit('join', user._id);
+            socket.emit('join', chatRoom._id);
             setIsJoin(true);
         }
 
         socket.on('message-created', (data) => {
-            console.log('newMessage', data);
-            if (data.chatId === chatRoom._id) {
-                setMessages(prev => [...prev, data]);
-                scrollViewRef.current?.scrollToEnd({ animated: true });
+            console.log('New message received:', data);
+            const chatId = typeof data.chatId === 'object' ? data.chatId._id : data.chatId;
+
+            if (chatId === chatRoom._id) {
+                setMessages(prev => {
+                    const messageExists = prev.some(msg => msg._id === data._id);
+                    if (!messageExists) {
+                        const newMessages = [...prev, data];
+                        setTimeout(() => {
+                            scrollViewRef.current?.scrollToEnd({ animated: true });
+                        }, 100);
+                        return newMessages;
+                    }
+                    return prev;
+                });
+
+                setNewMessages(prev => new Set([...prev, data._id]));
             }
-            // Track new messages to keep them unread
-            setNewMessages(prev => new Set(prev).add(data._id));
         });
 
         socket.on('message-deleted', (deletedMessage) => {
+            console.log('Message recalled:', deletedMessage);
             if (deletedMessage.chatId === chatRoom._id) {
                 setMessages(prev =>
                     prev.map(msg =>
-                        msg._id === deletedMessage._id ? deletedMessage : msg
+                        msg._id === deletedMessage._id ? { ...deletedMessage } : msg
                     )
                 );
-            }
-        });
-
-        socket.on('message-deleted-permanently', (messageId) => {
-            if (messageId) {
-                setMessages(prev => prev.filter(msg => msg._id !== messageId));
-                setNewMessages(prev => {
-                    const updated = new Set(prev);
-                    updated.delete(messageId);
-                    return updated;
-                });
             }
         });
 
@@ -128,9 +136,8 @@ const ChatScreen = () => {
             socket.off('join');
             socket.off('message-created');
             socket.off('message-deleted');
-            socket.off('message-deleted-permanently');
         };
-    }, [socket, chatRoom, user._id]);
+    }, [socket, chatRoom, user._id, selectedMessage]);
 
     useEffect(() => {
         const loadChatRoom = async () => {
@@ -161,6 +168,7 @@ const ChatScreen = () => {
                         });
 
                         setChatRoom(createResponse.data);
+                        await fetchMessages(createResponse.data._id);
                     }
                 }
             } catch (error) {
@@ -180,13 +188,13 @@ const ChatScreen = () => {
                 headers: { Authorization: token }
             });
             setMessages(response.data);
-            // Mark all fetched messages as not new (already viewed)
             setNewMessages(new Set());
             setTimeout(() => {
                 scrollViewRef.current?.scrollToEnd({ animated: false });
             }, 100);
         } catch (error) {
             console.error('Error fetching messages:', error);
+            Alert.alert('Lỗi', 'Không thể tải tin nhắn. Vui lòng thử lại.');
         }
     };
 
@@ -222,72 +230,56 @@ const ChatScreen = () => {
     };
 
     const handleSendMessage = async () => {
-        if (message.trim().length > 0 && chatRoom) {
-            try {
-                const content = {
-                    type: 'text',
-                    text: message
-                };
+        if (message.trim().length === 0 || !chatRoom) return;
 
-                let endpoint = `${API_URL}/message`;
-                let postData = {
-                    chatId: chatRoom._id,
-                    content
-                };
+        try {
+            const content = { type: 'text', text: message };
+            let endpoint = `${API_URL}/message`;
+            let postData = { chatId: chatRoom._id, content };
 
-                if (replyingTo) {
-                    endpoint = `${API_URL}/message/reply`;
-                    postData = {
-                        _id: replyingTo._id,
-                        content
-                    };
-                }
-
-                const tempMessage = {
-                    _id: Date.now().toString(),
-                    chatId: chatRoom._id,
-                    sendID: {
-                        _id: user._id,
-                        name: user.name,
-                        avatarUrl: user.avatarUrl,
-                    },
-                    content: {
-                        type: 'text',
-                        text: message
-                    },
-                    replyToMessage: replyingTo ? {
-                        _id: replyingTo._id,
-                        content: replyingTo.content,
-                        sendID: replyingTo.sendID
-                    } : null,
-                    createdAt: new Date().toISOString()
-                };
-
-                setMessages(prev => [...prev, tempMessage]);
-                setMessage('');
-                setReplyingTo(null);
-                scrollViewRef.current?.scrollToEnd({ animated: true });
-
-                const response = await axios.post(endpoint, postData, {
-                    headers: { Authorization: token }
-                });
-
-                setMessages(prev =>
-                    prev.map(msg =>
-                        msg._id === tempMessage._id ? response.data : msg
-                    )
-                );
-
-                if (socket) {
-                    socket.emit('create-message', {
-                        chatRoomId: chatRoom._id,
-                        data: response.data
-                    });
-                }
-            } catch (error) {
-                console.error('Error sending message:', error);
-                Alert.alert('Lỗi', 'Không thể gửi tin nhắn. Vui lòng thử lại sau.');
+            if (replyingTo) {
+                endpoint = `${API_URL}/message/reply`;
+                postData = { _id: replyingTo._id, content };
             }
+
+            const tempMessage = {
+                _id: Date.now().toString(),
+                chatId: chatRoom._id,
+                sendID: { _id: user._id, name: user.name, avatarUrl: user.avatarUrl },
+                content,
+                replyToMessage: replyingTo ? {
+                    _id: replyingTo._id,
+                    content: replyingTo.content,
+                    sendID: replyingTo.sendID
+                } : null,
+                createdAt: new Date().toISOString(),
+                recall: '0'
+            };
+
+            setMessages(prev => [...prev, tempMessage]);
+            setMessage('');
+            setReplyingTo(null);
+            scrollViewRef.current?.scrollToEnd({ animated: true });
+
+            const response = await axios.post(endpoint, postData, {
+                headers: { Authorization: token }
+            });
+
+            setMessages(prev =>
+                prev.map(msg =>
+                    msg._id === tempMessage._id ? response.data : msg
+                )
+            );
+
+            if (socket) {
+                socket.emit('create-message', {
+                    chatRoomId: chatRoom._id,
+                    data: response.data
+                });
+            }
+        } catch (error) {
+            console.error('Error sending message:', error);
+            Alert.alert('Lỗi', 'Không thể gửi tin nhắn. Vui lòng thử lại.');
         }
     };
 
@@ -305,7 +297,7 @@ const ChatScreen = () => {
             }
         } catch (error) {
             console.error('Error picking document:', error);
-            Alert.alert('Lỗi', 'Không thể chọn tệp. Vui lòng thử lại sau.');
+            Alert.alert('Lỗi', 'Không thể chọn tệp. Vui lòng thử lại.');
         }
     };
 
@@ -333,7 +325,7 @@ const ChatScreen = () => {
             }
         } catch (error) {
             console.error('Error picking image:', error);
-            Alert.alert('Lỗi', 'Không thể chọn ảnh. Vui lòng thử lại sau.');
+            Alert.alert('Lỗi', 'Không thể chọn ảnh. Vui lòng thử lại.');
         }
     };
 
@@ -348,8 +340,10 @@ const ChatScreen = () => {
             formData.append('chatId', chatRoom._id);
 
             const content = {
-                type: type,
+                type,
                 text: message.trim(),
+                fileName: file.name || `file_${Date.now()}`,
+                fileSize: file.size || 0
             };
 
             formData.append('content', JSON.stringify(content));
@@ -357,7 +351,7 @@ const ChatScreen = () => {
             const fileToUpload = {
                 uri: file.uri,
                 type: file.mimeType || 'application/octet-stream',
-                name: file.name || 'file' + Date.now()
+                name: file.name || `file_${Date.now()}`
             };
 
             formData.append(type, fileToUpload);
@@ -368,16 +362,16 @@ const ChatScreen = () => {
             const tempMessage = {
                 _id: tempId,
                 chatId: chatRoom._id,
-                sendID: {
-                    _id: user._id,
-                    name: user.name,
-                    avatarUrl: user.avatarUrl,
-                },
+                sendID: { _id: user._id, name: user.name, avatarUrl: user.avatarUrl },
                 content: {
-                    type: type,
-                    text: 'Đang tải lên...',
+                    type,
+                    text: '',
+                    fileName: file.name || `file_${Date.now()}`,
+                    fileSize: file.size || 0,
+                    files: []
                 },
-                createdAt: new Date().toISOString()
+                createdAt: new Date().toISOString(),
+                recall: '0'
             };
 
             setMessages(prev => [...prev, tempMessage]);
@@ -402,13 +396,23 @@ const ChatScreen = () => {
             scrollViewRef.current?.scrollToEnd({ animated: true });
         } catch (error) {
             console.error('Error uploading file:', error);
-            Alert.alert('Lỗi', 'Không thể tải lên tệp. Vui lòng thử lại sau.');
+            Alert.alert('Lỗi', 'Không thể tải lên tệp. Vui lòng thử lại.');
         }
     };
 
     const handleRecallMessage = async (code) => {
+        if (!selectedMessage) {
+            setShowMessageOptions(false);
+            return;
+        }
+
         try {
-            if (!selectedMessage) return;
+            // Kiểm tra xem tin nhắn đã bị thu hồi chưa
+            if (selectedMessage.recall === '1' || selectedMessage.recall === '2') {
+                Alert.alert('Lỗi', 'Tin nhắn đã được thu hồi trước đó.');
+                setShowMessageOptions(false);
+                return;
+            }
 
             const updatedMessages = messages.map(msg =>
                 msg._id === selectedMessage._id ? { ...msg, isRecalling: true } : msg
@@ -423,7 +427,7 @@ const ChatScreen = () => {
 
             setMessages(prev =>
                 prev.map(msg =>
-                    msg._id === selectedMessage._id ? response.data : msg
+                    msg._id === selectedMessage._id ? { ...response.data, isRecalling: false } : msg
                 )
             );
 
@@ -438,66 +442,14 @@ const ChatScreen = () => {
             setShowMessageOptions(false);
         } catch (error) {
             console.error('Error recalling message:', error);
-            Alert.alert('Lỗi', 'Không thể thu hồi tin nhắn. Vui lòng thử lại sau.');
-        }
-    };
-
-    const handleDeleteMessage = async () => {
-        try {
-            if (!selectedMessage) return;
-
-            Alert.alert(
-                "Xóa tin nhắn",
-                "Bạn có chắc chắn muốn xóa tin nhắn này không? Hành động này không thể hoàn tác.",
-                [
-                    {
-                        text: "Hủy",
-                        style: "cancel"
-                    },
-                    {
-                        text: "Xóa",
-                        style: "destructive",
-                        onPress: async () => {
-                            const updatedMessages = messages.map(msg =>
-                                msg._id === selectedMessage._id ? { ...msg, isDeleting: true } : msg
-                            );
-                            setMessages(updatedMessages);
-
-                            try {
-                                const response = await axios.delete(
-                                    `${API_URL}/message/${selectedMessage._id}`,
-                                    { headers: { Authorization: token } }
-                                );
-
-                                setMessages(prev => prev.filter(msg => msg._id !== selectedMessage._id));
-
-                                if (socket) {
-                                    socket.emit('message-deleted-permanently', {
-                                        chatRoomId: chatRoom._id,
-                                        messageId: selectedMessage._id
-                                    });
-                                }
-                            } catch (error) {
-                                console.error('Error deleting message:', error);
-                                Alert.alert('Lỗi', 'Không thể xóa tin nhắn. Vui lòng thử lại sau.');
-
-                                setMessages(prev =>
-                                    prev.map(msg =>
-                                        msg._id === selectedMessage._id ?
-                                            { ...msg, isDeleting: false } : msg
-                                    )
-                                );
-                            }
-
-                            setSelectedMessage(null);
-                            setShowMessageOptions(false);
-                        }
-                    }
-                ]
+            setMessages(prev =>
+                prev.map(msg =>
+                    msg._id === selectedMessage._id ? { ...msg, isRecalling: false } : msg
+                )
             );
-        } catch (error) {
-            console.error('Error initiating message deletion:', error);
-            Alert.alert('Lỗi', 'Có lỗi xảy ra. Vui lòng thử lại sau.');
+            const errorMessage = error.response?.data?.msg || 'Không thể thu hồi tin nhắn. Vui lòng thử lại.';
+            Alert.alert('Lỗi', errorMessage);
+            setShowMessageOptions(false);
         }
     };
 
@@ -510,6 +462,26 @@ const ChatScreen = () => {
         setTimeout(() => {
             textInputRef?.current?.focus();
         }, 100);
+    };
+
+    const handleOpenFile = async (fileUrl) => {
+        try {
+            setDownloadingFile(fileUrl);
+
+            const canOpen = await Linking.canOpenURL(fileUrl);
+
+            if (canOpen) {
+                await Linking.openURL(fileUrl);
+            } else {
+                Alert.alert('Thông báo', 'Không thể mở file này trên thiết bị của bạn');
+            }
+
+            setDownloadingFile(null);
+        } catch (error) {
+            console.error('Error opening file:', error);
+            Alert.alert('Lỗi', 'Không thể mở tệp. Vui lòng thử lại.');
+            setDownloadingFile(null);
+        }
     };
 
     const getChatName = () => {
@@ -525,13 +497,12 @@ const ChatScreen = () => {
     };
 
     const getAvatarSource = (member) => {
-        if (member) {
-            if (member.avatarUrl) {
-                return { uri: member.avatarUrl };
-            }
-            return { uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(member.name)}&background=0999fa&color=fff` };
+        if (member?.avatarUrl && member.avatarUrl.trim() !== '' && member.avatarUrl !== 'https://bookvexe.vn/wp-content/uploads/2023/04/chon-loc-25-avatar-facebook-mac-dinh-chat-nhat_2.jpg') {
+            return { uri: member.avatarUrl };
         }
-        return { uri: `https://ui-avatars.com/api/?name=User&background=0999fa&color=fff` };
+        const name = member?.name || 'User';
+        const encodedName = encodeURIComponent(name.trim());
+        return { uri: `https://ui-avatars.com/api/?name=${encodedName}&background=0999fa&color=fff&size=128&format=png&rounded=true` };
     };
 
     const shouldShowAvatar = (index) => {
@@ -551,34 +522,7 @@ const ChatScreen = () => {
         const senderId = typeof msg.sendID === 'object' ? msg.sendID._id : msg.sendID;
         const isOwnMessage = senderId === user._id;
         const showAvatar = !isOwnMessage && shouldShowAvatar(index);
-        const sender = typeof msg.sendID === 'object' ? msg.sendID : { name: 'User', _id: senderId };
-
-        if (msg.isDeleting) {
-            return (
-                <View
-                    key={msg._id}
-                    style={[
-                        styles.messageWrapper,
-                        isOwnMessage ? styles.ownMessageWrapper : styles.otherMessageWrapper
-                    ]}
-                >
-                    {showAvatar ? (
-                        <Image
-                            source={getAvatarSource(sender)}
-                            style={styles.messageAvatar}
-                        />
-                    ) : (
-                        <View style={styles.avatarPlaceholder} />
-                    )}
-                    <View style={[styles.messageBubble, styles.deletingMessage]}>
-                        <ActivityIndicator size="small" color={isOwnMessage ? "#fff" : "#999"} />
-                        <Text style={styles.deletingMessageText}>
-                            Đang xóa...
-                        </Text>
-                    </View>
-                </View>
-            );
-        }
+        const sender = typeof msg.sendID === 'object' ? msg.sendID : { name: 'User', _id: senderId, avatarUrl: null };
 
         if (msg.isRecalling) {
             return (
@@ -599,36 +543,24 @@ const ChatScreen = () => {
                     )}
                     <View style={[styles.messageBubble, styles.recallingMessage]}>
                         <ActivityIndicator size="small" color={isOwnMessage ? "#fff" : "#999"} />
-                        <Text style={styles.recalledMessageText}>
-                            Đang thu hồi...
-                        </Text>
+                        <Text style={styles.recalledMessageText}>Đang thu hồi...</Text>
                     </View>
                 </View>
             );
         }
 
-        if (msg.recall === '1' && msg.sendID._id === user._id) {
+        if (msg.recall === '1' && isOwnMessage) {
             return (
                 <View
                     key={msg._id}
                     style={[
                         styles.messageWrapper,
-                        isOwnMessage ? styles.ownMessageWrapper : styles.otherMessageWrapper
+                        styles.ownMessageWrapper
                     ]}
                 >
-                    {showAvatar ? (
-                        <Image
-                            source={getAvatarSource(sender)}
-                            style={styles.messageAvatar}
-                        />
-                    ) : (
-                        <View style={styles.avatarPlaceholder} />
-                    )}
                     <View style={[styles.messageBubble, styles.recalledMessage]}>
                         <Ionicons name="eye-off-outline" size={16} color="#999" style={{ marginRight: 4 }} />
-                        <Text style={styles.recalledMessageText}>
-                            Bạn đã thu hồi tin nhắn này
-                        </Text>
+                        <Text style={styles.recalledMessageText}>Bạn đã thu hồi tin nhắn này</Text>
                     </View>
                 </View>
             );
@@ -653,9 +585,7 @@ const ChatScreen = () => {
                     )}
                     <View style={[styles.messageBubble, styles.recalledMessage]}>
                         <Ionicons name="refresh-outline" size={16} color="#999" style={{ marginRight: 4 }} />
-                        <Text style={styles.recalledMessageText}>
-                            Tin nhắn đã bị thu hồi
-                        </Text>
+                        <Text style={styles.recalledMessageText}>Tin nhắn đã bị thu hồi</Text>
                     </View>
                 </View>
             );
@@ -732,20 +662,70 @@ const ChatScreen = () => {
 
                     {msg.content.type === 'file' && msg.content.files && msg.content.files.length > 0 && (
                         <View style={styles.fileContainer}>
-                            <Ionicons name="document-outline" size={24} color={isOwnMessage ? "#fff" : "#333"} />
-                            <Text
-                                style={[
-                                    styles.fileText,
-                                    isOwnMessage && styles.ownMessageText
-                                ]}
-                            >
-                                Tệp đính kèm
-                            </Text>
-                            {msg.content.text && (
+                            {msg.content.files.map((fileUrl, fileIndex) => {
+                                const fileName = msg.content.fileName || 'Unknown File';
+                                const fileSize = msg.content.fileSize ? formatFileSize(msg.content.fileSize) : 'Unknown Size';
+                                const isDownloading = downloadingFile === fileUrl;
+
+                                return (
+                                    <View
+                                        key={fileIndex}
+                                        style={[
+                                            styles.fileItem,
+                                            isOwnMessage ? styles.fileItemOwn : styles.fileItemOther
+                                        ]}
+                                    >
+                                        <View style={styles.fileInfoContainer}>
+                                            <View style={styles.fileIconContainer}>
+                                                <Ionicons
+                                                    name="document-text"
+                                                    size={24}
+                                                    color={isOwnMessage ? "#fff" : "#0999fa"}
+                                                />
+                                            </View>
+                                            <View style={styles.fileTextContainer}>
+                                                <Text
+                                                    style={[
+                                                        styles.fileName,
+                                                        isOwnMessage && styles.ownMessageText
+                                                    ]}
+                                                    numberOfLines={1}
+                                                >
+                                                    {fileName}
+                                                </Text>
+                                                <Text
+                                                    style={[
+                                                        styles.fileSize,
+                                                        isOwnMessage && styles.ownFileSize
+                                                    ]}
+                                                >
+                                                    {fileSize}
+                                                </Text>
+                                            </View>
+                                        </View>
+                                        <TouchableOpacity
+                                            style={styles.downloadButton}
+                                            onPress={() => handleOpenFile(fileUrl)}
+                                            disabled={isDownloading}
+                                        >
+                                            {isDownloading ? (
+                                                <ActivityIndicator size="small" color={isOwnMessage ? "#fff" : "#0999fa"} />
+                                            ) : (
+                                                <Ionicons
+                                                    name="download-outline"
+                                                    size={24}
+                                                    color={isOwnMessage ? "#fff" : "#0999fa"} />
+                                            )}
+                                        </TouchableOpacity>
+                                    </View>
+                                );
+                            })}
+                            {msg.content.text && msg.content.text.trim() !== '' && (
                                 <Text
                                     style={[
                                         styles.messageText,
-                                        isOwnMessage && styles.ownMessageText
+                                        isOwnMessage && styles.ownMessageText,
+                                        { marginTop: 8 }
                                     ]}
                                 >
                                     {msg.content.text}
@@ -764,7 +744,7 @@ const ChatScreen = () => {
                                     resizeMode="cover"
                                 />
                             ))}
-                            {msg.content.text && (
+                            {msg.content.text && msg.content.text.trim() !== '' && (
                                 <Text
                                     style={[
                                         styles.messageText,
@@ -792,9 +772,10 @@ const ChatScreen = () => {
     };
 
     const renderMessageOptionsModal = () => {
-        if (!showMessageOptions) return null;
+        if (!showMessageOptions || !selectedMessage) return null;
 
         const isOwnMessage = selectedMessage?.sendID?._id === user._id;
+        const isRecalled = selectedMessage.recall === '1' || selectedMessage.recall === '2';
 
         return (
             <Modal
@@ -817,7 +798,7 @@ const ChatScreen = () => {
                             <Text style={styles.optionText}>Trả lời</Text>
                         </TouchableOpacity>
 
-                        {isOwnMessage && (
+                        {isOwnMessage && !isRecalled && (
                             <>
                                 <View style={styles.optionSeparator} />
 
@@ -837,16 +818,6 @@ const ChatScreen = () => {
                                 >
                                     <Ionicons name="refresh" size={22} color="#0999fa" />
                                     <Text style={[styles.optionText, { color: '#0999fa' }]}>Thu hồi với mọi người</Text>
-                                </TouchableOpacity>
-
-                                <View style={styles.optionSeparator} />
-
-                                <TouchableOpacity
-                                    style={styles.optionButton}
-                                    onPress={() => handleDeleteMessage()}
-                                >
-                                    <Ionicons name="trash" size={22} color="#f44336" />
-                                    <Text style={[styles.optionText, { color: '#f44336' }]}>Xóa tin nhắn</Text>
                                 </TouchableOpacity>
                             </>
                         )}
@@ -970,7 +941,7 @@ const ChatScreen = () => {
                         placeholder="Tin nhắn"
                         value={message}
                         onChangeText={setMessage}
-                        multiline={false}
+                        multiline={true}
                     />
                 </View>
                 {message.trim().length > 0 ? (
@@ -1019,7 +990,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: 15,
         height: 50,
     },
-    backButton: { justifyContent: 'center' },
     headerTitle: {
         color: 'white',
         fontSize: 20,
@@ -1088,7 +1058,7 @@ const styles = StyleSheet.create({
         marginBottom: 2,
     },
     messageBubble: {
-        maxWidth: '80%',
+        maxWidth: '90%',
         borderRadius: 12,
         padding: 10,
         paddingBottom: 6,
@@ -1159,25 +1129,14 @@ const styles = StyleSheet.create({
         paddingVertical: 8,
         opacity: 0.7,
     },
-    deletingMessage: {
-        backgroundColor: '#f1f1f1',
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 8,
-        opacity: 0.7,
-    },
-    deletingMessageText: {
-        fontStyle: 'italic',
-        color: '#999',
-        fontSize: 13,
-        marginLeft: 8,
-    },
     replyContainer: {
         flexDirection: 'row',
         marginBottom: 6,
         paddingBottom: 4,
         borderBottomWidth: 1,
         borderBottomColor: 'rgba(0,0,0,0.05)',
+        width: '100%',
+        minWidth: 250,
     },
     replyIndicator: {
         width: 2,
@@ -1190,6 +1149,7 @@ const styles = StyleSheet.create({
     },
     replyContent: {
         flex: 1,
+        paddingRight: 10,
     },
     replyAuthorInMessage: {
         fontSize: 12,
@@ -1208,14 +1168,52 @@ const styles = StyleSheet.create({
         color: 'rgba(255,255,255,0.8)',
     },
     fileContainer: {
+        width: '100%',
+    },
+    fileItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 5,
+        justifyContent: 'space-between',
+        marginBottom: 5,
+        paddingHorizontal: 10,
+        paddingVertical: 8,
+        borderRadius: 4,
     },
-    fileText: {
+    fileItemOwn: {
+        backgroundColor: 'rgba(255,255,255,0.1)',
+    },
+    fileItemOther: {
+        backgroundColor: 'rgba(9,156,250,0.1)',
+    },
+    fileInfoContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+    },
+    fileIconContainer: {
+        marginRight: 10,
+    },
+    fileTextContainer: {
+        flex: 1,
+    },
+    fileName: {
         fontSize: 14,
-        marginLeft: 10,
-        color: '#000',
+        fontWeight: 'bold',
+        color: '#333',
+    },
+    fileSize: {
+        fontSize: 12,
+        color: '#666',
+        marginTop: 2,
+    },
+    ownFileSize: {
+        color: 'rgba(255,255,255,0.8)',
+    },
+    downloadButton: {
+        width: 40,
+        height: 40,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     mediaContainer: {
         marginVertical: 5,
