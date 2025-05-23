@@ -146,26 +146,6 @@ const ChatRoomListScreen = () => {
     }, [socket, user]);
 
     const fetchChatRooms = async () => {
-        console.log('Token in ChatRoomListScreen:', token);
-
-        if (!token) {
-            Alert.alert(
-                'Phiên đăng nhập hết hạn',
-                'Vui lòng đăng nhập lại.',
-                [
-                    {
-                        text: 'OK',
-                        onPress: async () => {
-                            await logout();
-                            navigation.replace('Auth');
-                        }
-                    }
-                ]
-            );
-            setLoading(false);
-            return;
-        }
-
         try {
             setLoading(true);
             const response = await axios.get(`${API_URL}/chatroom`);
@@ -189,31 +169,8 @@ const ChatRoomListScreen = () => {
             }));
 
             setChatRooms(sortedRooms);
-            console.log('Fetched chat rooms:', sortedRooms.map(room => ({
-                id: room._id,
-                unread: room.unread,
-                unreadCount: room.unreadCount
-            })));
-            setError(null);
         } catch (error) {
             console.error('Error fetching chat rooms:', error);
-            setError('Không thể tải danh sách phòng chat');
-
-            if (error.response?.status === 401) {
-                Alert.alert(
-                    'Phiên đăng nhập hết hạn',
-                    'Vui lòng đăng nhập lại.',
-                    [
-                        {
-                            text: 'OK',
-                            onPress: async () => {
-                                await logout();
-                                navigation.replace('Auth');
-                            }
-                        }
-                    ]
-                );
-            }
         } finally {
             setLoading(false);
         }
@@ -261,7 +218,6 @@ const ChatRoomListScreen = () => {
 
     useFocusEffect(
         React.useCallback(() => {
-            // Handle updated chat room (e.g., name changes)
             if (route.params?.updatedChatRoom) {
                 setChatRooms(prev => {
                     const updatedRooms = prev.map(room =>
@@ -269,7 +225,7 @@ const ChatRoomListScreen = () => {
                             ? {
                                 ...route.params.updatedChatRoom,
                                 unread: false,
-                                unreadCount: 0 // Reset về 0 khi đã đọc
+                                unreadCount: 0
                             }
                             : room
                     );
@@ -277,12 +233,8 @@ const ChatRoomListScreen = () => {
                 });
             }
 
-            // Handle read status when returning from ChatScreen
             if (route.params?.chatRoomRead) {
                 const { chatRoomId } = route.params.chatRoomRead;
-                console.log('Marking chat room as read:', chatRoomId);
-
-                // Cập nhật state local trước
                 setChatRooms(prev => {
                     const updatedRooms = prev.map(room =>
                         room._id === chatRoomId
@@ -293,26 +245,13 @@ const ChatRoomListScreen = () => {
                             }
                             : room
                     );
-
-                    // Lưu trạng thái đã đọc vào local storage hoặc context
-                    const roomToUpdate = updatedRooms.find(room => room._id === chatRoomId);
-                    if (roomToUpdate) {
-                        // Cập nhật trạng thái đã đọc ngay lập tức
-                        roomToUpdate.unread = false;
-                        roomToUpdate.unreadCount = 0;
-                    }
-
                     return sortChatRooms(updatedRooms);
                 });
-
-                // Cập nhật lại danh sách phòng chat để giữ nguyên trạng thái đã đọc
-                fetchChatRooms();
+                // Xóa param sau khi xử lý
+                navigation.setParams({ chatRoomRead: undefined });
             }
 
-            // Cleanup function nếu cần
-            return () => {
-                // Thực hiện cleanup nếu cần
-            };
+            return () => { };
         }, [route.params?.updatedChatRoom, route.params?.chatRoomRead])
     );
 
