@@ -250,41 +250,7 @@ const AuthScreen = ({ navigation, route }) => {
   };
 
   const handleForgotPassword = () => {
-    if (!email) {
-      setEmailError('Email is required to reset password');
-      return;
-    }
-
-    Alert.alert(
-      "Reset Password",
-      "Would you like to receive a password reset link to your email?",
-      [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
-        {
-          text: "Yes, send link",
-          onPress: async () => {
-            try {
-              setIsLoading(true);
-              await axios.post(`${API_BASE_URL}/auth/forgot-password`, { email });
-              Alert.alert(
-                "Password Reset",
-                "A password reset link has been sent to your email."
-              );
-            } catch (error) {
-              Alert.alert(
-                "Error",
-                "Failed to send reset link. Please try again."
-              );
-            } finally {
-              setIsLoading(false);
-            }
-          },
-        },
-      ]
-    );
+    navigation.navigate('ForgotPasswordScreen');
   };
 
   return (

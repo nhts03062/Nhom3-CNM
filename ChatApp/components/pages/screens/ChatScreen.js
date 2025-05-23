@@ -866,6 +866,11 @@ const ChatScreen = () => {
         navigation.navigate('UserProfileScreen', { user: chatRoom.members.find(member => member._id !== user._id) });
     };
 
+    const handleGoBack = () => {
+        navigation.goBack();
+    };
+
+
     if (loading) {
         return (
             <View style={styles.loadingContainer}>
@@ -890,7 +895,7 @@ const ChatScreen = () => {
                         size={24}
                         color="white"
                         style={{ marginRight: 12 }}
-                        onPress={() => navigation.navigate('ChatRoomListScreen')}
+                        onPress={handleGoBack}
                     />
                     <Text style={styles.headerTitle}>{getChatName()}</Text>
 
@@ -1112,15 +1117,16 @@ const styles = StyleSheet.create({
         marginRight: 8,
     },
     recalledMessage: {
-        backgroundColor: '#f1f1f1',
+        backgroundColor: '#ffffff',
         flexDirection: 'row',
         alignItems: 'center',
         paddingVertical: 8,
     },
     recalledMessageText: {
+        backgroundColor: '#ffffff',
         fontStyle: 'italic',
         color: '#999',
-        fontSize: 13,
+        fontSize: 15,
     },
     recallingMessage: {
         backgroundColor: '#f1f1f1',
