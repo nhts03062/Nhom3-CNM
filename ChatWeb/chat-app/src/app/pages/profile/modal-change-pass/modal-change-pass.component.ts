@@ -1,4 +1,3 @@
-import { UserService } from '../../../services/user.service';
 import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { FormGroup, FormBuilder, Validators, FormsModule, ReactiveFormsModule } from '@angular/forms';
@@ -23,13 +22,11 @@ export class ModalComponent {
   changeNewPassForm: FormGroup;
     loading: boolean = false;
     formSubmitted: boolean = false;
-    isOldPassword: boolean = false;
   
-    constructor(private fb: FormBuilder, private router: Router , private userService: UserService) {
+    constructor(private fb: FormBuilder, private router: Router) {
       this.changeNewPassForm = this.fb.group({
         password : ['', [Validators.required, Validators.minLength(6)]],
-        confirmPassword: ['', Validators.required],
-        oldPassword: ['', [Validators.required, Validators.minLength(6)]]
+        confirmPassword: ['', Validators.required]
       });
     }
     
@@ -38,23 +35,6 @@ export class ModalComponent {
     onChange() {
       if (this.changeNewPassForm.valid) {
         this.loading = true;
-        const {password, oldPassword } = this.changeNewPassForm.value;
-        
-        this.userService.changePassword(oldPassword, password).subscribe({
-          next :(res) => {
-            console.log('Password changed successfully:', res);
-            this.loading = false;
-            this.formSubmitted = true;
-            this.isSuccess = true;
-          },error: (err) => {
-            console.error('Error changing password:', err);
-            this.loading = false;
-            this.formSubmitted = true;
-            this.isSuccess = false;
-            this.isOldPassword = true;
-          }
-        });
-
         setTimeout(() => {
           this.loading = false;
           this.formSubmitted = true;
@@ -63,8 +43,8 @@ export class ModalComponent {
     
           setTimeout(() => {
             this.close(); // close the modal after success
-          }, 500);
-        }, 500);
+          }, 1000);
+        }, 2000);
       } else {
         this.formSubmitted = true;
         this.isSuccess = false;
@@ -81,7 +61,6 @@ export class ModalComponent {
       this.formSubmitted = false;            // reset alert
       this.isSuccess = false;
       this.closeModal.emit();                // notify parent to close modal
-      this.isOldPassword= false;                // reset old password error
     }
     
 

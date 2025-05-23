@@ -58,18 +58,18 @@ export class AuthComponent implements OnInit {
   /**
    * Xác thực tài khoản từ email
    */
-  verifyEmail(token: string) {
-    this.http.get(`${apiUrl}/auth/verify?token=${encodeURIComponent(token)}`)
-      .subscribe({
-        next: () => {
-          alert("✅ Xác thực email thành công! Hãy đăng nhập.");
-          this.router.navigateByUrl("/login");
-        },
-        error: () => {
-          alert("❌ Xác thực thất bại hoặc token đã hết hạn!");
-        }
-      });
-  }
+  // verifyEmail(token: string) {
+  //   this.http.get(`${apiUrl}/auth/verify?token=${encodeURIComponent(token)}`)
+  //     .subscribe({
+  //       next: () => {
+  //         alert("✅ Xác thực email thành công! Hãy đăng nhập.");
+  //         this.router.navigateByUrl("/login");
+  //       },
+  //       error: () => {
+  //         alert("❌ Xác thực thất bại hoặc token đã hết hạn!");
+  //       }
+  //     });
+  // }
 
   /**
    * Xử lý đăng nhập
@@ -84,6 +84,7 @@ export class AuthComponent implements OnInit {
               sessionStorage.setItem('userId',res.userDaLoc._id);
               alert("✅ Đăng nhập thành công!");
               this.router.navigateByUrl("/chat");
+              console.log(res.UserDaLoc._id);
             } else {
               alert("❌ Lỗi đăng nhập: " + res.message);
             }
@@ -115,10 +116,8 @@ export class AuthComponent implements OnInit {
       alert("❌ Form đăng ký không hợp lệ");
     }
   }
-  onForgotPassWord(){
+  onNavigateForgotPassWord(){
     this.router.navigateByUrl('/auth/forgot-password')
   }
-  onChangePassWord(){
-    this.router.navigateByUrl('/auth/change-password')
-  }
+
 }

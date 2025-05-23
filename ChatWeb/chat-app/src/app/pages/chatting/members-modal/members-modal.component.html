@@ -20,18 +20,18 @@
             />
   
             <!-- Show only filtered -->
-            <ng-container *ngFor="let room of filteredChatRooms; let i = index">
+            <ng-container *ngFor="let room of filteredRooms; let i = index">
               <div
                 class="left-section friends"
-                [class.active]="selecteds.includes(room._id)"
-                (click)="toggleSelection(room._id)"
+                [class.active]="isSelected(room)"
+                (click)="groupSelection(room)"
               >
                 <div class="checkbox-wrapper-15">
                   <input
                     class="inp-cbx"
                     [id]="'cbx-15-' + i"
                     type="checkbox"
-                    [checked]="selecteds.includes(room._id)"
+                    [checked]="isSelected(room)"
                     style="display: none;"
                   />
                   <label class="cbx" [for]="'cbx-15-' + i">
@@ -52,8 +52,8 @@
             </ng-container>
   
             <!-- Optional: No matches -->
-            <div class="no-results" *ngIf="searchTermGroup && filteredChatRooms.length === 0">
-              No groups found.
+            <div class="no-results" *ngIf="searchTermGroup && filteredChatRoomsToInvite.length === 0">
+              Không tìm thấy nhóm
             </div>
           </ng-container>
   
@@ -150,14 +150,18 @@
   
             <!-- Optional: No matches -->
             <div class="no-results" *ngIf="searchTermGroup && filteredMembers.length === 0">
-              No users found.
+              Không tìm thấy người dùng
             </div>
           </ng-container>
         </section>
   
         <footer class="modal-container-footer">
           <button class="button is-ghost" (click)="close()">Cancel</button>
-          <button class="button is-primary" (click)="updateChatRoom?.()">Choose</button>
+          <button class="button is-primary"
+                  (click)="modalView === 0 ? inviteToGroup() : (modalView === 1 ? onConfirm() : updateChatRoom?.())">
+            Chọn
+          </button>
+
         </footer>
       </article>
     </div>

@@ -20,6 +20,11 @@ emoji-mart {
 .no-chat-img{
   width:50%;
 }
+.no-conversations{
+  text-align: center;
+  margin-top: 25px;
+  color: #777;
+}
 .timer {
   margin-left: 7.5%;
   font-size: 11px;
@@ -319,6 +324,9 @@ border: 3px solid #FAFAFA;
   padding: 25px 0px 25px 20px;
   height: 75vh;
   overflow-y: auto;
+  /* display: flex;
+  flex-direction: column;
+  justify-content: space-between; */
 }
 
 .messages-chat .message {
@@ -397,10 +405,11 @@ border: 3px solid #FAFAFA;
   background-color: #f5f5f5;
   
 }
+
   
 .desc-contact {
   height: 43px;
-  width:50%;
+  width:45%;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -655,6 +664,9 @@ border: 3px solid #FAFAFA;
   font-size: 0.9em;
   display: flex;
   flex-direction: column;
+  position: fixed;
+  width: 56%;
+  bottom: 85px;
 }
 .reply-preview {
   background: #f1f1f1;
@@ -776,6 +788,7 @@ border: 3px solid #FAFAFA;
 .ml-2 {
   margin-left: 0.5rem;
 }
+
 .preview-container {
   display: flex;
   flex-wrap: wrap;           /* Cho phép xuống dòng khi quá rộng */
