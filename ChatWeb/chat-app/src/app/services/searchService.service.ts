@@ -1,15 +1,14 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { ApiService } from './api.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class SearchService {
-  private apiUrl = 'http://localhost:5000/api/search';
   
-
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private apiService: ApiService) {}
 
   getHeaders(): HttpHeaders {
     const token = sessionStorage.getItem('token');
@@ -17,6 +16,9 @@ export class SearchService {
   }
 
   searchUsers(searchTerm: string): Observable<any> {
-    return this.http.post<any>(this.apiUrl, { searchTerm: searchTerm }, { headers: this.getHeaders() });
+    const url = this.apiService.getApiUrl(`search`);
+    const body = { searchTerm };
+    return this.http.post<any>(url, body, { headers: this.getHeaders() });
   }
+
 }

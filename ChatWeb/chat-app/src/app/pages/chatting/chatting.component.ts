@@ -18,6 +18,7 @@ import { MessageService } from '../../services/message.service';
 import { defaultAvatarUrl, apiUrl, defaulGrouptAvatarUrl } from '../../contants';
 import { ModalProfileComponent } from '../profile/modal-profile/modal-profile.component';
 import { MembersModalComponent } from "./members-modal/members-modal.component";
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 
 
 @Component({
@@ -47,7 +48,8 @@ export class ChattingComponent implements OnInit {
   docFiles: {
     file: File;
     name: string;
-    preview: string;
+    // preview: string;
+     preview: SafeResourceUrl
   }[] = [];
   nguoiDung: Userr[] = [];
   showEmojiPicker: boolean = false;
@@ -75,7 +77,8 @@ export class ChattingComponent implements OnInit {
     private chatRoomService: ChatRoomService,
     private route: ActivatedRoute,
     private messageService: MessageService,
-     private uploadService: UploadService
+     private uploadService: UploadService,
+     private sanitizer: DomSanitizer
   ) { };
 
   ngOnInit(): void {
@@ -433,7 +436,9 @@ layPhongChat(roomId: string, callback?: () => void): void {
        .map(file => ({
         file,
         name: file.name,
-        preview: URL.createObjectURL(file)
+        type: file.type,
+        preview: this.sanitizer.bypassSecurityTrustResourceUrl(URL.createObjectURL(file)) // PDF/doc cần sanitize
+
       }));
     }
   }
@@ -625,6 +630,7 @@ xoaFile(type: 'image' | 'doc', index: number) {
             }, 100);
             if(this.selectedRoom){
               this.selectedRoom.latestMessage = res;
+
             }
           },
           error: (err) => {
@@ -1097,7 +1103,7 @@ xoaFile(type: 'image' | 'doc', index: number) {
       messageDate.getMonth() === now.getMonth() &&
       messageDate.getFullYear() === now.getFullYear();
 
-    if (diffSec < 60) return 'just now';
+    if (diffSec < 60) return 'Vừa xong';
     if (diffMin < 60) return `${diffMin} phút trước`;
     if (diffHr < 24) return `${diffHr} giờ trước`;
     if (isYesterday) return 'Hôm qua';

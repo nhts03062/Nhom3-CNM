@@ -7,7 +7,7 @@ import { UserService } from '../../services/user.service';
 import { Userr } from '../../models/user.model';
 import { firstValueFrom, Observable } from 'rxjs';
 import { ChatRoomService } from '../../services/chatRoom.service';
-import { SearchService } from '../../services/serachService.service';
+import { SearchService } from '../../services/searchService.service';
 import { Router } from '@angular/router';
 import { ChatRoom } from '../../models/chatRoom.model';
 import { defaultAvatarUrl, defaulGrouptAvatarUrl } from '../../contants';
