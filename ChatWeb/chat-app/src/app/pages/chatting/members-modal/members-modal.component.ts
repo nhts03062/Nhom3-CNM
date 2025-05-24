@@ -7,7 +7,7 @@ import { Userr } from '../../../models/user.model';
 import { defaulGrouptAvatarUrl, defaultAvatarUrl } from '../../../contants';
 import { ChatRoom } from '../../../models/chatRoom.model';
 import { ChatRoomService } from '../../../services/chatRoom.service';
-import { SearchService } from '../../../services/serachService.service';
+import { SearchService } from '../../../services/searchService.service';
 import { UserService } from '../../../services/user.service';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';

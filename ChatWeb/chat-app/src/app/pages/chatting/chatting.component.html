@@ -181,15 +181,19 @@
               </div>
               <!-- Hiển thị ten chat group -->
               <div
-                class="username mt-4 d-flex flex-row align-items-center text-center"
+                class="username mt-3 d-flex flex-row align-items-center text-center"
+                [ngClass]="{
+                  'override-ml': getId(idNguoiDungHienTai) !== getId(selectedRoom.admin)
+                }"
               >
                 <ng-container *ngIf="!editingName; else editMode">
-                  <p class="name mr-3 mb-0">
+                  <p class="name mr-3 mb-0 fw-bold fs-5">
                     {{ selectedRoom.chatRoomName }}
                   </p>
                   <i
                     class="fa-solid fa-pen ml-2 clickable"
                     (click)="toggleEditName()"
+                    *ngIf="getId(idNguoiDungHienTai) === getId(selectedRoom?.admin)"
                   ></i>
                 </ng-container>
 
@@ -859,7 +863,7 @@
               (emojiSelect)="addEmoji($event)"></emoji-mart>
 
             <!-- Message Input -->
-            <input type="text" class="write-message" [(ngModel)]="messageText" placeholder="Type your message here"
+            <input type="text" class="write-message" [(ngModel)]="messageText" placeholder="Nhập tin nhắn của bạn ở đây"
               (keydown.enter)="createMessage(messageText)" />
 
             <!-- Icon chọn ảnh -->
@@ -869,11 +873,11 @@
 
             <!-- Icon chọn tài liệu -->
             <i class="icon attach fa-solid fa-paperclip clickable" (click)="chonTaiLieu()"></i>
-            <input #fileInput type="file" accept=".pdf,.doc,.docx,.txt,.zip,.rar" multiple
+            <input #fileInput type="file" accept=".pdf,.doc,.docx,.txt,.zip,.rar,.mp4" multiple
               (change)="xuLyFiles($event, 'doc')" style="display: none;" />
 
             <!-- Hiển thị ảnh đã chọn -->
-            <div class="preview-container">
+            <div class="preview-container" [ngStyle]="{ bottom: replyingTo ? '300%' : '120%' }">
               <div *ngFor="let file of imageFiles; let i = index" class="image-wrapper">
                 <img [src]="file.preview" alt="preview" />
                 <div class="file-name">{{ file.file.name }}</div>
@@ -881,26 +885,57 @@
               </div>
             </div>
             <!-- Hiển thị file tài liệu đã chọn -->
-            <div class="preview-container">
+            <div class="preview-container " [ngStyle]="{ bottom: replyingTo ? '300%' : '120%' }">
               <div *ngFor="let file of docFiles; let i = index" class="file-wrapper">
               <ng-container [ngSwitch]="file.file.type">
                 
                 <!-- PDF Preview -->
-                <iframe
-                  *ngSwitchCase="'application/pdf'"
-                  [src]="file.preview"
-                  class="doc-preview"
-                  type="application/pdf">
-                </iframe>
+                <ng-container *ngSwitchCase="'application/pdf'">
+                  <div class="file-wrapper">
+                    <i class="fa-solid fa-file-pdf fa-2x mb-1"></i>
+                    <p class="file-name" [title]="file.name">{{ file.name }}</p>
+                  </div>
+                </ng-container>
 
-                <!-- Word, Excel, ... -->
-                <div *ngSwitchDefault class="file-icon">
-                  📄 {{ file.name }}
+                <!-- Word Preview -->
+                <ng-container *ngSwitchCase="'application/vnd.openxmlformats-officedocument.wordprocessingml.document'">
+                  <div class="file-wrapper">
+                    <i class="fa-solid fa-file-word fa-2x mb-1"></i> <!-- thay đổi icon tùy ý -->
+                    <p class="file-name" [title]="file.name">{{ file.name }}</p>
+                  </div>
+                </ng-container>
+                <!-- PPT Preview -->
+                <ng-container *ngSwitchCase="'application/vnd.openxmlformats-officedocument.presentationml.presentation'">
+                  <div class="file-wrapper">
+                    <i class="fa-solid fa-file-powerpoint fa-2x mb-1"></i> <!-- thay đổi icon tùy ý -->
+                    <p class="file-name" [title]="file.name">{{ file.name }}</p>
+                  </div>
+                </ng-container>
+                <!-- EXCEL Preview -->
+                <ng-container *ngSwitchCase="'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'">
+                  <div class="file-wrapper">
+                    <i class="fa-solid fa-file-excel fa-2x mb-1"></i> <!-- thay đổi icon tùy ý -->
+                    <p class="file-name" [title]="file.name">{{ file.name }}</p>
+                  </div>
+                </ng-container>
+                <!-- Video Preview -->
+                <ng-container *ngSwitchCase="'video/mp4'">
+                  <div class="file-wrapper">
+                    <i class="fa-solid fa-file-video fa-2x mb-1"></i> <!-- thay đổi icon tùy ý -->
+                    <p class="file-name" [title]="file.name">{{ file.name }}</p>
+                  </div>
+                </ng-container>
+
+
+                <!-- các file khác, ... -->
+                <div *ngSwitchDefault class="file-wrapper">
+                  <i class="fa-solid fa-file-lines fa-2x mb-1"></i>
+                  <p class="file-name" [title]="file.name">{{ file.name }}</p>
                 </div>
               </ng-container>
 
               <button class="cancel-file" (click)="xoaFile('doc', i)">❌</button>
-            </div>
+              </div>
             </div>
           </div>
 

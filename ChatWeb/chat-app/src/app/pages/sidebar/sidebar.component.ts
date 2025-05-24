@@ -31,6 +31,18 @@ export class SidebarComponent implements OnInit, OnDestroy {
     ).subscribe((event: any) => {
       this.setActiveIndex(event.urlAfterRedirects);
     });
+     this.userService.getUserById(this.userId).subscribe({
+      next: (res: Userr) => {
+        this.user = res;
+      },
+      error: (err) => {
+        console.error('Failed to load user:', err);
+      }
+    });
+
+      this.userService.user$.subscribe(user => {
+      this.user = user;
+  });
   }
 
   ngOnDestroy() {

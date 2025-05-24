@@ -8,7 +8,8 @@ export class SocketService {
   private socket: Socket;
 
   constructor() {
-    this.socket = io('https://chat.fff3l.click');
+    // this.socket = io('https://chat.fff3l.click');
+    this.socket = io('http://localhost:5000');
 
     this.socket.on('connect', () => {
       console.log('Socket connected successfully!');

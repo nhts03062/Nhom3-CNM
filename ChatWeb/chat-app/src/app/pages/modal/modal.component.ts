@@ -1,4 +1,4 @@
-import {SearchService} from '../../services/serachService.service'
+import {SearchService} from '../../services/searchService.service'
 import { CommonModule } from '@angular/common';
 import { Component, ElementRef, EventEmitter, Input, OnInit, Output, ViewChild } from '@angular/core';
 import { UserService } from '../../services/user.service';
