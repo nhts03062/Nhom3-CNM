@@ -8,8 +8,7 @@ import {
     Image,
     TouchableOpacity,
     ActivityIndicator,
-    Alert,
-    SafeAreaView
+    Alert
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -29,8 +28,20 @@ const AddGroupMembersScreen = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
 
-    // Fetch friends list and mark existing members
+    // Kiểm tra xem người dùng có phải thành viên nhóm không
+    const isMember = chatRoom?.members?.some(
+        member => typeof member === 'object'
+            ? member._id === user._id
+            : member === user._id
+    );
+
+    // Fetch friends list và mark existing members
     useEffect(() => {
+        if (!isMember) {
+            Alert.alert('Lỗi', 'Bạn không phải thành viên nhóm, không thể thêm thành viên.');
+            navigation.goBack();
+            return;
+        }
         fetchFriends();
     }, []);
 
@@ -44,13 +55,11 @@ const AddGroupMembersScreen = () => {
             // Mark friends who are already in the group
             if (chatRoom && chatRoom.members) {
                 const friendsWithStatus = response.data.map(friend => {
-                    // Check if friend is already in the group
                     const isAlreadyMember = chatRoom.members.some(
                         member => typeof member === 'object'
                             ? member._id === friend._id
                             : member === friend._id
                     );
-
                     return {
                         ...friend,
                         isAlreadyMember
@@ -62,14 +71,13 @@ const AddGroupMembersScreen = () => {
             }
         } catch (error) {
             console.error('Error fetching friends:', error);
-            Alert.alert('Lỗi', 'Không thể tải danh sách bạn bè');
+            Alert.alert('Lỗi', 'Không thể tải danh sách bạn bè. Vui lòng thử lại.');
         } finally {
             setLoading(false);
         }
     };
 
     const toggleSelect = (userId) => {
-        // Don't allow selecting users who are already members
         const friend = friends.find(f => f._id === userId);
         if (friend && friend.isAlreadyMember) {
             return;
@@ -86,49 +94,58 @@ const AddGroupMembersScreen = () => {
 
     const handleAddMembers = async () => {
         if (selected.length === 0) {
-            Alert.alert('Thông báo', 'Vui lòng chọn ít nhất 1 thành viên để thêm vào nhóm');
+            Alert.alert('Thông báo', 'Vui lòng chọn ít nhất một thành viên để thêm vào nhóm.');
             return;
         }
 
         try {
             setLoading(true);
 
-            // Get current members IDs
-            const currentMemberIds = chatRoom.members.map(member =>
-                typeof member === 'object' ? member._id : member
-            );
+            // Gửi yêu cầu POST /api/chatroom/invite cho từng userId
+            const failedInvites = [];
+            let updatedChatRoom = null;
 
-            // Combine current members with newly selected members
-            const allMembers = [...new Set([...currentMemberIds, ...selected])];
+            for (const userId of selected) {
+                try {
+                    const response = await axios.post(
+                        `${API_URL}/chatroom/invite`,
+                        { userId, chatRoomId: chatRoom._id },
+                        { headers: { Authorization: token } }
+                    );
+                    updatedChatRoom = response.data;
+                } catch (error) {
+                    const errorMsg = error.response?.data?.msg || 'Không thể thêm thành viên này.';
+                    failedInvites.push({ userId, errorMsg });
+                }
+            }
 
-            // Update the chat room with new members
-            const response = await axios.put(`${API_URL}/chatroom`, {
-                chatRoomId: chatRoom._id,
-                members: allMembers
-            }, {
-                headers: { Authorization: token }
-            });
+            if (failedInvites.length > 0) {
+                const errorMessage = failedInvites.map(invite => {
+                    const friendName = friends.find(f => f._id === invite.userId)?.name || 'thành viên';
+                    return `Không thể thêm ${friendName}: ${invite.errorMsg}`;
+                }).join('\n');
+                Alert.alert('Cảnh báo', errorMessage);
+            }
 
-            if (response.data) {
+            if (updatedChatRoom) {
                 Alert.alert(
                     'Thành công',
-                    'Đã thêm thành viên vào nhóm',
+                    `Đã thêm ${selected.length - failedInvites.length} thành viên vào nhóm.`,
                     [
                         {
                             text: 'OK',
                             onPress: () => {
-                                // Cập nhật thông tin về GroupOptionsScreen
                                 navigation.navigate({
                                     name: 'GroupOptionsScreen',
-                                    params: {
-                                        updatedChatRoom: response.data
-                                    },
+                                    params: { updatedChatRoom },
                                     merge: true
                                 });
                             }
                         }
                     ]
                 );
+            } else if (failedInvites.length === selected.length) {
+                Alert.alert('Lỗi', 'Không thể thêm bất kỳ thành viên nào vào nhóm.');
             }
         } catch (error) {
             console.error('Error adding members:', error);

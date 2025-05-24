@@ -187,7 +187,7 @@ chatRoomController.getOneChatRoomById = async (req, res) => {
   try {
     const { chatRoomId } = req.params;
     const chatRoom = await ChatRoom.findById(chatRoomId)
-      .populate("members", "name email")
+      .populate("members", "name email avatarUrl")
       .exec();
 
     if (!chatRoom) {
@@ -224,6 +224,24 @@ chatRoomController.inviteToGroupChat = async (req, res) => {
     } else {
       return res.status(400).json({ msg: "Người dùng đã có trong phòng chat" });
     }
+  } catch (err) {
+    console.log("Lỗi mời vào phòng chat", err);
+    res.status(500).json({ msg: "Lỗi mời vào phòng chat" });
+  }
+};
+
+//Mời nhiều người vào phòng chat
+chatRoomController.inviteMultipleToGroupChat = async (req, res) => {
+  try {
+    const { userIds, chatRoomId } = req.body; //userIds của những người cần mời vào
+    const chatRoom = await ChatRoom.findById(chatRoomId);
+    if (!chatRoom) {
+      return res.status(404).json({ msg: "Không tìm thấy phòng chat" });
+    }
+    const newMembers = userIds.filter(userId => !chatRoom.members.includes(userId));
+    chatRoom.members.push(...newMembers);
+    const chatRoomSave = await chatRoom.save();
+    return res.status(200).json(chatRoomSave);
   } catch (err) {
     console.log("Lỗi mời vào phòng chat", err);
     res.status(500).json({ msg: "Lỗi mời vào phòng chat" });

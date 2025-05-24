@@ -1,2 +1,5 @@
 ".env" 
 "node_modules"
+.expo/
+backend/.env
+tsconfig.json

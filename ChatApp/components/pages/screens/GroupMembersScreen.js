@@ -28,23 +28,48 @@ const GroupMembersScreen = () => {
     const chatRoom = route.params?.chatRoom;
 
     // Check if the current user is the group leader
-    const isGroupLeader = chatRoom.admin && chatRoom.admin.toString() === user._id.toString();
+    const isGroupLeader = chatRoom?.admin?._id === user._id || chatRoom?.admin === user._id;
 
+    // Fetch chat room details to ensure populated members and admin
     useEffect(() => {
-        if (route.params?.members) {
-            setMembers(route.params.members);
+        if (!chatRoom?._id) {
+            Alert.alert('Lỗi', 'Dữ liệu nhóm không hợp lệ.');
+            navigation.goBack();
+            return;
         }
-    }, [route.params?.members]);
+
+        const fetchChatRoom = async () => {
+            try {
+                setLoading(true);
+                const response = await axios.get(`${API_URL}/chatroom/${chatRoom._id}`, {
+                    headers: { Authorization: token }
+                });
+                const fetchedChatRoom = response.data;
+                if (fetchedChatRoom?.members) {
+                    // Ensure members have required fields
+                    const validMembers = fetchedChatRoom.members.filter(
+                        member => member?._id && member.name
+                    );
+                    setMembers(validMembers);
+                }
+            } catch (error) {
+                console.error('Error fetching chat room:', error);
+                Alert.alert('Lỗi', 'Không thể tải thông tin nhóm. Vui lòng thử lại.');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchChatRoom();
+    }, [chatRoom?._id, token]);
 
     const handleLongPress = (member) => {
-        // Prevent any action if the user is not the group leader
         if (!isGroupLeader) {
             return;
         }
 
-        // Don't allow removing yourself
         if (member._id === user._id) {
-            Alert.alert('Thông báo', 'Bạn không thể xóa chính mình khỏi nhóm');
+            Alert.alert('Thông báo', 'Bạn không thể thực hiện hành động này với chính mình');
             return;
         }
 
@@ -66,6 +91,8 @@ const GroupMembersScreen = () => {
             const response = await axios.put(`${API_URL}/chatroom`, {
                 chatRoomId: chatRoom._id,
                 members: updatedMemberIds
+            }, {
+                headers: { Authorization: token }
             });
 
             if (response.data) {
@@ -95,8 +122,71 @@ const GroupMembersScreen = () => {
         }
     };
 
+    const handlePromoteToAdmin = async () => {
+        if (!selectedMember || !chatRoom) return;
+
+        Alert.alert(
+            'Bổ nhiệm trưởng nhóm',
+            `Bạn có chắc muốn bổ nhiệm ${selectedMember.name} làm trưởng nhóm mới? Bạn sẽ không còn là trưởng nhóm nữa.`,
+            [
+                { text: 'Hủy', style: 'cancel' },
+                {
+                    text: 'Bổ nhiệm',
+                    style: 'default',
+                    onPress: async () => {
+                        try {
+                            setLoading(true);
+                            setShowOptions(false);
+
+                            const response = await axios.put(`${API_URL}/chatroom`, {
+                                chatRoomId: chatRoom._id,
+                                chatRoomName: chatRoom.chatRoomName,
+                                members: members.map(member => member._id),
+                                image: chatRoom.image,
+                                newAdminId: selectedMember._id
+                            }, {
+                                headers: { Authorization: token }
+                            });
+
+                            if (response.data) {
+                                const updatedChatRoom = response.data;
+
+                                // Update local members state to reflect admin change
+                                setMembers(prevMembers =>
+                                    prevMembers.map(member => ({
+                                        ...member,
+                                        isAdmin: member._id === selectedMember._id
+                                    }))
+                                );
+
+                                navigation.navigate({
+                                    name: 'GroupOptionsScreen',
+                                    params: {
+                                        updatedChatRoom: updatedChatRoom
+                                    },
+                                    merge: true
+                                });
+
+                                Alert.alert(
+                                    'Thành công',
+                                    `${selectedMember.name} đã được bổ nhiệm làm trưởng nhóm mới.`
+                                );
+                            }
+                        } catch (error) {
+                            console.error('Error promoting member to admin:', error);
+                            Alert.alert('Lỗi', 'Không thể bổ nhiệm trưởng nhóm. Vui lòng thử lại sau.');
+                        } finally {
+                            setLoading(false);
+                            setSelectedMember(null);
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
     const renderMember = ({ item }) => {
-        const isGroupCreator = chatRoom.admin && chatRoom.admin.toString() === item._id.toString();
+        const isGroupCreator = chatRoom?.admin?._id === item._id || chatRoom?.admin === item._id;
 
         return (
             <TouchableOpacity
@@ -106,8 +196,13 @@ const GroupMembersScreen = () => {
             >
                 <View style={styles.avatarContainer}>
                     <Image
-                        source={{ uri: item.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.name)}&background=0999fa&color=fff` }}
+                        source={{
+                            uri: item.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.name || 'Unknown')}&background=0999fa&color=fff`
+                        }}
                         style={styles.avatar}
+                        onError={() => {
+                            console.warn(`Failed to load avatar for ${item.name}`);
+                        }}
                     />
                     {isGroupCreator && (
                         <Ionicons
@@ -120,14 +215,13 @@ const GroupMembersScreen = () => {
                 </View>
                 <View style={{ marginLeft: 10, flex: 1 }}>
                     <Text style={styles.name}>
-                        {item.name} {item._id === user._id ? '(Bạn)' : ''}
+                        {item.name || 'Unknown'} {item._id === user._id ? '(Bạn)' : ''}
                     </Text>
                     {isGroupCreator && (
                         <Text style={styles.groupCreatorLabel}>Trưởng nhóm</Text>
                     )}
                     {item.email && <Text style={styles.email}>{item.email}</Text>}
                 </View>
-                {/* Only show the "more" button for the group leader and for members other than the current user */}
                 {isGroupLeader && item._id !== user._id && (
                     <TouchableOpacity
                         style={styles.moreButton}
@@ -154,8 +248,18 @@ const GroupMembersScreen = () => {
             >
                 <View style={styles.optionsContainer}>
                     <Text style={styles.optionsTitle}>
-                        {selectedMember?.name}
+                        {selectedMember?.name || 'Thành viên'}
                     </Text>
+
+                    <TouchableOpacity
+                        style={styles.optionButton}
+                        onPress={handlePromoteToAdmin}
+                    >
+                        <Ionicons name="key" size={22} color="#4CAF50" />
+                        <Text style={styles.promoteText}>Bổ nhiệm làm trưởng nhóm</Text>
+                    </TouchableOpacity>
+
+                    <View style={styles.optionSeparator} />
 
                     <TouchableOpacity
                         style={styles.optionButton}
@@ -193,7 +297,7 @@ const GroupMembersScreen = () => {
 
             <FlatList
                 data={members}
-                keyExtractor={(item) => item._id}
+                keyExtractor={(item) => item._id?.toString() || Math.random().toString()}
                 renderItem={renderMember}
                 ListEmptyComponent={
                     <View style={styles.emptyContainer}>
@@ -305,10 +409,20 @@ const styles = StyleSheet.create({
         paddingVertical: 14,
         paddingHorizontal: 16,
     },
+    promoteText: {
+        marginLeft: 12,
+        fontSize: 16,
+        color: '#4CAF50',
+    },
     removeText: {
         marginLeft: 12,
         fontSize: 16,
         color: '#f44336',
+    },
+    optionSeparator: {
+        height: 1,
+        backgroundColor: '#eee',
+        marginHorizontal: 16,
     },
     cancelButton: {
         padding: 14,
