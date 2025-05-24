@@ -212,9 +212,11 @@ const ChatRoomListScreen = () => {
         }
     };
 
-    useEffect(() => {
-        fetchChatRooms();
-    }, []);
+    useFocusEffect(
+        React.useCallback(() => {
+            fetchChatRooms();
+        }, [])
+    );
 
     useFocusEffect(
         React.useCallback(() => {
@@ -319,7 +321,9 @@ const ChatRoomListScreen = () => {
         }
 
         const { content, sendID } = chatRoom.latestMessage;
-        const isOwnMessage = sendID?._id === user._id;
+        const isOwnMessage =
+            (typeof sendID === 'object' && sendID._id === user._id) ||
+            (typeof sendID === 'string' && sendID === user._id);
         const prefix = isOwnMessage ? 'Bạn: ' : '';
 
         if (content?.type === 'text') {
@@ -334,27 +338,35 @@ const ChatRoomListScreen = () => {
         return `${prefix}${typeMap[content?.type] || 'Tin nhắn mới'}`;
     };
 
+
     const formatMessageTime = (timestamp) => {
         if (!timestamp) return '';
 
+        const now = new Date();
         const messageDate = new Date(timestamp);
-        const today = new Date();
+        const diffMs = now - messageDate;
+        const diffSeconds = Math.floor(diffMs / 1000);
+        const diffMinutes = Math.floor(diffSeconds / 60);
+        const diffHours = Math.floor(diffMinutes / 60);
 
-        if (messageDate.toDateString() === today.toDateString()) {
-            return messageDate.toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit',
-            });
+        if (diffSeconds < 60) {
+            // Dưới 1 phút
+            return `${diffSeconds > 0 ? diffSeconds : 1} giây`;
+        } else if (diffMinutes < 60) {
+            // Dưới 1 giờ
+            return `${diffMinutes} phút`;
+        } else if (diffHours < 24) {
+            // Dưới 24 giờ
+            return `${diffHours} giờ`;
+        } else {
+            // Quá 24 giờ -> Hiển thị ngày/tháng/năm
+            const day = messageDate.getDate().toString().padStart(2, '0');
+            const month = (messageDate.getMonth() + 1).toString().padStart(2, '0');
+            const year = messageDate.getFullYear();
+            return `${day}/${month}/${year}`;
         }
-
-        const diffDays = Math.floor((today - messageDate) / (1000 * 60 * 60 * 24));
-        if (diffDays < 7) {
-            const weekdays = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
-            return weekdays[messageDate.getDay()];
-        }
-
-        return `${messageDate.getDate()}/${messageDate.getMonth() + 1}`;
     };
+
 
     const handleLogout = async () => {
         Alert.alert(

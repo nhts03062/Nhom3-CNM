@@ -6,10 +6,10 @@ import { Observable } from 'rxjs';
   providedIn: 'root'
 })
 export class SearchService {
-  private apiUrl = 'http://localhost:5000/api/search';
-  
+  private apiUrl = 'https://chat.fff3l.click/api/search';
 
-  constructor(private http: HttpClient) {}
+
+  constructor(private http: HttpClient) { }
 
   getHeaders(): HttpHeaders {
     const token = sessionStorage.getItem('token');
