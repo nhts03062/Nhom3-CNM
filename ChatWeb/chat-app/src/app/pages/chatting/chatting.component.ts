@@ -70,6 +70,17 @@ export class ChattingComponent implements OnInit {
   usersList: Userr[] = [];
   showMembers: boolean = false;
 
+  selectedHighlightMessageId: string | null = null;
+  onClickSearchedMessage(msg: Messagee) {
+  this.selectedHighlightMessageId = msg._id;
+  this.searchTerm = ''; // ẩn dropdown tìm kiếm
+
+  // Cuộn đến message, delay 1 chút để DOM cập nhật
+  setTimeout(() => {
+    this.scrollToMessage();
+  }, 100);
+}
+
   constructor(
     private http: HttpClient,
     private socketService: SocketService,
@@ -1051,6 +1062,45 @@ xoaFile(type: 'image' | 'doc', index: number) {
     });
   }
 
+  get filteredMessages(): Messagee[] {
+  const term = this.searchTerm?.trim().toLowerCase();
+  if (!term || !Array.isArray(this.messagees)) return [];
+
+  return this.messagees.filter(
+    (msg) => msg.content?.type === 'text' && msg.content.text?.toLowerCase().includes(term)
+  );
+}
+
+goToMessage(msg: Messagee): void {
+  const el = document.getElementById('msg-' + msg._id);
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.add('highlighted-message');
+
+    // Xóa class sau 2 giây
+    setTimeout(() => el.classList.remove('highlighted-message'), 2000);
+  }
+}
+
+searchedMembers(room: ChatRoom): Userr[] {
+  const members = this.filteredMembers(room); // giữ nguyên xử lý của bạn
+  return members.filter(member =>
+    member.name.toLowerCase().includes(this.searchTermMember.toLowerCase())
+  );
+}
+
+scrollToMessage() {
+  if (this.selectedHighlightMessageId) {
+    const el = document.getElementById('msg-' + this.selectedHighlightMessageId);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
+}
+
+
+//...
+
   getUserFromChats(chatRoomId: string): Userr[] {
     const chatRoom = this.chatRooms.find(room => room._id === chatRoomId);
 
@@ -1062,6 +1112,7 @@ xoaFile(type: 'image' | 'doc', index: number) {
         !!user && user.name.toLowerCase().includes(this.searchTerm.toLowerCase())
       );
   }
+  
 
   getUserFromId(userId: string): Userr | undefined {
     return this.nguoiDung.find(user => user._id === userId);
