@@ -65,8 +65,10 @@ messageController.create = async(req,res) =>{
 
             return MessageUtil.saveMessageAndReturn(chatId,userId,contentMedia,req,res)
         }
+    }else{
+        return MessageUtil.saveMessageAndReturn(chatId,userId,content,req,res)
     }
-     return MessageUtil.saveMessageAndReturn(chatId,userId,content,req,res)
+     
 
 }catch(err){
     console.log(err)
@@ -148,48 +150,78 @@ messageController.recall = async(req,res) =>{
 }
 
 //Trả lời tin nhắn: 
-messageController.replyTo = async(req,res) =>{
-    try{
-        //id message cần trả lời
-        const {_id,  content} = req.body
-        const userCreatChatId = req.user._id 
-        if( !_id ){
-            return res.status(400).json({msg: 'Thiếu id của message cần trả lời'})
-        }
-        const messageBeenReply = await Message.findById(_id)
-        if(!messageBeenReply){
-            return res.status(400).json({msg: 'Không tìm thấy tin nhắn với id: ', _id})
-        }
-        const messageReplyTo = new Message ({
-            chatId : messageBeenReply.chatId,
-            sendID:userCreatChatId,
-            replyToMessage: _id,
-            content
-        })
-        await messageReplyTo.save(); 
+messageController.replyTo = async (req, res) => {
+  try {
+    let { _id, content } = req.body;
+    const userCreatChatId = req.user._id;
+    console.log('id la', _id);
+    console.log('content la', content);
 
-        const populatedMessage = 
-        await Message.findById(messageReplyTo._id).
-        populate({
-            path: 'chatId',
-            populate: {path: 'members',select: 'name email avatarUrl' }
-        }).
-        populate('sendID', 'name email avatarUrl'). //Tham số thứ 2 chọn trường muốn poppulate
-        populate({
-            path: 'replyToMessage',
-            select: 'content sendID createdAt',
-            populate: {path: 'sendID', select: 'name email avatarUrl'}
-        })
-
-     
-        res.status(200).json(populatedMessage)
-
-
-    }catch(err){
-        console.log('Lỗi trả lời tin nhắn',err)
-        return res.status(500).json({msg: 'Lỗi trả lời tin nhắn'})
+    if (!_id) {
+      return res.status(400).json({ msg: 'Thiếu id của message cần trả lời' });
     }
-}
+
+    const messageBeenReply = await Message.findById(_id);
+    if (!messageBeenReply) {
+      return res.status(400).json({ msg: `Không tìm thấy tin nhắn với id: ${_id}` });
+    }
+
+    // Parse content nếu là string
+    if (typeof content === 'string') {
+      try {
+        content = JSON.parse(content);
+      } catch (err) {
+        return res.status(400).json({ msg: 'Content không hợp lệ (parse lỗi)' });
+      }
+    }
+
+    // Chuẩn bị contentData
+    const contentData = {
+      type: content.type,
+      text: content.text || '',
+    };
+
+    // Nếu là file hoặc media => upload lên
+    if (content.type === 'file') {
+      contentData.files = await Promise.all(
+        (req.files?.file || []).map(file => uploadFile(file))
+      );
+    } else if (content.type === 'media') {
+      contentData.media = await Promise.all(
+        (req.files?.media || []).map(media => uploadFile(media))
+      );
+    }
+
+    // Tạo message mới trả lời
+    const messageReplyTo = new Message({
+      chatId: messageBeenReply.chatId,
+      sendID: userCreatChatId,
+      replyToMessage: _id,
+      content: contentData
+    });
+
+    await messageReplyTo.save();
+
+    // Populate message trước khi trả về
+    const populatedMessage = await Message.findById(messageReplyTo._id)
+      .populate({
+        path: 'chatId',
+        populate: { path: 'members', select: 'name email avatarUrl' }
+      })
+      .populate('sendID', 'name email avatarUrl')
+      .populate({
+        path: 'replyToMessage',
+        select: 'content sendID createdAt',
+        populate: { path: 'sendID', select: 'name email avatarUrl' }
+      });
+
+    return res.status(200).json(populatedMessage);
+  } catch (err) {
+    console.error('Lỗi trả lời tin nhắn:', err);
+    return res.status(500).json({ msg: 'Lỗi trả lời tin nhắn' });
+  }
+};
+
 
 
 

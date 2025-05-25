@@ -13,8 +13,8 @@ searchController.getUserByEmailPhoneNumberEmail = async (req, res) => {
     const {searchTerm} = req.body
     const users = await User.find({
       $or: [
-          { username: { $regex: searchTerm, $options: 'i' } },
-          { phoneNumber: { $regex: searchTerm, $options: 'i' } },
+          { name: { $regex: searchTerm, $options: 'i' } },
+          { phone: { $regex: searchTerm, $options: 'i' } },
           { email: { $regex: searchTerm, $options: 'i' } },
       ],
   });
