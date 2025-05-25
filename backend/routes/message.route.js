@@ -60,6 +60,6 @@ router.post('/recall/:code',authMiddelware, MessageController.recall)
 //token được gửi từ sau khi đăng nhập để trong phần header header: {Authorization: <token>
 //Server sẽ emit socket new-message đến các thành viên trong phòng (trừ người gửi).
 //Người gửi nhận về tin nhắn trả lời qua api
-router.post('/reply/',authMiddelware, MessageController.replyTo)
+router.post('/reply/',authMiddelware,uploadFileOrMedia, MessageController.replyTo)
 
 module.exports = router
