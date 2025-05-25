@@ -4,7 +4,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ModalProfileComponent } from '../profile/modal-profile/modal-profile.component';
 import { UserService } from '../../services/user.service';
-import { Userr } from '../../models/user.model';
+import { User } from '../../models/user.model';
 import { firstValueFrom, Observable } from 'rxjs';
 import { ChatRoomService } from '../../services/chatRoom.service';
 import { SearchService } from '../../services/searchService.service';
@@ -23,7 +23,7 @@ import { SocketService } from '../../socket.service';
 })
 
 export class ContactsComponent implements OnInit {
-  users: Userr[] = [];
+  users: User[] = [];
   showModal = false;
   showProfileModal = false;
   selectedTab: number = 0;
@@ -32,17 +32,17 @@ export class ContactsComponent implements OnInit {
   tabTitles: string[] = ['Danh sách bạn bè', 'Danh sách nhóm', 'Lời mời'];
   searchTerm: string = '';
   searchTermGroup: string = '';
-  friendsList: Userr[] = [];
+  friendsList: User[] = [];
   groupsList: ChatRoom[] = [];
-  user: Userr | undefined;
-  userMap: { [id: string]: Userr } = {};
-  currentUser: Userr | undefined;
-  foundUser: Userr | undefined;
-  friendRequests: Userr[] = [];
-  sentRequests: Userr[] = [];
+  user: User | undefined;
+  userMap: { [id: string]: User } = {};
+  currentUser: User | undefined;
+  foundUser: User | undefined;
+  friendRequests: User[] = [];
+  sentRequests: User[] = [];
   idNguoiDungHienTai: string | null = sessionStorage.getItem('userId');
   ban: string = 'ban';
-  // sentRequests: Userr[] = [];
+  // sentRequests: User[] = [];
 
 
   constructor(private userService: UserService,
@@ -103,10 +103,11 @@ export class ContactsComponent implements OnInit {
   }
 
 
-  selectedFriend: Userr | undefined;;
+  selectedFriend: User | undefined;;
 
   selectFriend(friend: any): void {
     this.selectedFriend = friend;
+    console.log("🚀 ~ ContactsComponent ~ selectFriend ~ this.selectedFriend:", this.selectedFriend)
     if (this.selectedFriend) {
       this.toggleProfileModal(); // Show the modal
     }
@@ -120,9 +121,9 @@ export class ContactsComponent implements OnInit {
       this.userService.getUserById(userId).subscribe({
         next: (user) => {
           this.currentUser = user;
+          this.friendRequests = this.currentUser.friendRequestsReceived;
+          this.sentRequests = this.currentUser?.requestfriends;
           console.log("Current User:", this.currentUser);
-          this.getFriendRequestsList();
-          // this.getSentRequestsList();
         },
         error: (err) => console.error("Failed to load user:", err)
       });
@@ -133,7 +134,7 @@ export class ContactsComponent implements OnInit {
     console.log("🔄 Starting to load friends...");
 
     this.userService.getFriends().subscribe({
-      next: (friends: Userr[]) => {
+      next: (friends: User[]) => {
         console.log("📥 Friends loaded:", friends);
         this.friendsList = friends; // Store the list of friends directly
       },
@@ -160,7 +161,7 @@ export class ContactsComponent implements OnInit {
 
     /**----------start--------------Xử lý thêm---------------------*/
 
-  get filteredFriends(): Userr[] {
+  get filteredFriends(): User[] {
     return this.friendsList.filter(friend =>
       friend.name.toLowerCase().includes(this.searchTerm.toLowerCase())
     );
@@ -180,27 +181,6 @@ export class ContactsComponent implements OnInit {
    /**------------------------Xử lý thêm-----------end----------*/
 
   /**-----start-------Phần yêu cầu kết bạn -----------------*/
-
-  getFriendRequestsList() {
-    this.friendRequests = [];
-    this.currentUser?.friendRequestsReceived.forEach(userId => {
-      this.userService.getUserById(userId).subscribe({
-        next: (user) => {
-          this.friendRequests.push(user);
-        },
-        error: (err) => console.error('Failed to load friend request user:', err)
-      });
-    });
-    this.sentRequests = [];
-    this.currentUser?.requestfriends.forEach(userId => {
-      this.userService.getUserById(userId).subscribe({
-        next: (user) => {
-          this.sentRequests.push(user);
-        },
-        error: (err) => console.error('Failed to load sent request:', err)
-      });
-    });
-  }
 
   async requestResponse(code: string, userId: string): Promise<void> {
     try {
@@ -253,7 +233,7 @@ export class ContactsComponent implements OnInit {
 
   unFriend(friendId: string): void {
     this.userService.unFriendRequest(friendId).subscribe({
-      next: (res: Userr) => {
+      next: (res: User) => {
         this.friendsList = this.friendsList.filter(friend => friend._id !== friendId);
         this.socketService.huyBanBe(friendId);
         console.log('Đã gửi sk socket hủy bạn')

@@ -1,11 +1,19 @@
-import {SearchService} from '../../services/searchService.service'
+import { SearchService } from '../../services/searchService.service';
 import { CommonModule } from '@angular/common';
-import { Component, ElementRef, EventEmitter, Input, OnInit, Output, ViewChild } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  EventEmitter,
+  Input,
+  OnInit,
+  Output,
+  ViewChild,
+} from '@angular/core';
 import { UserService } from '../../services/user.service';
 import { FormsModule } from '@angular/forms';
 import { forkJoin, map, Observable, filter } from 'rxjs';
 import { ModalProfileComponent } from '../profile/modal-profile/modal-profile.component';
-import { Userr } from '../../models/user.model';
+import { User } from '../../models/user.model';
 import { ChatRoomService } from '../../services/chatRoom.service';
 import { Router } from '@angular/router';
 import { SocketService } from '../../socket.service';
@@ -13,30 +21,32 @@ import { SocketService } from '../../socket.service';
 @Component({
   selector: 'app-modal',
   standalone: true,
-  imports: [CommonModule,FormsModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './modal.component.html',
-  styleUrls: ['./modal.component.css']
+  styleUrls: ['./modal.component.css'],
 })
 export class ModalComponent implements OnInit {
-
   @Input() isOpen = false;
   @Input() title = '';
-  @Input() userIdNguoiDungHienTai: string | null = sessionStorage.getItem('userId');
+  @Input() userIdNguoiDungHienTai: string | null =
+    sessionStorage.getItem('userId');
   @Output() closeModal = new EventEmitter<void>();
   @ViewChild('imageInput') imageInput!: ElementRef<HTMLInputElement>;
   // selectedEmail: string | null = null;
   showProfileModal: boolean = false;
-  users!:Userr[];
-  defaultAvatarUrl = 'https://i1.rgstatic.net/ii/profile.image/1039614412341248-1624874799001_Q512/Meryem-Laval.jpg';
-  defaulGrouptAvatarUrl= 'https://static.vecteezy.com/system/resources/previews/026/019/617/original/group-profile-avatar-icon-default-social-media-forum-profile-photo-vector.jpg';
-  user: Userr | undefined;
+  users!: User[];
+  defaultAvatarUrl =
+    'https://i1.rgstatic.net/ii/profile.image/1039614412341248-1624874799001_Q512/Meryem-Laval.jpg';
+  defaulGrouptAvatarUrl =
+    'https://static.vecteezy.com/system/resources/previews/026/019/617/original/group-profile-avatar-icon-default-social-media-forum-profile-photo-vector.jpg';
+  user: User | undefined;
   trangThaiKetBan: string | undefined;
 
   // tab của kết bạn
   searchError: string | null = null;
   danhSachNguoiDungSauKhiTimKiem: any[] = [];
   isSearching = false;
-  userNguoiDungHienTai: Userr | null = null;
+  userNguoiDungHienTai: User | null = null;
 
   activeTab: 'friend' | 'group' = 'friend';
   searchTerm: string = '';
@@ -44,16 +54,17 @@ export class ModalComponent implements OnInit {
   //tab group
   groupName = '';
   errorGroup = '';
-  groupImg='';
+  groupImg = '';
 
-  constructor(private userService : UserService,
+  constructor(
+    private userService: UserService,
     private chatRoomService: ChatRoomService,
-  private SearchService: SearchService,
+    private SearchService: SearchService,
     private router: Router,
-  private socketService: SocketService){}
+    private socketService: SocketService
+  ) {}
 
   ngOnInit(): void {
-
     this.loadFriends();
 
     const userId = sessionStorage.getItem('userId');
@@ -62,79 +73,98 @@ export class ModalComponent implements OnInit {
       this.socketService.joinRoom(userId);
     }
 
-    if(this.danhSachNguoiDungSauKhiTimKiem){
+    if (this.danhSachNguoiDungSauKhiTimKiem) {
       //sk socket thêm bạn
-      this.socketService.nhanskThemBan((data: any) =>{
-        console.log('đã nhận sự kiện thêm bạn', data)
-        this.danhSachNguoiDungSauKhiTimKiem = this.danhSachNguoiDungSauKhiTimKiem.map((user: any) =>{
-          if(user._id.toString() === data._id.toString()){
-            return{ 
-              ...user,
-              requestfriends: [...user.requestfriends, this.userIdNguoiDungHienTai]
-            }
-          }
-          return user;
-      })})
-      //sk socket huy ket ban
-      this.socketService.nhanskHuyKetBan((data:any) =>{
-        console.log('Đã nhận sự kiện hủy kết bạn', data)
-        this.danhSachNguoiDungSauKhiTimKiem = this.danhSachNguoiDungSauKhiTimKiem.map((user: any) =>{
-          if(user._id.toString() === data.toString()){
-            return{ 
-              ...user,
-              requestfriends: user.requestfriends.filter((friendId: string) => friendId !== this.userIdNguoiDungHienTai)
-            }
-          }
-          return user;
-        })})
-          //sk socket dong y ket ban
-      this.socketService.nhanskDongYKetBan((data:any) =>{
-        console.log('Đã nhận sự kiện đồng ý kết bạn', data)
-          this.danhSachNguoiDungSauKhiTimKiem = this.danhSachNguoiDungSauKhiTimKiem.map((user: any) =>{
-            if(user._id.toString() === data._id.toString()){
-              return{ 
+      this.socketService.nhanskThemBan((data: any) => {
+        console.log('đã nhận sự kiện thêm bạn', data);
+        this.danhSachNguoiDungSauKhiTimKiem =
+          this.danhSachNguoiDungSauKhiTimKiem.map((user: any) => {
+            if (user._id.toString() === data._id.toString()) {
+              return {
                 ...user,
-                requestfriends: user.requestfriends.filter((friendId: string) => friendId !== this.userIdNguoiDungHienTai),
-                friends: [...user.friends, this.userIdNguoiDungHienTai]
-              }
+                requestfriends: [
+                  ...user.requestfriends,
+                  this.userIdNguoiDungHienTai,
+                ],
+              };
             }
             return user;
-          })
-          this.friendsList.push(data)
-        })
-          //sk tu choi ket ban
-        this.socketService.nhanskTuChoiKetBan((data:any) =>{
-          console.log('Đã nhận sự kiện từ chối kết bạn', data)
-            this.danhSachNguoiDungSauKhiTimKiem = this.danhSachNguoiDungSauKhiTimKiem.map((user: any) =>{
-              console.log('Danh sach truoc',user.requestfriends.length)
-              if(user._id.toString() === data.toString()){
-                return{ 
-                  ...user,
-                  friendRequestsReceived: user.friendRequestsReceived.filter((friendId: string) => friendId.toString() !== this.userIdNguoiDungHienTai?.toString())
-                }
-              }
-              console.log('Danh sach sau',user.requestfriends.length)
-              return user;
-              
-            })
-          })
-            //sự kiện hủy bạn bè
-        this.socketService.nhanskHuyBanBe((data:any) =>{
-          console.log('Đã nhận sự kiện hủy bạn bè', data)
-            this.danhSachNguoiDungSauKhiTimKiem = this.danhSachNguoiDungSauKhiTimKiem.map((user: any) =>{
-              if(user._id.toString() === data.toString()){
-                return{ 
-                  ...user,
-                  friends: user.friends.filter((friendId: string) => friendId !== this.userIdNguoiDungHienTai)
-                }
-              }
-              return user;
-            })
-            this.friendsList = this.friendsList.filter((friend: any) => friend._id.toString() !== data.toString())
-          })
+          });
+      });
+      //sk socket huy ket ban
+      this.socketService.nhanskHuyKetBan((data: any) => {
+        console.log('Đã nhận sự kiện hủy kết bạn', data);
+        this.danhSachNguoiDungSauKhiTimKiem =
+          this.danhSachNguoiDungSauKhiTimKiem.map((user: any) => {
+            if (user._id.toString() === data.toString()) {
+              return {
+                ...user,
+                requestfriends: user.requestfriends.filter(
+                  (friendId: string) => friendId !== this.userIdNguoiDungHienTai
+                ),
+              };
+            }
+            return user;
+          });
+      });
+      //sk socket dong y ket ban
+      this.socketService.nhanskDongYKetBan((data: any) => {
+        console.log('Đã nhận sự kiện đồng ý kết bạn', data);
+        this.danhSachNguoiDungSauKhiTimKiem =
+          this.danhSachNguoiDungSauKhiTimKiem.map((user: any) => {
+            if (user._id.toString() === data._id.toString()) {
+              return {
+                ...user,
+                requestfriends: user.requestfriends.filter(
+                  (friendId: string) => friendId !== this.userIdNguoiDungHienTai
+                ),
+                friends: [...user.friends, this.userIdNguoiDungHienTai],
+              };
+            }
+            return user;
+          });
+        this.friendsList.push(data);
+      });
+      //sk tu choi ket ban
+      this.socketService.nhanskTuChoiKetBan((data: any) => {
+        console.log('Đã nhận sự kiện từ chối kết bạn', data);
+        this.danhSachNguoiDungSauKhiTimKiem =
+          this.danhSachNguoiDungSauKhiTimKiem.map((user: any) => {
+            console.log('Danh sach truoc', user.requestfriends.length);
+            if (user._id.toString() === data.toString()) {
+              return {
+                ...user,
+                friendRequestsReceived: user.friendRequestsReceived.filter(
+                  (friendId: string) =>
+                    friendId.toString() !==
+                    this.userIdNguoiDungHienTai?.toString()
+                ),
+              };
+            }
+            console.log('Danh sach sau', user.requestfriends.length);
+            return user;
+          });
+      });
+      //sự kiện hủy bạn bè
+      this.socketService.nhanskHuyBanBe((data: any) => {
+        console.log('Đã nhận sự kiện hủy bạn bè', data);
+        this.danhSachNguoiDungSauKhiTimKiem =
+          this.danhSachNguoiDungSauKhiTimKiem.map((user: any) => {
+            if (user._id.toString() === data.toString()) {
+              return {
+                ...user,
+                friends: user.friends.filter(
+                  (friendId: string) => friendId !== this.userIdNguoiDungHienTai
+                ),
+              };
+            }
+            return user;
+          });
+        this.friendsList = this.friendsList.filter(
+          (friend: any) => friend._id.toString() !== data.toString()
+        );
+      });
     }
-
-
   }
 
   ngOnDestroy(): void {
@@ -147,9 +177,9 @@ export class ModalComponent implements OnInit {
 
   close() {
     this.closeModal.emit();
-    this.searchTerm='';
+    this.searchTerm = '';
     this.danhSachNguoiDungSauKhiTimKiem = [];
-    this.searchError= ''; 
+    this.searchError = '';
     this.errorGroup = '';
     this.selectedFriends = [];
     this.groupName = '';
@@ -157,198 +187,219 @@ export class ModalComponent implements OnInit {
 
   setTab(tab: 'friend' | 'group') {
     this.activeTab = tab;
-    this.searchTerm = ''
+    this.searchTerm = '';
   }
   toggleProfileModal() {
     this.showProfileModal = !this.showProfileModal;
   }
 
-  selectedUser: Userr | undefined;;
+  selectedUser: User | undefined;
 
-  selectUser(user: Userr): void {
+  selectUser(user: User): void {
     this.selectedUser = user;
     if (this.selectedUser) {
-      this.trangThaiKetBan = this.kiemTraBanHayDaGuiYeuCauKetBan(this.selectedUser);
+      this.trangThaiKetBan = this.kiemTraBanHayDaGuiYeuCauKetBan(
+        this.selectedUser
+      );
       this.toggleProfileModal(); // Show the modal
     }
   }
-  
-onImageSelected(event: any): void {
+
+  onImageSelected(event: any): void {
     const file = event.target.files[0];
     if (file) {
       const img = new Image();
       const reader = new FileReader();
-  
+
       reader.onload = (e: any) => {
         img.src = e.target.result;
-  
+
         img.onload = () => {
           const size = 200; // desired size for avatar
           const canvas = document.createElement('canvas');
           const ctx = canvas.getContext('2d');
           if (!ctx) return;
-  
+
           canvas.width = size;
           canvas.height = size;
-  
+
           // Draw circle mask
           ctx.beginPath();
           ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
           ctx.closePath();
           ctx.clip();
-  
+
           // Draw the image centered
           const scale = Math.max(size / img.width, size / img.height);
           const x = (size - img.width * scale) / 2;
           const y = (size - img.height * scale) / 2;
-  
+
           ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
-  
+
           const base64Image = canvas.toDataURL('image/jpeg', 0.9);
           this.groupImg = base64Image;
           // Không gọi updateChatRoom() ngay lập tức - đợi người dùng nhấn lưu
         };
       };
-  
+
       reader.readAsDataURL(file);
     }
   }
   chonHinhAnhGroup(): void {
     this.imageInput.nativeElement.click();
   }
-/**--------------Xử lý kêt bạn------------------*/
-searchFriend() {
-  if (!this.searchTerm) {
-    this.searchError = 'Chưa nhập từ khóa tìm kiếm';
-    return;
-  }
-
-  this.isSearching = true;
-  this.searchError = null;
-  this.danhSachNguoiDungSauKhiTimKiem = [];
-  if(this.userIdNguoiDungHienTai){
-    //Tìm kiếm thông tin ngườ dùng hiện tại
-    this.userService.getUserById(this.userIdNguoiDungHienTai).subscribe({
-      next: (res : any) => {
-        this.userNguoiDungHienTai = res;
-      }
-    });
-    //Xử lý tìm kiếm thông tin khi bấm tìm trên html
-    this.SearchService.searchUsers(this.searchTerm)
-    .subscribe({
-      next: (res: any) => {
-        this.danhSachNguoiDungSauKhiTimKiem = res.filter((user : any) => user._id !== this.userIdNguoiDungHienTai)
-        this.danhSachNguoiDungSauKhiTimKiem = this.danhSachNguoiDungSauKhiTimKiem.map((user : Userr) => ({
-          ...user,
-          trangThaiKetBan: this.kiemTraBanHayDaGuiYeuCauKetBan(user)
-        }));
-        this.searchError = res.length === 0 ? 'Không tìm thấy người dùng' : null;
-        this.isSearching = false;
-      },
-      error: () => {
-        this.searchError = 'Lỗi khi tìm kiếm người dùng';
-        this.isSearching = false;
-      }
-    });
-  }
-}
-
-
-kiemTraBanHayDaGuiYeuCauKetBan(user: any): string {
-  const ban = user?.friends?.includes(this.userIdNguoiDungHienTai);
-  const daGuiYeuCau = user?.friendRequestsReceived?.includes(this.userIdNguoiDungHienTai);
-  const daNhanYeuCau = user?.requestfriends?.includes(this.userIdNguoiDungHienTai);
-
-  const status = ban ? 'ban' : daNhanYeuCau ? 'daNhanYeuCau' : daGuiYeuCau ? 'daGuiYeuCau' : 'chuaKetBan';
-  return status;
-}
-
-
-//Gửi yêu cầu kết bạn
-guiYeuCauKetBan(userId :string){
-  this.userService.addFriend(userId).subscribe({
-    next: (res: any) =>{
-      console.log(res);
-      this.danhSachNguoiDungSauKhiTimKiem = this.danhSachNguoiDungSauKhiTimKiem.map((user: any) =>{
-        if(user._id.toString() === userId.toString()){
-          return{ 
-            ...user,
-            friendRequestsReceived: [...user.friendRequestsReceived, this.userIdNguoiDungHienTai]
-          }
-        }
-        return user;
-      });
-
-      if(this.userIdNguoiDungHienTai){
-        //Tìm kiếm thông tin ngườ dùng hiện tại
-        this.userService.getUserById(this.userIdNguoiDungHienTai).subscribe({
-          next: (res : any) => {
-            this.userNguoiDungHienTai = res;
-            //socket
-            this.socketService.themBan(userId, this.userNguoiDungHienTai);
-          }
-        });
-      }
-    },
-    error: (err) => {
-      console.error( 'Failed to send friend request:', err);
-      this.searchError = 'Lỗi khi gửi yêu cầu kết bạn';
+  /**--------------Xử lý kêt bạn------------------*/
+  searchFriend() {
+    if (!this.searchTerm) {
+      this.searchError = 'Chưa nhập từ khóa tìm kiếm';
+      return;
     }
-  })
-}
 
-//Xủ lý hủy kết bạn
-huyYeuCauKetBan(userId: string){
-  this.userService.cancelRequestFriend(userId).subscribe({
-    next: (res: any) => {
-      console.log(res);
-      this.danhSachNguoiDungSauKhiTimKiem = this.danhSachNguoiDungSauKhiTimKiem.map((user: any) =>{
-        if(user._id.toString() === userId.toString()){
-          return{ 
-            ...user,
-            friendRequestsReceived: user.friendRequestsReceived.filter((friendId: string) => friendId !== this.userIdNguoiDungHienTai)
-          }
-        }
-        return user;
-      });
-      this.socketService.huyKetBan(userId);
-      console.log('Đã gửi sk hủy yêu cầu kết bạn',userId);
-    },
-    error: (err) => {
-      console.error('Failed to cancel friend request:', err);
-      this.searchError = 'Lỗi khi hủy yêu cầu kết bạn';
-    }
-  })
-}
-/**-------end-------Xử lý kêt bạn------------------*/
-
-
-/**--------------Xử lý sự kiện tạo nhóm------------------*/
-   // Tải danh sách bạn bè
-    friendsList: Userr[] = [];
-    loadFriends(): void {
-      this.userService.getFriends().subscribe({
-        next: (friends: Userr[]) => {
-          this.friendsList = friends;
+    this.isSearching = true;
+    this.searchError = null;
+    this.danhSachNguoiDungSauKhiTimKiem = [];
+    if (this.userIdNguoiDungHienTai) {
+      //Tìm kiếm thông tin ngườ dùng hiện tại
+      this.userService.getUserById(this.userIdNguoiDungHienTai).subscribe({
+        next: (res: any) => {
+          this.userNguoiDungHienTai = res;
         },
-        error: (err) => {
-          console.error('❌ Failed to load friends:', err);
-        }
+      });
+      //Xử lý tìm kiếm thông tin khi bấm tìm trên html
+      this.SearchService.searchUsers(this.searchTerm).subscribe({
+        next: (res: any) => {
+          this.danhSachNguoiDungSauKhiTimKiem = res.filter(
+            (user: any) => user._id !== this.userIdNguoiDungHienTai
+          );
+          this.danhSachNguoiDungSauKhiTimKiem =
+            this.danhSachNguoiDungSauKhiTimKiem.map((user: User) => ({
+              ...user,
+              trangThaiKetBan: this.kiemTraBanHayDaGuiYeuCauKetBan(user),
+            }));
+          this.searchError =
+            res.length === 0 ? 'Không tìm thấy người dùng' : null;
+          this.isSearching = false;
+        },
+        error: () => {
+          this.searchError = 'Lỗi khi tìm kiếm người dùng';
+          this.isSearching = false;
+        },
       });
     }
-    
-    //Lọc danh sách bạn bè được chọn trên htmlhtml
-    get filteredFriends(): Userr[] {
-      return this.friendsList.filter(friend =>
-        friend.name.toLowerCase().includes(this.searchTerm.toLowerCase())
-      );
-    }
+  }
 
-// Xử lý sự kiện khi người dùng chọn bạn bè
+  kiemTraBanHayDaGuiYeuCauKetBan(user: any): string {
+    const ban = user?.friends?.includes(this.userIdNguoiDungHienTai);
+    const daGuiYeuCau = user?.friendRequestsReceived?.includes(
+      this.userIdNguoiDungHienTai
+    );
+    const daNhanYeuCau = user?.requestfriends?.includes(
+      this.userIdNguoiDungHienTai
+    );
+
+    const status = ban
+      ? 'ban'
+      : daNhanYeuCau
+      ? 'daNhanYeuCau'
+      : daGuiYeuCau
+      ? 'daGuiYeuCau'
+      : 'chuaKetBan';
+    return status;
+  }
+
+  //Gửi yêu cầu kết bạn
+  guiYeuCauKetBan(userId: string) {
+    this.userService.addFriend(userId).subscribe({
+      next: (res: any) => {
+        console.log(res);
+        this.danhSachNguoiDungSauKhiTimKiem =
+          this.danhSachNguoiDungSauKhiTimKiem.map((user: any) => {
+            if (user._id.toString() === userId.toString()) {
+              return {
+                ...user,
+                friendRequestsReceived: [
+                  ...user.friendRequestsReceived,
+                  this.userIdNguoiDungHienTai,
+                ],
+              };
+            }
+            return user;
+          });
+
+        if (this.userIdNguoiDungHienTai) {
+          //Tìm kiếm thông tin ngườ dùng hiện tại
+          this.userService.getUserById(this.userIdNguoiDungHienTai).subscribe({
+            next: (res: any) => {
+              this.userNguoiDungHienTai = res;
+              //socket
+              this.socketService.themBan(userId, this.userNguoiDungHienTai);
+            },
+          });
+        }
+      },
+      error: (err) => {
+        console.error('Failed to send friend request:', err);
+        this.searchError = 'Lỗi khi gửi yêu cầu kết bạn';
+      },
+    });
+  }
+
+  //Xủ lý hủy kết bạn
+  huyYeuCauKetBan(userId: string) {
+    this.userService.cancelRequestFriend(userId).subscribe({
+      next: (res: any) => {
+        console.log(res);
+        this.danhSachNguoiDungSauKhiTimKiem =
+          this.danhSachNguoiDungSauKhiTimKiem.map((user: any) => {
+            if (user._id.toString() === userId.toString()) {
+              return {
+                ...user,
+                friendRequestsReceived: user.friendRequestsReceived.filter(
+                  (friendId: string) => friendId !== this.userIdNguoiDungHienTai
+                ),
+              };
+            }
+            return user;
+          });
+        this.socketService.huyKetBan(userId);
+        console.log('Đã gửi sk hủy yêu cầu kết bạn', userId);
+      },
+      error: (err) => {
+        console.error('Failed to cancel friend request:', err);
+        this.searchError = 'Lỗi khi hủy yêu cầu kết bạn';
+      },
+    });
+  }
+  /**-------end-------Xử lý kêt bạn------------------*/
+
+  /**--------------Xử lý sự kiện tạo nhóm------------------*/
+  // Tải danh sách bạn bè
+  friendsList: User[] = [];
+  loadFriends(): void {
+    this.userService.getFriends().subscribe({
+      next: (friends: User[]) => {
+        this.friendsList = friends;
+      },
+      error: (err) => {
+        console.error('❌ Failed to load friends:', err);
+      },
+    });
+  }
+
+  //Lọc danh sách bạn bè được chọn trên htmlhtml
+  get filteredFriends(): User[] {
+    return this.friendsList.filter((friend) =>
+      friend.name.toLowerCase().includes(this.searchTerm.toLowerCase())
+    );
+  }
+
+  // Xử lý sự kiện khi người dùng chọn bạn bè
   selectedFriends: string[] = [];
   toggleFriendSelection(friendId: string): void {
     if (this.selectedFriends.includes(friendId)) {
-      this.selectedFriends = this.selectedFriends.filter(id => id !== friendId);
+      this.selectedFriends = this.selectedFriends.filter(
+        (id) => id !== friendId
+      );
     } else {
       this.selectedFriends.push(friendId);
     }
@@ -356,36 +407,36 @@ huyYeuCauKetBan(userId: string){
 
   //tạo nhóm
   createGroup(friendIds: string[]): void {
-    this.errorGroup ='';
+    this.errorGroup = '';
 
     if (friendIds.length < 2) {
       this.errorGroup = 'Cân ít nhất 2 thành viên để tạo nhóm';
       return;
     }
-  
+
     if (!this.currentUserId) {
-      console.error("⚠️ Cannot start chat: user._id is undefined");
+      console.error('⚠️ Cannot start chat: user._id is undefined');
       return;
     }
-  
-    console.log("📦 Creating room with:", {
+
+    console.log('📦 Creating room with:', {
       currentUserId: this.currentUserId,
-      friendIds: friendIds
+      friendIds: friendIds,
     });
 
-    if(!this.groupName){
+    if (!this.groupName) {
       this.errorGroup = 'Tên nhóm không được để trống';
       return;
     }
-  
+
     const roomData = {
       members: [...friendIds],
-      chatRoomName: this.groupName ,
-      image: this.defaulGrouptAvatarUrl || this.groupImg
+      chatRoomName: this.groupName,
+      image: this.defaulGrouptAvatarUrl || this.groupImg,
     };
-  
-    console.log("🚀 ~ ModalComponent ~ createGroup ~ roomData:", roomData);
-  
+
+    console.log('🚀 ~ ModalComponent ~ createGroup ~ roomData:', roomData);
+
     this.chatRoomService.createChatRoom(roomData).subscribe({
       next: (newRoom) => {
         console.log('Chat Room Created:', newRoom);
@@ -395,18 +446,17 @@ huyYeuCauKetBan(userId: string){
         // Navigate to the new chat room or handle it accordingly
         this.socketService.taoPhongChat(newRoom._id, newRoom);
 
-        this.selectedFriends = []
+        this.selectedFriends = [];
         this.groupName = '';
       },
-      error: (err) => console.error('Failed to create chat room:', err)  // Handle errors here
+      error: (err) => console.error('Failed to create chat room:', err), // Handle errors here
     });
   }
   /**---------end-----Xử lý sự kiện tạo nhóm------------------*/
-  
+
   navigateToChatRoom(chatRoomId: string): void {
-    console.log("Navigating to chat room with ID:", chatRoomId);
+    console.log('Navigating to chat room with ID:', chatRoomId);
     // Navigate to chat page
     this.router.navigate([`/chat`], { queryParams: { roomId: chatRoomId } });
   }
-}  
-
+}

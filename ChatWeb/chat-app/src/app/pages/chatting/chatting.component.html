@@ -7,7 +7,7 @@
         <!-- Search Input -->
         <input
           type="text"
-          placeholder="Searching conversation..."
+          placeholder="Tìm kiếm tin nhắn..."
           [(ngModel)]="searchTerm"
         />
 
@@ -69,6 +69,28 @@
         >
           <p class="no-results">No matching friends</p>
         </div>
+      </div>
+
+      <!-- Tìm kiếm tin nhắn -->
+      <div
+        class="search-dropdown"
+        *ngIf="searchTerm && filteredMessages.length > 0"
+      >
+        <div
+          *ngFor="let msg of filteredMessages"
+          (click)="goToMessage(msg)"
+          class="message-item"
+        >
+          <p class="message-author">{{ msg.sendID.name }}</p>
+          <p class="message-preview">{{ msg.content.text }}</p>
+          <p class="message-time">{{ msg.createdAt | date : "short" }}</p>
+        </div>
+      </div>
+      <div
+        class="search-dropdown"
+        *ngIf="searchTerm && filteredMessages.length === 0"
+      >
+        <p class="no-results">Không tìm thấy tin nhắn nào</p>
       </div>
 
       <button class="add-friend" (click)="toggleModal()">
@@ -183,7 +205,8 @@
               <div
                 class="username mt-3 d-flex flex-row align-items-center text-center"
                 [ngClass]="{
-                  'override-ml': getId(idNguoiDungHienTai) !== getId(selectedRoom.admin)
+                  'override-ml':
+                    getId(idNguoiDungHienTai) !== getId(selectedRoom.admin)
                 }"
               >
                 <ng-container *ngIf="!editingName; else editMode">
@@ -193,7 +216,9 @@
                   <i
                     class="fa-solid fa-pen ml-2 clickable"
                     (click)="toggleEditName()"
-                    *ngIf="getId(idNguoiDungHienTai) === getId(selectedRoom?.admin)"
+                    *ngIf="
+                      getId(idNguoiDungHienTai) === getId(selectedRoom?.admin)
+                    "
                   ></i>
                 </ng-container>
 
@@ -227,7 +252,7 @@
                 (click)="toggleAddMembersModal()"
               >
                 <span class="d-inline-flex align-items-center">
-                  Add Member<i
+                  Thêm thành viên<i
                     class="fa-solid fa-user-plus"
                     style="color: #fff"
                   ></i>
@@ -236,10 +261,37 @@
               <!-- Search Input -->
               <input
                 type="text"
-                placeholder="Search..."
+                placeholder="Tìm kiếm thành viên nhóm..."
                 [(ngModel)]="searchTermMember"
                 class="members-searchbar"
               />
+
+              <ul
+                class="member-list"
+                *ngIf="
+                  searchTermMember.trim() !== '' &&
+                  searchedMembers(selectedRoom).length > 0
+                "
+              >
+                <li
+                  *ngFor="let member of searchedMembers(selectedRoom)"
+                  class="member-item"
+                  (click)="selectMember(member)"
+                >
+                  <img [src]="member.avatarUrl" alt="Avatar" class="avatar" />
+                  <span class="member-name">{{ member.name }}</span>
+                </li>
+              </ul>
+
+              <!-- Tuỳ chọn: nếu không tìm thấy ai -->
+              <p
+                *ngIf="
+                  searchTermMember.trim() !== '' &&
+                  searchedMembers(selectedRoom).length === 0
+                "
+              >
+                Không tìm thấy thành viên nào.
+              </p>
 
               <!-- Show only filtered members -->
               <ng-container *ngFor="let mem of membersList">
@@ -303,7 +355,7 @@
                   class="btn w-100 border-0"
                   (click)="toggleMembersModal()"
                 >
-                  Change admin
+                  Đổi admin
                 </button>
               </div>
 
@@ -312,17 +364,15 @@
                 class="no-results"
                 *ngIf="searchTermMember && membersList.length === 0"
               >
-                No members found.
+                Không tìm thấy
               </div>
 
               <app-modal-profile
                 *ngIf="showProfileModal && selectedMember"
                 [isOpen]="showProfileModal"
                 [user]="selectedMember"
+                [currentUser]="nguoiDungHienTai"
                 (closeModal)="toggleProfileModal()"
-                [trangThaiKetBan]="
-                  kiemTraBanHayDaGuiYeuCauKetBan(selectedMember)
-                "
                 title="Profile"
               >
               </app-modal-profile>
@@ -506,6 +556,9 @@
             *ngIf="room.latestMessage?.content?.type === 'file'"
           >
             [Tệp tin]
+            <span *ngIf="room.latestMessage?.content?.text">
+              {{ room.latestMessage?.content?.text }}
+            </span>
           </div>
 
           <!-- Hiển thị tin nhắn cuối cùng nhiều ảnh -->
@@ -514,6 +567,9 @@
             *ngIf="room.latestMessage?.content?.type === 'media'"
           >
             [Hình ảnh]
+            <span *ngIf="room.latestMessage?.content?.text">
+              {{ room.latestMessage?.content?.text }}
+            </span>
           </div>
 
           <!-- Hiển thị tin nhắn đã thu hồi với tất cả -->
@@ -539,7 +595,11 @@
       <div class="messages-chat">
         <ng-container *ngFor="let msg of messagees; let i = index">
           <!-- Nếu message đã bị recall cho tất cả -->
-          <div *ngIf="msg.recall === '2'" class="Messages">
+          <div
+            *ngIf="msg.recall === '2'"
+            class="Messages"
+            id="msg-{{ msg._id }}"
+          >
             <div class="message" *ngIf="msg.sendID._id !== idNguoiDungHienTai">
               <div
                 class="photo"
@@ -571,10 +631,8 @@
           </div>
 
           <!-- Nếu message chỉ bị recall với chính người gửi -->
-          <!-- Ẩn nếu là người gửi -->
-          <div *ngIf="msg.recall === '1'">
+          <div *ngIf="msg.recall === '1'" id="msg-{{ msg._id }}">
             <div class="message" *ngIf="msg.sendID._id !== idNguoiDungHienTai">
-              <!-- Người nhận vẫn thấy -->
               <div
                 class="photo"
                 [style.backgroundImage]="
@@ -602,9 +660,10 @@
           <div
             *ngIf="msg.recall === '0'"
             class="Messages"
+            id="msg-{{ msg._id }}"
             (mouseleave)="closeMessageOptions()"
           >
-            <!-- 💬 Tin nhắn từ người khác -->
+            <!-- Tin nhắn từ người khác -->
             <div
               class="message"
               *ngIf="
@@ -624,24 +683,18 @@
                 <div class="bubble">
                   <div class="reply-preview" *ngIf="msg.replyToMessage">
                     <p class="reply-info">Phản hồi tin nhắn</p>
-
-                    <!-- ✅ Nếu là text -->
                     <p
                       *ngIf="msg.replyToMessage.content.text"
                       class="reply-text"
                     >
                       "{{ msg.replyToMessage.content.text }}"
                     </p>
-
-                    <!-- ✅ Nếu có ảnh -->
                     <img
                       *ngIf="msg.replyToMessage.content.media?.length"
                       [src]="msg.replyToMessage.content.media[0]"
                       class="reply-image"
                       alt="replied image"
                     />
-
-                    <!-- ✅ Nếu có file -->
                     <p
                       *ngIf="msg.replyToMessage.content.files?.length"
                       class="reply-file"
@@ -650,8 +703,6 @@
                       {{ msg.replyToMessage.content.files[0].split("/").pop() }}
                     </p>
                   </div>
-
-                  <!-- Hiển thị ảnh -->
                   <div
                     class="image-preview"
                     *ngIf="msg.content.media && msg.content.media.length > 1"
@@ -672,8 +723,6 @@
                       class="message-image"
                     />
                   </div>
-
-                  <!-- Hiển thị file tài liệu -->
                   <div class="file-preview" *ngIf="msg.content.files?.length">
                     <div
                       *ngFor="let file of msg.content.files"
@@ -685,7 +734,6 @@
                       </a>
                     </div>
                   </div>
-
                   <div class="text" *ngIf="msg.content.text">
                     <p class="senderOnMsg" *ngIf="selectedRoom.isGroupChat">
                       {{ msg.sendID.name }}
@@ -695,50 +743,38 @@
                 </div>
                 <p class="time">{{ msg.createdAt | date : "shortTime" }}</p>
               </div>
-
-              <!-- Menu icon -->
               <i
                 class="fa-solid fa-ellipsis-vertical"
                 (click)="toggleMessageOptions(i)"
               ></i>
-
-              <!-- Menu tuỳ chọn bên trái -->
               <div
                 class="message-options left"
                 *ngIf="selectedMessageIndex === i"
               >
                 <ul>
-                  <li (click)="replyToMessage(i)">Reply to</li>
+                  <li (click)="replyToMessage(i)">Trả lời</li>
                 </ul>
               </div>
             </div>
 
-            <!-- ✅ Tin nhắn của chính mình -->
+            <!-- Tin nhắn của chính mình -->
             <div
               class="response"
               *ngIf="
                 msg.sendID._id.toString() === idNguoiDungHienTai.toString()
               "
             >
-              <!-- Nội dung tin nhắn -->
-              <!-- ✅ Hiển thị khung reply nếu có -->
               <div class="reply-preview" *ngIf="msg.replyToMessage">
                 <p class="reply-info">Reply to</p>
-
-                <!-- ✅ Nếu là text -->
                 <p *ngIf="msg.replyToMessage.content.text" class="reply-text">
                   "{{ msg.replyToMessage.content.text }}"
                 </p>
-
-                <!-- ✅ Nếu có ảnh -->
                 <img
                   *ngIf="msg.replyToMessage.content.media?.length"
                   [src]="msg.replyToMessage.content.media[0]"
                   class="reply-image"
                   alt="replied image"
                 />
-
-                <!-- ✅ Nếu có file -->
                 <p
                   *ngIf="msg.replyToMessage.content.files?.length"
                   class="reply-file"
@@ -746,8 +782,6 @@
                   📎 {{ msg.replyToMessage.content.files[0].split("/").pop() }}
                 </p>
               </div>
-
-              <!-- Hiển thị ảnh -->
               <div
                 class="image-preview"
                 *ngIf="msg.content.media && msg.content.media.length > 1"
@@ -768,8 +802,6 @@
                   class="message-image"
                 />
               </div>
-
-              <!-- Hiển thị file tài liệu -->
               <div class="file-preview" *ngIf="msg.content.files?.length">
                 <div
                   *ngFor="let file of msg.content.files"
@@ -781,23 +813,17 @@
                   </a>
                 </div>
               </div>
-
               <p class="text" *ngIf="msg.content.text">
                 {{ msg.content.text }}
               </p>
               <div class="response-time time">
                 {{ msg.createdAt | date : "shortTime" }}
               </div>
-
-              <!-- Biểu tượng menu -->
               <i
                 class="fa-solid fa-ellipsis-vertical"
                 (click)="toggleMessageOptions(i)"
                 [ngClass]="{ 'has-reply': msg.replyToMessage }"
-              >
-              </i>
-
-              <!-- Tuỳ chọn bên phải -->
+              ></i>
               <div
                 class="message-options right"
                 *ngIf="selectedMessageIndex === i"
@@ -819,11 +845,7 @@
         <div class="reply-box" *ngIf="replyingTo">
           <p>
             Trả lời :
-            {{
-              replyingTo.sendID._id === idNguoiDungHienTai
-                ? getDisplayName(idNguoiDungHienTai)
-                : getUserName(replyingTo.sendID._id)
-            }}
+            {{ getDisplayName(replyingTo.sendID._id) }}
           </p>
 
           <!-- Nếu là text -->
@@ -855,92 +877,165 @@
           <div class="sub-footer">
             <!-- Emoji Button -->
             <div class="emoji-wrapper">
-              <div class="icon emoji clickable" (click)="toggleEmojiPicker()">😃</div>
+              <div class="icon emoji clickable" (click)="toggleEmojiPicker()">
+                😃
+              </div>
             </div>
 
             <!-- Emoji Picker -->
-            <emoji-mart *ngIf="showEmojiPicker" [set]="'google'" [perLine]="8" [emojiTooltip]="true"
-              (emojiSelect)="addEmoji($event)"></emoji-mart>
+            <emoji-mart
+              *ngIf="showEmojiPicker"
+              [set]="'google'"
+              [perLine]="8"
+              [emojiTooltip]="true"
+              (emojiSelect)="addEmoji($event)"
+            ></emoji-mart>
 
             <!-- Message Input -->
-            <input type="text" class="write-message" [(ngModel)]="messageText" placeholder="Nhập tin nhắn của bạn ở đây"
-              (keydown.enter)="createMessage(messageText)" />
+            <input
+              type="text"
+              class="write-message"
+              [(ngModel)]="messageText"
+              placeholder="Nhập tin nhắn của bạn ở đây"
+              (keydown.enter)="createMessage(messageText)"
+            />
 
             <!-- Icon chọn ảnh -->
-            <i class=" icon attach fa-solid fa-image clickable" (click)="chonHinhAnh()"></i>
-            <input #imageInput type="file" accept="image/*" multiple (change)="xuLyFiles($event, 'image')"
-              style="display: none;" />
+            <i
+              class="icon attach fa-solid fa-image clickable"
+              (click)="chonHinhAnh()"
+            ></i>
+            <input
+              #imageInput
+              type="file"
+              accept="image/*"
+              multiple
+              (change)="xuLyFiles($event, 'image')"
+              style="display: none"
+            />
 
             <!-- Icon chọn tài liệu -->
-            <i class="icon attach fa-solid fa-paperclip clickable" (click)="chonTaiLieu()"></i>
-            <input #fileInput type="file" accept=".pdf,.doc,.docx,.txt,.zip,.rar,.mp4" multiple
-              (change)="xuLyFiles($event, 'doc')" style="display: none;" />
+            <i
+              class="icon attach fa-solid fa-paperclip clickable"
+              (click)="chonTaiLieu()"
+            ></i>
+            <input
+              #fileInput
+              type="file"
+              accept=".pdf,.doc,.docx,.txt,.zip,.rar,.mp4"
+              multiple
+              (change)="xuLyFiles($event, 'doc')"
+              style="display: none"
+            />
 
             <!-- Hiển thị ảnh đã chọn -->
-            <div class="preview-container" [ngStyle]="{ bottom: replyingTo ? '300%' : '120%' }">
-              <div *ngFor="let file of imageFiles; let i = index" class="image-wrapper">
+            <div
+              class="preview-container"
+              [ngStyle]="{ bottom: replyingTo ? '300%' : '120%' }"
+            >
+              <div
+                *ngFor="let file of imageFiles; let i = index"
+                class="image-wrapper"
+              >
                 <img [src]="file.preview" alt="preview" />
                 <div class="file-name">{{ file.file.name }}</div>
-                <button class="cancel-file" (click)="xoaFile('image', i)">❌</button>
+                <button class="cancel-file" (click)="xoaFile('image', i)">
+                  ❌
+                </button>
               </div>
             </div>
             <!-- Hiển thị file tài liệu đã chọn -->
-            <div class="preview-container " [ngStyle]="{ bottom: replyingTo ? '300%' : '120%' }">
-              <div *ngFor="let file of docFiles; let i = index" class="file-wrapper">
-              <ng-container [ngSwitch]="file.file.type">
-                
-                <!-- PDF Preview -->
-                <ng-container *ngSwitchCase="'application/pdf'">
-                  <div class="file-wrapper">
-                    <i class="fa-solid fa-file-pdf fa-2x mb-1"></i>
+            <div
+              class="preview-container"
+              [ngStyle]="{ bottom: replyingTo ? '300%' : '120%' }"
+            >
+              <div
+                *ngFor="let file of docFiles; let i = index"
+                class="file-wrapper"
+              >
+                <ng-container [ngSwitch]="file.file.type">
+                  <!-- PDF Preview -->
+                  <ng-container *ngSwitchCase="'application/pdf'">
+                    <div class="file-wrapper">
+                      <i class="fa-solid fa-file-pdf fa-2x mb-1"></i>
+                      <p class="file-name" [title]="file.name">
+                        {{ file.name }}
+                      </p>
+                    </div>
+                  </ng-container>
+
+                  <!-- Word Preview -->
+                  <ng-container
+                    *ngSwitchCase="
+                      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                    "
+                  >
+                    <div class="file-wrapper">
+                      <i class="fa-solid fa-file-word fa-2x mb-1"></i>
+                      <!-- thay đổi icon tùy ý -->
+                      <p class="file-name" [title]="file.name">
+                        {{ file.name }}
+                      </p>
+                    </div>
+                  </ng-container>
+                  <!-- PPT Preview -->
+                  <ng-container
+                    *ngSwitchCase="
+                      'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+                    "
+                  >
+                    <div class="file-wrapper">
+                      <i class="fa-solid fa-file-powerpoint fa-2x mb-1"></i>
+                      <!-- thay đổi icon tùy ý -->
+                      <p class="file-name" [title]="file.name">
+                        {{ file.name }}
+                      </p>
+                    </div>
+                  </ng-container>
+                  <!-- EXCEL Preview -->
+                  <ng-container
+                    *ngSwitchCase="
+                      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                    "
+                  >
+                    <div class="file-wrapper">
+                      <i class="fa-solid fa-file-excel fa-2x mb-1"></i>
+                      <!-- thay đổi icon tùy ý -->
+                      <p class="file-name" [title]="file.name">
+                        {{ file.name }}
+                      </p>
+                    </div>
+                  </ng-container>
+                  <!-- Video Preview -->
+                  <ng-container *ngSwitchCase="'video/mp4'">
+                    <div class="file-wrapper">
+                      <i class="fa-solid fa-file-video fa-2x mb-1"></i>
+                      <!-- thay đổi icon tùy ý -->
+                      <p class="file-name" [title]="file.name">
+                        {{ file.name }}
+                      </p>
+                    </div>
+                  </ng-container>
+
+                  <!-- các file khác, ... -->
+                  <div *ngSwitchDefault class="file-wrapper">
+                    <i class="fa-solid fa-file-lines fa-2x mb-1"></i>
                     <p class="file-name" [title]="file.name">{{ file.name }}</p>
                   </div>
                 </ng-container>
 
-                <!-- Word Preview -->
-                <ng-container *ngSwitchCase="'application/vnd.openxmlformats-officedocument.wordprocessingml.document'">
-                  <div class="file-wrapper">
-                    <i class="fa-solid fa-file-word fa-2x mb-1"></i> <!-- thay đổi icon tùy ý -->
-                    <p class="file-name" [title]="file.name">{{ file.name }}</p>
-                  </div>
-                </ng-container>
-                <!-- PPT Preview -->
-                <ng-container *ngSwitchCase="'application/vnd.openxmlformats-officedocument.presentationml.presentation'">
-                  <div class="file-wrapper">
-                    <i class="fa-solid fa-file-powerpoint fa-2x mb-1"></i> <!-- thay đổi icon tùy ý -->
-                    <p class="file-name" [title]="file.name">{{ file.name }}</p>
-                  </div>
-                </ng-container>
-                <!-- EXCEL Preview -->
-                <ng-container *ngSwitchCase="'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'">
-                  <div class="file-wrapper">
-                    <i class="fa-solid fa-file-excel fa-2x mb-1"></i> <!-- thay đổi icon tùy ý -->
-                    <p class="file-name" [title]="file.name">{{ file.name }}</p>
-                  </div>
-                </ng-container>
-                <!-- Video Preview -->
-                <ng-container *ngSwitchCase="'video/mp4'">
-                  <div class="file-wrapper">
-                    <i class="fa-solid fa-file-video fa-2x mb-1"></i> <!-- thay đổi icon tùy ý -->
-                    <p class="file-name" [title]="file.name">{{ file.name }}</p>
-                  </div>
-                </ng-container>
-
-
-                <!-- các file khác, ... -->
-                <div *ngSwitchDefault class="file-wrapper">
-                  <i class="fa-solid fa-file-lines fa-2x mb-1"></i>
-                  <p class="file-name" [title]="file.name">{{ file.name }}</p>
-                </div>
-              </ng-container>
-
-              <button class="cancel-file" (click)="xoaFile('doc', i)">❌</button>
+                <button class="cancel-file" (click)="xoaFile('doc', i)">
+                  ❌
+                </button>
               </div>
             </div>
           </div>
 
           <!-- Send Button -->
-          <i class="icon send fa-solid fa-paper-plane clickable" (click)="createMessage(messageText)"></i>
+          <i
+            class="icon send fa-solid fa-paper-plane clickable"
+            (click)="createMessage(messageText)"
+          ></i>
         </div>
       </div>
     </div>

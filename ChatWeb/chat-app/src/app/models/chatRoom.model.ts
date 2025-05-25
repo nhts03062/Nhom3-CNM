@@ -2,7 +2,7 @@
 // import { Userr } from './user.model';
 
 import { Messagee } from "./message.model";
-import { Userr } from "./user.model";
+import { User } from "./user.model";
 
 // export interface ChatRoom {
 //   // timeAgo: string;
@@ -24,6 +24,6 @@ export interface ChatRoom {
   latestMessage?: Messagee;
   createdAt: string;
   updatedAt: string;
-  otherMembers:Userr[];
+  otherMembers:User[];
   timeAgo:string;
 }

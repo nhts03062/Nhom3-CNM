@@ -2,7 +2,7 @@
 <div class="parent">
     <div class="container">
         <div div class="form-content">
-          <div class="title">Change Password</div>
+          <div class="title">Đổi mật khẩu</div>
           <form (ngSubmit)="onChange()" [formGroup]="changePassForm">
             <div class="input-boxes">
               <div class="box-container">
@@ -12,8 +12,8 @@
                 </div>
                 <div class="error">
                     <small *ngIf="changePassForm.controls['password'].invalid && changePassForm.controls['password'].touched">
-                      <span *ngIf="changePassForm.controls['password'].errors?.['required']">Password is required</span>
-                      <span *ngIf="changePassForm.controls['password'].errors?.['minlength']">Password must be at least 6 characters</span>
+                      <span *ngIf="changePassForm.controls['password'].errors?.['required']">Chưa nhập mật khẩu</span>
+                      <span *ngIf="changePassForm.controls['password'].errors?.['minlength']">Mật khẩu có ít nhất 6 kí tự</span>
                     </small>
                 </div>
                 <div class="input-box">
@@ -22,7 +22,7 @@
                   </div>
                 <div class="error">
                     <small *ngIf="changePassForm.get('confirmPassword')?.touched && changePassForm.get('confirmPassword')?.value !== changePassForm.get('password')?.value">
-                        Passwords must be the same
+                        Mật khẩu phải giống nhau
                     </small>                      
                 </div>
 

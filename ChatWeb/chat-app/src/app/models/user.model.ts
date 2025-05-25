@@ -10,7 +10,7 @@
 //     friends:string[];
 //   }
   
-export interface Userr {
+export interface User {
   _id: string;
   name: string;
   email: string;
@@ -19,10 +19,12 @@ export interface Userr {
   phone: string;
   address: string;
   avatarUrl: string;
-  requestfriends: string[]; // array of user IDs
-  friendRequestsReceived: string[];
-  friends: string[];
+  // requestfriends: string[]; // array of user IDs
+  // friendRequestsReceived: string[];
+  // friends: string[];
+  friends: User[];
+  friendRequestsReceived: User[];
+  requestfriends: User[];
   createdAt: string;
   updatedAt: string;
-  __v?: number;
 }

@@ -1,14 +1,14 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { BehaviorSubject, Observable } from 'rxjs';
-import { Userr } from '../models/user.model';
+import { User } from '../models/user.model';
 import { Messagee } from '../models/message.model';
 import { ChatRoom } from '../models/chatRoom.model';
 import { ApiService } from './api.service';
 
 @Injectable({ providedIn: 'root' })
 export class ChatRoomService {
-  users: Userr[] = [];
+  users: User[] = [];
   conversations: Messagee[] = [];
   chatRoom: ChatRoom[] = [];
   idNguoiDungHienTai: string | null = sessionStorage.getItem('userId');

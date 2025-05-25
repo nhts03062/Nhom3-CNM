@@ -15,7 +15,7 @@
                 <p class="text-muted font-size-sm">{{ user.email }}</p>
               </div>
             </div>
-            <div class="d-flex justify-content-center gap-3 mb-3">
+            <div class="d-flex justify-content-center gap-3 mb-3" *ngIf="user._id !== currentUserId">
               <button
                 class="btn px-4 flex-fill text-white"
                 [ngClass]="{
@@ -61,7 +61,18 @@
               </button>
 
             </div>
-            
+
+            <!-- Nếu là chủ tài khoản thì hiện nút update -->
+              <div class="d-flex justify-content-center gap-3 mb-3" *ngIf="user._id === currentUserId">
+              <button
+                class="btn px-4 flex-fill text-white"
+                class="btn btn-success px-4 flex-fill text-white"
+                style="max-width: 175px;"
+                (click)="updateProfile()"
+              >
+               Cập nhật <i class="fa-solid fa-pencil"></i>
+              </button>
+            </div>
             
           </div>
         </div>
@@ -69,11 +80,13 @@
           <button class="button is-ghost" (click)="close()">Cancel</button>
         </footer>
       </div>
+
+      <!-- Khi không tìm thấy người dùng -->
       <div *ngIf="user === undefined">
         <header class="modal-container-header">
           <h5>Profile</h5>
         </header>
-        <h4>No user found.</h4>
+        <h4>Không tìm thấy người dùng</h4>
         <footer class="modal-container-footer">
           <button class="button is-ghost" (click)="close()">Cancel</button>
         </footer>

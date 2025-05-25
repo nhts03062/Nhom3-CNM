@@ -1,6 +1,3 @@
-import { Userr } from "./user.model";
-import { ChatRoom } from "./chatRoom.model";
-  
 export interface Messagee {
   _id: string;
   chatId: string;

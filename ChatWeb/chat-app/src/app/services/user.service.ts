@@ -1,14 +1,14 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Userr } from '../models/user.model';
+import { User } from '../models/user.model';
 import { Messagee } from '../models/message.model';
 import { ApiService } from './api.service';
 import { BehaviorSubject } from 'rxjs';
 
 @Injectable({ providedIn: 'root' })
 export class UserService {
-  users: Userr[] = [];
+  users: User[] = [];
   conversations: Messagee[] = [];
   idNguoiDungHienTai: string | null = sessionStorage.getItem('userId');
 
@@ -31,61 +31,61 @@ export class UserService {
     return new HttpHeaders({ 'Authorization': `${token}` });
   }
 
-  getUsers(): Observable<Userr[]> {
-    return this.http.get<Userr[]>(this.apiService.getApiUrl('user/alluser'), {
+  getUsers(): Observable<User[]> {
+    return this.http.get<User[]>(this.apiService.getApiUrl('user/alluser'), {
       headers: this.getHeaders()
     });
   }
 
-  getFriends(): Observable<Userr[]> {
-    return this.http.get<Userr[]>(this.apiService.getApiUrl('user/allfriend'), {
+  getFriends(): Observable<User[]> {
+    return this.http.get<User[]>(this.apiService.getApiUrl('user/allfriend'), {
       headers: this.getHeaders()
     });
   }
 
-  updateUser( name:string, avatarUrl:string, phone:string, address:string): Observable<Userr> {
+  updateUser( name:string, avatarUrl:string, phone:string, address:string): Observable<User> {
     const body = {name, avatarUrl, phone, address};
-    return this.http.put<Userr>(this.apiService.getApiUrl('user/updateuser'), body, {
+    return this.http.put<User>(this.apiService.getApiUrl('user/updateuser'), body, {
       headers: this.getHeaders()
     });
   }
 
-  getUserById(userId: string): Observable<Userr> {
-    return this.http.get<Userr>(this.apiService.getApiUrl(`user/${userId}`), {
+  getUserById(userId: string): Observable<User> {
+    return this.http.get<User>(this.apiService.getApiUrl(`user/${userId}`), {
       headers: this.getHeaders()
     });
   }
 
-  addFriend(userId: string): Observable<Userr> {
+  addFriend(userId: string): Observable<User> {
     const body = { userId };
-    return this.http.post<Userr>(this.apiService.getApiUrl('user/sendreqfriend'), body, {
+    return this.http.post<User>(this.apiService.getApiUrl('user/sendreqfriend'), body, {
       headers: this.getHeaders()
     });
   }
 
-  requestResponse(code: string, userId: string): Observable<Userr[]> {
+  requestResponse(code: string, userId: string): Observable<User[]> {
     const body = { userId };
-    return this.http.post<Userr[]>(this.apiService.getApiUrl(`user/resfriend/${code}`), body, {
+    return this.http.post<User[]>(this.apiService.getApiUrl(`user/resfriend/${code}`), body, {
       headers: this.getHeaders()
     });
   }
-  cancelRequestFriend(userId: string): Observable<Userr>{
+  cancelRequestFriend(userId: string): Observable<User>{
     const body = {userId};
-    return this.http.post<Userr>(this.apiService.getApiUrl('user/cancelreqfriend'), body, {
+    return this.http.post<User>(this.apiService.getApiUrl('user/cancelreqfriend'), body, {
       headers: this.getHeaders()
     });
   }
 
-  unFriendRequest(friendId: string): Observable<Userr> {
+  unFriendRequest(friendId: string): Observable<User> {
     const options = {
       headers: this.getHeaders(),
       body: { friendId }
     };
-    return this.http.delete<Userr>(this.apiService.getApiUrl('user/unfriend'), options);
+    return this.http.delete<User>(this.apiService.getApiUrl('user/unfriend'), options);
   }
   changePassword(oldPassword: string, newPassword: string): Observable<any[]> {
     const body = { oldPassword, newPassword };
-    return this.http.post<Userr[]>(this.apiService.getApiUrl('user/changepassword'), body, {
+    return this.http.post<User[]>(this.apiService.getApiUrl('user/changepassword'), body, {
       headers: this.getHeaders()
     });
   }

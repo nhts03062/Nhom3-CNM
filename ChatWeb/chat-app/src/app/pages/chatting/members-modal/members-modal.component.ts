@@ -3,7 +3,7 @@ import { Component, EventEmitter, Input, OnInit, Output, TrackByFunction } from 
 ;
 import { firstValueFrom, Observable } from 'rxjs';
 import { Router } from '@angular/router';
-import { Userr } from '../../../models/user.model';
+import { User } from '../../../models/user.model';
 import { defaulGrouptAvatarUrl, defaultAvatarUrl } from '../../../contants';
 import { ChatRoom } from '../../../models/chatRoom.model';
 import { ChatRoomService } from '../../../services/chatRoom.service';
@@ -21,11 +21,11 @@ import { SocketService } from '../../../socket.service';
 export class MembersModalComponent implements OnInit {
   @Input() isOpen = false;
   @Input() modalView: number = 0;
-  @Input() users: Userr[] = []; 
+  @Input() users: User[] = []; 
   @Input() chatRooms: ChatRoom[] = [];
   @Input() addedMembers:string[] = [];
   @Output() newAdminSelected = new EventEmitter<string>();
-  @Input() memberListFromChatRoom:Userr[] = [];
+  @Input() memberListFromChatRoom:User[] = [];
   @Output() closeModal = new EventEmitter<void>();
   @Output() changedMembers = new EventEmitter<string[]>();
   @Input() updateChatRoom: (() => void) | undefined;
@@ -39,16 +39,16 @@ export class MembersModalComponent implements OnInit {
   defaultAvatarUrl = defaultAvatarUrl;
   defaulGrouptAvatarUrl = defaulGrouptAvatarUrl;
   searchTerm: string = '';
-  usersList: Userr[] = [];
-  user: Userr | undefined;
-  userMap: { [id: string]: Userr } = {};
+  usersList: User[] = [];
+  user: User | undefined;
+  userMap: { [id: string]: User } = {};
   currentUserId = sessionStorage.getItem('userId');
-  foundUser: Userr | undefined;
+  foundUser: User | undefined;
   searchTermGroup: string = '';
   searchMember: string = '';
   roomInviteTo: ChatRoom[]=[];
 
-  // memberList: Userr[] = [];
+  // memberList: User[] = [];
   constructor(private userService: UserService,
     private chatRoomService: ChatRoomService,
     private socketService : SocketService,
@@ -121,11 +121,11 @@ export class MembersModalComponent implements OnInit {
 
   chooseTitle(): void {
     if (this.modalView === 0) {
-      this.titleHeader = 'Groups';
+      this.titleHeader = 'Nhóm';
     } else if (this.modalView === 1) {
-      this.titleHeader = 'Add members';
+      this.titleHeader = 'Thêm thành viên';
     } else if (this.modalView === 2) {
-      this.titleHeader = 'Change admin';
+      this.titleHeader = 'Thay đổi admin';
     }
   }
 
@@ -166,16 +166,16 @@ export class MembersModalComponent implements OnInit {
   filteredChatRoomsToInvite() {
     // Lấy user còn lại trong phòng hiện tại (ngoại trừ currentUser)
     const otherUser = this.selectedRoom?.members.find(
-      (member: Userr) => member._id.toString() !== this.currentUserId?.toString()
+      (member: User) => member._id.toString() !== this.currentUserId?.toString()
     );
 
-    // otherUser là object Userr, lấy id thành chuỗi
+    // otherUser là object User, lấy id thành chuỗi
     const otherUserId = otherUser?._id.toString() || '';
 
     // Lọc các phòng nhóm mà không chứa otherUserId
     const rooms = this.chatRooms.filter(room =>
       room.isGroupChat === true &&
-      !room.members.some((member: Userr) =>
+      !room.members.some((member: User) =>
         member._id.toString() === otherUserId
       )
     );
@@ -229,7 +229,7 @@ export class MembersModalComponent implements OnInit {
   
   getFriends(){
     this.userService.getFriends().subscribe({
-      next: (res: Userr[]) => {
+      next: (res: User[]) => {
         this.usersList = res;
         console.log('User data loaded:', this.usersList);
       },
@@ -242,19 +242,19 @@ export class MembersModalComponent implements OnInit {
   isInChatRoom(userId: string): boolean{
     return this.memberListFromChatRoom.some(mem => mem._id! === userId)
   }
-  getUsersToAddChat() : Userr[]{
+  getUsersToAddChat() : User[]{
     return this.usersList.filter(user => !this.isInChatRoom(user._id));
   }
 
 
-  get filteredUsers(): Userr[] {
+  get filteredUsers(): User[] {
     return this.usersList.filter(user =>
       user.name.toLowerCase().includes(this.searchTerm.toLowerCase())
     );
   }
 
 
-  get filteredMembers(): Userr[] {
+  get filteredMembers(): User[] {
     return this.users.filter(mem =>
       mem.name.toLowerCase().includes(this.searchMember.toLowerCase())
     );

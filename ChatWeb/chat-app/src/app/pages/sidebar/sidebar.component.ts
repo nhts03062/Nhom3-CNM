@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, inject, OnInit, OnDestroy } from '@angular/core';
 import { Router, RouterModule, NavigationEnd } from '@angular/router';
 import { filter, Subscription } from 'rxjs';
-import { Userr } from '../../models/user.model';
+import { User } from '../../models/user.model';
 import { UserService } from '../../services/user.service';
 
 @Component({
@@ -15,7 +15,7 @@ import { UserService } from '../../services/user.service';
 export class SidebarComponent implements OnInit, OnDestroy {
   router = inject(Router);
   activeIndex = 0;
-  user!: Userr;
+  user?: User;
   userId: string = sessionStorage.getItem('userId')!;
   defaultAvatarUrl = 'https://i1.rgstatic.net/ii/profile.image/1039614412341248-1624874799001_Q512/Meryem-Laval.jpg';
 
@@ -32,7 +32,7 @@ export class SidebarComponent implements OnInit, OnDestroy {
       this.setActiveIndex(event.urlAfterRedirects);
     });
      this.userService.getUserById(this.userId).subscribe({
-      next: (res: Userr) => {
+      next: (res: User) => {
         this.user = res;
       },
       error: (err) => {

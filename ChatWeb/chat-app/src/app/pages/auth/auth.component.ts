@@ -23,6 +23,9 @@ export class AuthComponent implements OnInit {
   apiUrl = apiUrl;
   isForgotPasswordRoute: boolean = false;
   isChangePasswordRoute: boolean = false;
+  isSuccess = false;
+  formSubmitted: boolean = false;
+  thongBao:string ='';
 
 
   registerForm = this.fb.group({
@@ -50,26 +53,15 @@ export class AuthComponent implements OnInit {
     // Kiểm tra xác thực email từ URL
     this.route.queryParams.subscribe(params => {
       if (params['verified']) {
-        alert("✅ Xác thực email thành công! Hãy đăng nhập.");
+        this.formSubmitted = true;
+        this.isSuccess = true;
+        this.thongBao = '✅ Xác thực email thành công! Hãy đăng nhập.'
+        setTimeout(() => {
+          this.resetForm();
+        }, 2000);
       }
     });
   }
-
-  /**
-   * Xác thực tài khoản từ email
-   */
-  // verifyEmail(token: string) {
-  //   this.http.get(`${apiUrl}/auth/verify?token=${encodeURIComponent(token)}`)
-  //     .subscribe({
-  //       next: () => {
-  //         alert("✅ Xác thực email thành công! Hãy đăng nhập.");
-  //         this.router.navigateByUrl("/login");
-  //       },
-  //       error: () => {
-  //         alert("❌ Xác thực thất bại hoặc token đã hết hạn!");
-  //       }
-  //     });
-  // }
 
   /**
    * Xử lý đăng nhập
@@ -80,21 +72,34 @@ export class AuthComponent implements OnInit {
         .subscribe({
           next: (res: any) => {
             if (res.token) {
+              this.formSubmitted = true;
+              this.isSuccess = true;
               sessionStorage.setItem("token", res.token);
               sessionStorage.setItem('userId',res.userDaLoc._id);
-              alert("✅ Đăng nhập thành công!");
+              setTimeout(() => {
+                this.resetForm();
+              }, 2000);
+              
               this.router.navigateByUrl("/chat");
               console.log(res.UserDaLoc._id);
-            } else {
-              alert("❌ Lỗi đăng nhập: " + res.message);
-            }
+            } 
           },
           error: (error) => {
-            alert("❌ Đăng nhập thất bại: " + (error.error?.message || "Có lỗi xảy ra!"));
+            this.formSubmitted = true;
+            this.isSuccess = false;
+            this.thongBao = '❌ Đăng nhập thất bại: Sai mật khẩu';
+            setTimeout(() => {
+              this.formSubmitted = false;
+            }, 1000);
           }
         });
     } else {
-      alert("❌ Form đăng nhập không hợp lệ");
+      this.thongBao = '❌ Form đăng nhập không hợp lệ';
+      this.formSubmitted = true;
+      this.isSuccess = false;
+      setTimeout(() => {
+        this.formSubmitted = false;
+      }, 1000);
     }
   }
 
@@ -106,18 +111,41 @@ export class AuthComponent implements OnInit {
       this.http.post(`${apiUrl}/auth/register`, this.registerForm.value)
         .subscribe({
           next: () => {
-            alert("✅ Đăng ký thành công! Kiểm tra email để xác nhận tài khoản.");
+            this.formSubmitted = true;
+            this.isSuccess = true;
+            this.thongBao = '✅ Đăng ký thành công! Kiểm tra email để xác nhận tài khoản.';
+            setTimeout(() => {
+                this.resetForm();
+            }, 2000);
           },
           error: (error) => {
-            alert("❌ Lỗi đăng ký: " + (error.error?.message || "Có lỗi xảy ra!"));
+            this.formSubmitted = true;
+            this.isSuccess = false; 
+            this.thongBao = `❌ Đăng ký thất bại: ${error.error?.message }`;
+            setTimeout(() => {
+              this.formSubmitted = false;
+            }, 1000);
           }
         });
     } else {
-      alert("❌ Form đăng ký không hợp lệ");
+      this.thongBao = '❌ Form đăng ký không hợp lệ';
+      this.formSubmitted = true;
+      this.isSuccess = false;
+      setTimeout(() => {
+        this.formSubmitted = false;
+      }, 1000);
     }
   }
   onNavigateForgotPassWord(){
     this.router.navigateByUrl('/auth/forgot-password')
   }
+  
+  resetForm() {
+    this.loginForm.reset();        // clear form inputs
+    this.registerForm.reset();
+    this.formSubmitted = false;            // reset alert
+    this.isSuccess = false;
+  }
+  
 
 }
