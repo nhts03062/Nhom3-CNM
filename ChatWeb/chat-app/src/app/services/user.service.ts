@@ -43,9 +43,9 @@ export class UserService {
     });
   }
 
-  updateUser( name:string, avatarUrl:string, phone:string, address:string): Observable<Userr[]> {
+  updateUser( name:string, avatarUrl:string, phone:string, address:string): Observable<Userr> {
     const body = {name, avatarUrl, phone, address};
-    return this.http.put<Userr[]>(this.apiService.getApiUrl('user/updateuser'), body, {
+    return this.http.put<Userr>(this.apiService.getApiUrl('user/updateuser'), body, {
       headers: this.getHeaders()
     });
   }

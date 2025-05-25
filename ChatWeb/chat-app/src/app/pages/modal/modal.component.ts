@@ -1,6 +1,6 @@
-import {SearchService} from '../../services/serachService.service'
+import {SearchService} from '../../services/searchService.service'
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Input, OnInit, Output, ViewChild } from '@angular/core';
 import { UserService } from '../../services/user.service';
 import { FormsModule } from '@angular/forms';
 import { forkJoin, map, Observable, filter } from 'rxjs';
@@ -13,7 +13,7 @@ import { SocketService } from '../../socket.service';
 @Component({
   selector: 'app-modal',
   standalone: true,
-  imports: [CommonModule, /*ModalProfileComponent,*/FormsModule],
+  imports: [CommonModule,FormsModule],
   templateUrl: './modal.component.html',
   styleUrls: ['./modal.component.css']
 })
@@ -23,12 +23,14 @@ export class ModalComponent implements OnInit {
   @Input() title = '';
   @Input() userIdNguoiDungHienTai: string | null = sessionStorage.getItem('userId');
   @Output() closeModal = new EventEmitter<void>();
+  @ViewChild('imageInput') imageInput!: ElementRef<HTMLInputElement>;
   // selectedEmail: string | null = null;
   showProfileModal: boolean = false;
   users!:Userr[];
   defaultAvatarUrl = 'https://i1.rgstatic.net/ii/profile.image/1039614412341248-1624874799001_Q512/Meryem-Laval.jpg';
   defaulGrouptAvatarUrl= 'https://static.vecteezy.com/system/resources/previews/026/019/617/original/group-profile-avatar-icon-default-social-media-forum-profile-photo-vector.jpg';
   user: Userr | undefined;
+  trangThaiKetBan: string | undefined;
 
   // tab của kết bạn
   searchError: string | null = null;
@@ -36,14 +38,13 @@ export class ModalComponent implements OnInit {
   isSearching = false;
   userNguoiDungHienTai: Userr | null = null;
 
-  
-
   activeTab: 'friend' | 'group' = 'friend';
   searchTerm: string = '';
   currentUserId = sessionStorage.getItem('userId');
   //tab group
   groupName = '';
   errorGroup = '';
+  groupImg='';
 
   constructor(private userService : UserService,
     private chatRoomService: ChatRoomService,
@@ -65,14 +66,14 @@ export class ModalComponent implements OnInit {
       //sk socket thêm bạn
       this.socketService.nhanskThemBan((data: any) =>{
         console.log('đã nhận sự kiện thêm bạn', data)
-      this.danhSachNguoiDungSauKhiTimKiem = this.danhSachNguoiDungSauKhiTimKiem.map((user: any) =>{
-        if(user._id.toString() === data._id.toString()){
-          return{ 
-            ...user,
-            requestfriends: [...user.requestfriends, this.userIdNguoiDungHienTai]
+        this.danhSachNguoiDungSauKhiTimKiem = this.danhSachNguoiDungSauKhiTimKiem.map((user: any) =>{
+          if(user._id.toString() === data._id.toString()){
+            return{ 
+              ...user,
+              requestfriends: [...user.requestfriends, this.userIdNguoiDungHienTai]
+            }
           }
-        }
-        return user;
+          return user;
       })})
       //sk socket huy ket ban
       this.socketService.nhanskHuyKetBan((data:any) =>{
@@ -87,51 +88,53 @@ export class ModalComponent implements OnInit {
           return user;
         })})
           //sk socket dong y ket ban
-    this.socketService.nhanskDongYKetBan((data:any) =>{
-      console.log('Đã nhận sự kiện đồng ý kết bạn', data)
-        this.danhSachNguoiDungSauKhiTimKiem = this.danhSachNguoiDungSauKhiTimKiem.map((user: any) =>{
-          if(user._id.toString() === data._id.toString()){
-            return{ 
-              ...user,
-              requestfriends: user.requestfriends.filter((friendId: string) => friendId !== this.userIdNguoiDungHienTai),
-              friends: [...user.friends, this.userIdNguoiDungHienTai]
-            }
-          }
-          return user;
-        })
-        this.friendsList.push(data)
-      })
-        //sk tu choi ket ban
-      this.socketService.nhanskTuChoiKetBan((data:any) =>{
-        console.log('Đã nhận sự kiện từ chối kết bạn', data)
+      this.socketService.nhanskDongYKetBan((data:any) =>{
+        console.log('Đã nhận sự kiện đồng ý kết bạn', data)
           this.danhSachNguoiDungSauKhiTimKiem = this.danhSachNguoiDungSauKhiTimKiem.map((user: any) =>{
-            console.log('Danh sach truoc',user.requestfriends.length)
-            if(user._id.toString() === data.toString()){
+            if(user._id.toString() === data._id.toString()){
               return{ 
                 ...user,
-                friendRequestsReceived: user.friendRequestsReceived.filter((friendId: string) => friendId.toString() !== this.userIdNguoiDungHienTai?.toString())
-              }
-            }
-            console.log('Danh sach sau',user.requestfriends.length)
-            return user;
-            
-          })
-        })
-          //sự kiện hủy bạn bè
-      this.socketService.nhanskHuyBanBe((data:any) =>{
-        console.log('Đã nhận sự kiện hủy bạn bè', data)
-          this.danhSachNguoiDungSauKhiTimKiem = this.danhSachNguoiDungSauKhiTimKiem.map((user: any) =>{
-            if(user._id.toString() === data.toString()){
-              return{ 
-                ...user,
-                friends: user.friends.filter((friendId: string) => friendId !== this.userIdNguoiDungHienTai)
+                requestfriends: user.requestfriends.filter((friendId: string) => friendId !== this.userIdNguoiDungHienTai),
+                friends: [...user.friends, this.userIdNguoiDungHienTai]
               }
             }
             return user;
           })
-          this.friendsList = this.friendsList.filter((friend: any) => friend._id.toString() !== data.toString())
+          this.friendsList.push(data)
         })
+          //sk tu choi ket ban
+        this.socketService.nhanskTuChoiKetBan((data:any) =>{
+          console.log('Đã nhận sự kiện từ chối kết bạn', data)
+            this.danhSachNguoiDungSauKhiTimKiem = this.danhSachNguoiDungSauKhiTimKiem.map((user: any) =>{
+              console.log('Danh sach truoc',user.requestfriends.length)
+              if(user._id.toString() === data.toString()){
+                return{ 
+                  ...user,
+                  friendRequestsReceived: user.friendRequestsReceived.filter((friendId: string) => friendId.toString() !== this.userIdNguoiDungHienTai?.toString())
+                }
+              }
+              console.log('Danh sach sau',user.requestfriends.length)
+              return user;
+              
+            })
+          })
+            //sự kiện hủy bạn bè
+        this.socketService.nhanskHuyBanBe((data:any) =>{
+          console.log('Đã nhận sự kiện hủy bạn bè', data)
+            this.danhSachNguoiDungSauKhiTimKiem = this.danhSachNguoiDungSauKhiTimKiem.map((user: any) =>{
+              if(user._id.toString() === data.toString()){
+                return{ 
+                  ...user,
+                  friends: user.friends.filter((friendId: string) => friendId !== this.userIdNguoiDungHienTai)
+                }
+              }
+              return user;
+            })
+            this.friendsList = this.friendsList.filter((friend: any) => friend._id.toString() !== data.toString())
+          })
     }
+
+
   }
 
   ngOnDestroy(): void {
@@ -159,8 +162,60 @@ export class ModalComponent implements OnInit {
   toggleProfileModal() {
     this.showProfileModal = !this.showProfileModal;
   }
-  
 
+  selectedUser: Userr | undefined;;
+
+  selectUser(user: Userr): void {
+    this.selectedUser = user;
+    if (this.selectedUser) {
+      this.trangThaiKetBan = this.kiemTraBanHayDaGuiYeuCauKetBan(this.selectedUser);
+      this.toggleProfileModal(); // Show the modal
+    }
+  }
+  
+onImageSelected(event: any): void {
+    const file = event.target.files[0];
+    if (file) {
+      const img = new Image();
+      const reader = new FileReader();
+  
+      reader.onload = (e: any) => {
+        img.src = e.target.result;
+  
+        img.onload = () => {
+          const size = 200; // desired size for avatar
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return;
+  
+          canvas.width = size;
+          canvas.height = size;
+  
+          // Draw circle mask
+          ctx.beginPath();
+          ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+          ctx.closePath();
+          ctx.clip();
+  
+          // Draw the image centered
+          const scale = Math.max(size / img.width, size / img.height);
+          const x = (size - img.width * scale) / 2;
+          const y = (size - img.height * scale) / 2;
+  
+          ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+  
+          const base64Image = canvas.toDataURL('image/jpeg', 0.9);
+          this.groupImg = base64Image;
+          // Không gọi updateChatRoom() ngay lập tức - đợi người dùng nhấn lưu
+        };
+      };
+  
+      reader.readAsDataURL(file);
+    }
+  }
+  chonHinhAnhGroup(): void {
+    this.imageInput.nativeElement.click();
+  }
 /**--------------Xử lý kêt bạn------------------*/
 searchFriend() {
   if (!this.searchTerm) {
@@ -183,6 +238,10 @@ searchFriend() {
     .subscribe({
       next: (res: any) => {
         this.danhSachNguoiDungSauKhiTimKiem = res.filter((user : any) => user._id !== this.userIdNguoiDungHienTai)
+        this.danhSachNguoiDungSauKhiTimKiem = this.danhSachNguoiDungSauKhiTimKiem.map((user : Userr) => ({
+          ...user,
+          trangThaiKetBan: this.kiemTraBanHayDaGuiYeuCauKetBan(user)
+        }));
         this.searchError = res.length === 0 ? 'Không tìm thấy người dùng' : null;
         this.isSearching = false;
       },
@@ -194,13 +253,16 @@ searchFriend() {
   }
 }
 
-// Kiểm tra đã là bạn hay chưa hay đã gửi yêu cầu kết bạn hay chưa hay đã nhận yêu cầu kết bạn hay chưa
-kiemTraBanHayDaGuiYeuCauKetBan(user: any): string{
-  const ban = user.friends.includes(this.userIdNguoiDungHienTai); // Đã là bạn
-  const daGuiYeuCau = user.friendRequestsReceived.includes(this.userIdNguoiDungHienTai); // Mình đã gửi yêu cầu kết bạn
-  const daNhanYeuCau = user.requestfriends.includes(this.userIdNguoiDungHienTai); // Mình đã nhận yêu cầu kết bạn
-  return ban ? 'ban' : daNhanYeuCau ? 'daNhanYeuCau' : daGuiYeuCau ? 'daGuiYeuCau' : 'chuaKetBan';
+
+kiemTraBanHayDaGuiYeuCauKetBan(user: any): string {
+  const ban = user?.friends?.includes(this.userIdNguoiDungHienTai);
+  const daGuiYeuCau = user?.friendRequestsReceived?.includes(this.userIdNguoiDungHienTai);
+  const daNhanYeuCau = user?.requestfriends?.includes(this.userIdNguoiDungHienTai);
+
+  const status = ban ? 'ban' : daNhanYeuCau ? 'daNhanYeuCau' : daGuiYeuCau ? 'daGuiYeuCau' : 'chuaKetBan';
+  return status;
 }
+
 
 //Gửi yêu cầu kết bạn
 guiYeuCauKetBan(userId :string){
@@ -319,7 +381,7 @@ huyYeuCauKetBan(userId: string){
     const roomData = {
       members: [...friendIds],
       chatRoomName: this.groupName ,
-      image: this.defaulGrouptAvatarUrl
+      image: this.defaulGrouptAvatarUrl || this.groupImg
     };
   
     console.log("🚀 ~ ModalComponent ~ createGroup ~ roomData:", roomData);

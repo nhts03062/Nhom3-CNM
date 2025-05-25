@@ -15,7 +15,7 @@ import { UserService } from '../../services/user.service';
 export class SidebarComponent implements OnInit, OnDestroy {
   router = inject(Router);
   activeIndex = 0;
-  user?: Userr;
+  user!: Userr;
   userId: string = sessionStorage.getItem('userId')!;
   defaultAvatarUrl = 'https://i1.rgstatic.net/ii/profile.image/1039614412341248-1624874799001_Q512/Meryem-Laval.jpg';
 
@@ -31,8 +31,7 @@ export class SidebarComponent implements OnInit, OnDestroy {
     ).subscribe((event: any) => {
       this.setActiveIndex(event.urlAfterRedirects);
     });
-
-    this.userService.getUserById(this.userId).subscribe({
+     this.userService.getUserById(this.userId).subscribe({
       next: (res: Userr) => {
         this.user = res;
       },
@@ -44,7 +43,6 @@ export class SidebarComponent implements OnInit, OnDestroy {
       this.userService.user$.subscribe(user => {
       this.user = user;
   });
-    
   }
 
   ngOnDestroy() {
@@ -63,6 +61,8 @@ export class SidebarComponent implements OnInit, OnDestroy {
     } else if (index === 2) {
       this.router.navigateByUrl('/contacts');
     } else if (index === 3) {
+      sessionStorage.removeItem('token');
+      sessionStorage.removeItem('userId');
       this.router.navigateByUrl('/auth', { replaceUrl: true });
     }
   }

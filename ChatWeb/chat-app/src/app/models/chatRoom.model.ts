@@ -25,5 +25,5 @@ export interface ChatRoom {
   createdAt: string;
   updatedAt: string;
   otherMembers:Userr[];
-  __v?: number;
+  timeAgo:string;
 }

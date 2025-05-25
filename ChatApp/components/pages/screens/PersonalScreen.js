@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { io } from 'socket.io-client';
 import {
     View,
     Text,
@@ -7,13 +8,16 @@ import {
     Image,
     ScrollView,
     Platform,
-    Alert
+    Alert,
+    ActivityIndicator
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../../../contexts/AuthContext';
 import axios from 'axios';
+
+const API_URL = require('../../../services/api');
 
 const personalOptions = [
     { icon: 'cloud-outline', label: 'zCloud', desc: 'Không gian lưu trữ dữ liệu trên đám mây' },
@@ -26,18 +30,52 @@ const personalOptions = [
 ];
 
 const PersonalScreen = () => {
-    const { user, token, logout } = useAuth();
+    const { user, token, logout, updateUserContext } = useAuth();
     const navigation = useNavigation();
+    const [socket, setSocket] = useState(null);
     const [userData, setUserData] = useState({
         name: '',
         email: '',
         phone: '',
         address: '',
         avatarUrl: null,
+        _id: null
     });
     const [loading, setLoading] = useState(true);
+    const [loggingOut, setLoggingOut] = useState(false);
+
+    useEffect(() => {
+        if (token && user) {
+            try {
+                const newSocket = io(API_URL.replace('/api', ''), {
+                    auth: { token }
+                });
+
+                newSocket.on('connect', () => {
+                    console.log('Socket connected in PersonalScreen');
+                });
+
+                newSocket.on('connect_error', (error) => {
+                    console.error('Socket connection error:', error);
+                });
+
+                setSocket(newSocket);
+
+                return () => {
+                    if (newSocket && newSocket.connected) {
+                        console.log('Disconnecting socket on cleanup');
+                        newSocket.disconnect();
+                    }
+                };
+            } catch (error) {
+                console.error('Error setting up socket connection:', error);
+            }
+        }
+    }, [token, user]);
 
     const handleLogout = async () => {
+        if (loggingOut) return;
+
         Alert.alert(
             'Đăng xuất',
             'Bạn có chắc muốn đăng xuất?',
@@ -45,13 +83,57 @@ const PersonalScreen = () => {
                 { text: 'Hủy', style: 'cancel' },
                 {
                     text: 'Đăng xuất',
+                    style: 'destructive',
                     onPress: async () => {
                         try {
-                            await logout();
-                            navigation.replace('Auth');
+                            setLoggingOut(true);
+                            if (socket) {
+                                console.log('Disconnecting socket before logout');
+                                socket.disconnect();
+                                setSocket(null);
+                            }
+                            const logoutSuccess = await logout();
+                            if (logoutSuccess) {
+                                console.log('Logout successful, navigating to Auth screen');
+                                navigation.reset({
+                                    index: 0,
+                                    routes: [{ name: 'Auth' }],
+                                });
+                            } else {
+                                throw new Error('Logout function returned false');
+                            }
                         } catch (error) {
                             console.error('Logout error:', error);
-                            Alert.alert('Lỗi', 'Không thể đăng xuất. Vui lòng thử lại sau.');
+                            Alert.alert(
+                                'Lỗi đăng xuất',
+                                'Không thể đăng xuất. Vui lòng thử lại sau.',
+                                [
+                                    {
+                                        text: 'Thử lại',
+                                        onPress: () => setLoggingOut(false)
+                                    },
+                                    {
+                                        text: 'Buộc đăng xuất',
+                                        style: 'destructive',
+                                        onPress: async () => {
+                                            try {
+                                                await AsyncStorage.removeItem('token');
+                                                await AsyncStorage.removeItem('user');
+                                                delete axios.defaults.headers.common['Authorization'];
+                                                navigation.reset({
+                                                    index: 0,
+                                                    routes: [{ name: 'Auth' }],
+                                                });
+                                            } catch (forceLogoutError) {
+                                                console.error('Force logout error:', forceLogoutError);
+                                                Alert.alert('Lỗi nghiêm trọng', 'Không thể đăng xuất. Vui lòng khởi động lại ứng dụng.');
+                                            }
+                                        }
+                                    }
+                                ]
+                            );
+                        } finally {
+                            setLoggingOut(false);
                         }
                     }
                 }
@@ -59,52 +141,72 @@ const PersonalScreen = () => {
         );
     };
 
-    // Function to fetch user data from AsyncStorage
     const fetchUserData = useCallback(async () => {
         try {
             setLoading(true);
+            if (!user) {
+                console.log('No user data available');
+                return;
+            }
+
+            let finalUserData = {
+                name: user.name || 'User',
+                email: user.email || '',
+                phone: user.phone || '',
+                address: user.address || '',
+                avatarUrl: user.avatarUrl || null,
+                _id: user._id
+            };
+
             const userDataString = await AsyncStorage.getItem('user');
             if (userDataString) {
                 try {
                     const parsedUserData = JSON.parse(userDataString);
-                    console.log("Retrieved user data:", parsedUserData); // Debug log
-                    setUserData({
-                        name: parsedUserData.name || 'User',
-                        email: parsedUserData.email || '',
-                        phone: parsedUserData.phone || '',
-                        address: parsedUserData.address || '',
-                        avatarUrl: parsedUserData.avatarUrl || null,
-                    });
+                    console.log("PersonalScreen - Retrieved user data from AsyncStorage:", parsedUserData);
+
+                    finalUserData = {
+                        name: parsedUserData.name || finalUserData.name,
+                        email: parsedUserData.email || finalUserData.email,
+                        phone: parsedUserData.phone || finalUserData.phone,
+                        address: parsedUserData.address || finalUserData.address,
+                        avatarUrl: parsedUserData.avatarUrl || finalUserData.avatarUrl,
+                        _id: finalUserData._id
+                    };
                 } catch (parseError) {
-                    console.error('Error parsing user data:', parseError);
-                    // If data is corrupted, remove it and use default values
-                    await AsyncStorage.removeItem('user');
-                    setUserData({
-                        name: 'User',
-                        email: '',
-                        phone: '',
-                        address: '',
-                        avatarUrl: null,
-                    });
+                    console.error('Error parsing user data from AsyncStorage:', parseError);
                 }
             }
+
+            setUserData(finalUserData);
+
+            // Cập nhật AuthContext với dữ liệu mới nhất
+            if (updateUserContext && (
+                user.name !== finalUserData.name ||
+                user.avatarUrl !== finalUserData.avatarUrl ||
+                user.phone !== finalUserData.phone ||
+                user.address !== finalUserData.address
+            )) {
+                console.log('PersonalScreen - Updating user context with latest data:', finalUserData);
+                updateUserContext(finalUserData);
+            }
+
+            console.log('PersonalScreen - Final user data set:', finalUserData);
         } catch (error) {
             console.error('Error fetching user data:', error);
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [user, updateUserContext]);
 
-    // Load user data when component mounts
     useEffect(() => {
         fetchUserData();
     }, [fetchUserData]);
 
-    // Refresh user data whenever the screen comes into focus
     useFocusEffect(
         useCallback(() => {
+            console.log('PersonalScreen focused, refreshing user data');
             fetchUserData();
-            return () => { }; // cleanup function
+            return () => { };
         }, [fetchUserData])
     );
 
@@ -117,8 +219,7 @@ const PersonalScreen = () => {
 
     const updateUserProfile = async (updatedData) => {
         try {
-            console.log("Sending update data:", updatedData);
-            const API_URL = require('../../../services/api');
+            console.log("PersonalScreen - Sending update data:", updatedData);
 
             const response = await axios.put(
                 `${API_URL}/user/updateuser`,
@@ -132,45 +233,73 @@ const PersonalScreen = () => {
             );
 
             if (response.status === 200) {
-                // Update local user data
                 const updatedUserData = {
                     ...userData,
                     ...updatedData
                 };
 
-                // Save to AsyncStorage
+                // Lưu vào AsyncStorage
                 await AsyncStorage.setItem('user', JSON.stringify(updatedUserData));
+                console.log('PersonalScreen - Saved updated data to AsyncStorage:', updatedUserData);
 
-                // Update state
+                // Cập nhật state local
                 setUserData(updatedUserData);
-                Alert.alert('Success', 'Profile updated successfully');
 
-                // Refresh data
+                // Cập nhật AuthContext
+                if (updateUserContext) {
+                    console.log('PersonalScreen - Updating AuthContext with new user data:', updatedUserData);
+                    updateUserContext(updatedUserData);
+                }
+
+                Alert.alert('Thành công', 'Cập nhật hồ sơ thành công');
+
+                // Refresh data để đảm bảo consistency
                 fetchUserData();
             }
         } catch (error) {
             console.error('Error updating profile:', error);
-
-            // Better error handling
             if (error.response) {
                 console.error('Server error response:', error.response.data);
-                Alert.alert('Update Failed', `Server error: ${error.response.status}`);
+                Alert.alert('Cập nhật thất bại', `Lỗi máy chủ: ${error.response.status}`);
             } else if (error.request) {
-                Alert.alert('Update Failed', 'No response from server. Check your connection.');
+                Alert.alert('Cập nhật thất bại', 'Không nhận được phản hồi từ máy chủ. Kiểm tra kết nối của bạn.');
             } else {
-                Alert.alert('Update Failed', error.message);
+                Alert.alert('Cập nhật thất bại', error.message);
             }
         }
     };
 
-    // Use either the avatarUrl or generate a name-based avatar
     const getAvatarSource = () => {
-        if (userData.avatarUrl) {
+        console.log('PersonalScreen - Getting avatar source - userData:', {
+            name: userData.name,
+            avatarUrl: userData.avatarUrl
+        });
+
+        // Nếu có avatarUrl và không phải URL mặc định từ backend
+        if (userData.avatarUrl &&
+            userData.avatarUrl.trim() !== "" &&
+            userData.avatarUrl !== "https://bookvexe.vn/wp-content/uploads/2023/04/chon-loc-25-avatar-facebook-mac-dinh-chat-nhat_2.jpg") {
+            console.log('PersonalScreen - Using user avatar URL:', userData.avatarUrl);
             return { uri: userData.avatarUrl };
-        } else {
-            return { uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.name || 'User')}&background=0999fa&color=fff` };
         }
+
+        // Tạo avatar từ tên người dùng với encoding UTF-8 phù hợp
+        const userName = userData.name || user?.name || 'User';
+        const encodedName = encodeURIComponent(userName.trim());
+        const fallbackUrl = `https://ui-avatars.com/api/?name=${encodedName}&background=0999fa&color=fff&size=128&format=png&rounded=true`;
+
+        console.log('PersonalScreen - Using fallback avatar for user:', userName, '- URL:', fallbackUrl);
+        return { uri: fallbackUrl };
     };
+
+    if (loading) {
+        return (
+            <View style={[styles.container, styles.loadingContainer]}>
+                <ActivityIndicator size="large" color="#0999fa" />
+                <Text style={styles.loadingText}>Đang tải...</Text>
+            </View>
+        );
+    }
 
     return (
         <View style={styles.container}>
@@ -185,7 +314,11 @@ const PersonalScreen = () => {
                     <Image
                         source={getAvatarSource()}
                         style={styles.avatar}
-                        onError={(e) => console.log('Error loading avatar:', e.nativeEvent.error)}
+                        onError={(e) => {
+                            console.log('PersonalScreen - Error loading avatar:', e.nativeEvent.error);
+                        }}
+                        onLoad={() => console.log('PersonalScreen - Avatar loaded successfully')}
+                        onLoadStart={() => console.log('PersonalScreen - Avatar loading started')}
                     />
                     <View style={{ flex: 1 }}>
                         <Text style={styles.name}>{userData.name || 'Loading...'}</Text>
@@ -205,9 +338,19 @@ const PersonalScreen = () => {
                     </TouchableOpacity>
                 ))}
 
-                <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-                    <Ionicons name="log-out-outline" size={20} color="#ff3b30" style={{ marginRight: 12 }} />
-                    <Text style={[styles.optionLabel, { color: '#ff3b30' }]}>Đăng xuất</Text>
+                <TouchableOpacity
+                    style={[styles.logoutButton, loggingOut && styles.disabledButton]}
+                    onPress={handleLogout}
+                    disabled={loggingOut}
+                >
+                    {loggingOut ? (
+                        <ActivityIndicator size="small" color="#ff3b30" style={{ marginRight: 12 }} />
+                    ) : (
+                        <Ionicons name="log-out-outline" size={20} color="#ff3b30" style={{ marginRight: 12 }} />
+                    )}
+                    <Text style={[styles.optionLabel, { color: '#ff3b30' }]}>
+                        {loggingOut ? 'Đang đăng xuất...' : 'Đăng xuất'}
+                    </Text>
                 </TouchableOpacity>
             </ScrollView>
 
@@ -238,8 +381,21 @@ const PersonalScreen = () => {
 };
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#fff' },
-    scrollContainer: { paddingHorizontal: 16 },
+    container: {
+        flex: 1,
+        backgroundColor: '#fff'
+    },
+    loadingContainer: {
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    loadingText: {
+        marginTop: 10,
+        color: '#0999fa',
+    },
+    scrollContainer: {
+        paddingHorizontal: 16
+    },
     header: {
         flexDirection: 'row',
         justifyContent: 'flex-end',
@@ -248,7 +404,11 @@ const styles = StyleSheet.create({
         height: 80,
         paddingTop: Platform.OS === 'ios' ? 40 : 20,
     },
-    settingsIcon: { backgroundColor: '#0999fa', padding: 8, borderRadius: 8 },
+    settingsIcon: {
+        backgroundColor: '#0999fa',
+        padding: 8,
+        borderRadius: 8
+    },
     profileRow: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -262,11 +422,22 @@ const styles = StyleSheet.create({
         height: 50,
         borderRadius: 25,
         marginRight: 12,
-        backgroundColor: '#e1e1e1', // Placeholder color while loading
+        backgroundColor: '#e1e1e1',
     },
-    name: { fontSize: 16, fontWeight: 'bold' },
-    emailText: { color: '#444', fontSize: 12, marginTop: 2 },
-    subText: { color: '#666', fontSize: 13, marginTop: 2 },
+    name: {
+        fontSize: 16,
+        fontWeight: 'bold'
+    },
+    emailText: {
+        color: '#444',
+        fontSize: 12,
+        marginTop: 2
+    },
+    subText: {
+        color: '#666',
+        fontSize: 13,
+        marginTop: 2
+    },
     optionRow: {
         flexDirection: 'row',
         alignItems: 'flex-start',
@@ -274,14 +445,24 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: '#eee',
     },
-    optionLabel: { fontSize: 15, fontWeight: '500' },
-    optionDesc: { fontSize: 13, color: '#888', marginTop: 2 },
+    optionLabel: {
+        fontSize: 15,
+        fontWeight: '500'
+    },
+    optionDesc: {
+        fontSize: 13,
+        color: '#888',
+        marginTop: 2
+    },
     logoutButton: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingVertical: 14,
         marginTop: 10,
         marginBottom: 20,
+    },
+    disabledButton: {
+        opacity: 0.6,
     },
     tabBar: {
         flexDirection: 'row',

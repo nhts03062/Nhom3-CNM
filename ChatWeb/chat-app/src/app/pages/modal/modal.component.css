@@ -70,7 +70,7 @@
   
 .modal-container {
 	max-height: 90vh;
-	max-width: 500px;
+	max-width: 550px;
 	margin-left: auto;
 	margin-right: auto;
 	background-color: #fff;
@@ -347,6 +347,17 @@
   .checkbox-wrapper-15 .inp-cbx:checked + .cbx span:first-child svg {
 	stroke-dashoffset: 0;
   }
+  .search-results{
+  	list-style: none;
+    padding: 0 10px;
+  }
+  .add-friend-btn,.cancel-request-btn,.receive-request-btn{
+    border: none;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 15px;
+  }
+
 
 
   @keyframes check-15 {

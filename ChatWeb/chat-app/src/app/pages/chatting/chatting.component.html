@@ -5,21 +5,48 @@
       <div class="searchbar">
         <i class="fa fa-search" aria-hidden="true"></i>
         <!-- Search Input -->
-        <input type="text" placeholder="Searching conversation..." [(ngModel)]="searchTerm" />
+        <input
+          type="text"
+          placeholder="Searching conversation..."
+          [(ngModel)]="searchTerm"
+        />
 
         <!-- Filtered Conversations -->
-        <div class="search-dropdown" *ngIf="searchTerm && filteredChats.length > 0">
-          <div *ngFor="let chat of filteredChats" class="left-section chat-conversation"
-            [class.message-active]="chat._id === selectedRoom?._id" (click)="getRoom(chat._id)">
+        <div
+          class="search-dropdown"
+          *ngIf="searchTerm && filteredChats.length > 0"
+        >
+          <div
+            *ngFor="let chat of filteredChats"
+            class="left-section chat-conversation"
+            [class.message-active]="chat._id === selectedRoom?._id"
+            (click)="getRoom(chat._id)"
+          >
             <ng-container *ngIf="selectedRoom">
               <div>
-                <div class="photo"
-                  [style.backgroundImage]="'url(' + (selectedRoom.isGroupChat ? selectedRoom.image : (selectedRoom.otherMembers && selectedRoom.otherMembers.length > 0 ? selectedRoom.otherMembers[0].avatarUrl : defaultAvatarUrl)) + ')'">
-                </div>
+                <div
+                  class="photo"
+                  [style.backgroundImage]="
+                    'url(' +
+                    (selectedRoom.isGroupChat
+                      ? selectedRoom.image
+                      : selectedRoom.otherMembers &&
+                        selectedRoom.otherMembers.length > 0
+                      ? selectedRoom.otherMembers[0].avatarUrl
+                      : defaultAvatarUrl) +
+                    ')'
+                  "
+                ></div>
                 <div class="desc-contact">
                   <div class="username">
-                    <p class="name"
-                      *ngIf="selectedRoom.isGroupChat === false && selectedRoom.otherMembers && selectedRoom.otherMembers.length > 0">
+                    <p
+                      class="name"
+                      *ngIf="
+                        selectedRoom.isGroupChat === false &&
+                        selectedRoom.otherMembers &&
+                        selectedRoom.otherMembers.length > 0
+                      "
+                    >
                       {{ selectedRoom.otherMembers[0].name }}
                     </p>
                     <p class="name" *ngIf="selectedRoom.isGroupChat === true">
@@ -27,14 +54,19 @@
                     </p>
                   </div>
                 </div>
-                <p class="message">{{ selectedRoom.latestMessage?.content?.text }}</p>
+                <p class="message">
+                  {{ selectedRoom.latestMessage?.content?.text }}
+                </p>
               </div>
             </ng-container>
           </div>
         </div>
 
         <!-- Optional: No matches -->
-        <div class="search-dropdown" *ngIf="searchTerm && filteredChats.length === 0">
+        <div
+          class="search-dropdown"
+          *ngIf="searchTerm && filteredChats.length === 0"
+        >
           <p class="no-results">No matching friends</p>
         </div>
       </div>
@@ -42,7 +74,11 @@
       <button class="add-friend" (click)="toggleModal()">
         <i class="fa-solid fa-user-plus create clickable"></i>
       </button>
-      <app-modal [isOpen]="showModal" (closeModal)="toggleModal()" title="Add Friend"></app-modal>
+      <app-modal
+        [isOpen]="showModal"
+        (closeModal)="toggleModal()"
+        title="Add Friend"
+      ></app-modal>
     </div>
 
     <!-- RIGHT HEADER CHAT INFO -->
@@ -50,8 +86,12 @@
       <ng-container *ngIf="selectedRoom">
         <!-- GROUP CHAT -->
         <ng-container *ngIf="selectedRoom.isGroupChat; else oneToOne">
-          <div class="photo" [style.backgroundImage]="'url(' + (selectedRoom.image || defaulGrouptAvatarUrl) + ')'">
-          </div>
+          <div
+            class="photo"
+            [style.backgroundImage]="
+              'url(' + (selectedRoom.image || defaulGrouptAvatarUrl) + ')'
+            "
+          ></div>
           <div class="username">
             <p class="name">{{ selectedRoom.chatRoomName }}</p>
           </div>
@@ -60,213 +100,343 @@
         <!-- 1v1 CHAT -->
         <ng-template #oneToOne>
           <ng-container>
-            <div class="photo"
-              [style.backgroundImage]="'url(' + (selectedRoom.otherMembers && selectedRoom.otherMembers.length > 0 ? selectedRoom.otherMembers[0].avatarUrl : defaultAvatarUrl) + ')'">
-            </div>
+            <div
+              class="photo"
+              [style.backgroundImage]="
+                'url(' +
+                (selectedRoom.otherMembers &&
+                selectedRoom.otherMembers.length > 0
+                  ? selectedRoom.otherMembers[0].avatarUrl
+                  : defaultAvatarUrl) +
+                ')'
+              "
+            ></div>
             <div class="username">
-              <p class="name">{{ selectedRoom.otherMembers && selectedRoom.otherMembers.length > 0 ?
-                selectedRoom.otherMembers[0].name : 'Unknown' }}</p>
+              <p class="name">{{ roomName }}</p>
             </div>
           </ng-container>
         </ng-template>
 
-        <i class="icon clickable fa-solid fa-bars right" aria-hidden="true" (click)="toggleSidebar($event)"></i>
-        <div class="sidebar" [class.open]="isSidebarOpen" #sidebar (click)="$event.stopPropagation()">
+        <i
+          class="icon clickable fa-solid fa-bars right"
+          aria-hidden="true"
+          (click)="toggleSidebar($event)"
+        ></i>
+        <div
+          class="sidebar"
+          [class.open]="isSidebarOpen"
+          #sidebar
+          (click)="$event.stopPropagation()"
+        >
           <div class="d-flex flex-column align-items-center text-center pt-4">
-        
             <!-- GROUP CHAT -->
             <ng-container *ngIf="selectedRoom.isGroupChat; else oneAndOne">
-              <!-- Hiển thị hình ảnhảnh -->
+              <!-- Hiển thị hình ảnh -->
               <div class="group-avatar position-relative">
                 <img
                   [src]="selectedRoom.image || defaulGrouptAvatarUrl"
                   alt="Group"
                   class="rounded-circle p-1 bg-primary"
                   width="110"
-                >
+                />
                 <div *ngIf="editingImage" class="image-edit-overlay">
-                  <input #imageInput type="file" accept="image/*" (change)="onImageSelected($event)"
-                  style="display: none;" />
-                  <button class="btn btn-sm btn-light mt-2" (click)=" chonHinhAnhGroup()">
+                  <input
+                    #imageInput
+                    type="file"
+                    accept="image/*"
+                    (change)="onImageSelected($event)"
+                    style="display: none"
+                  />
+                  <button
+                    class="btn btn-sm btn-light mt-2"
+                    (click)="chonHinhAnhGroup()"
+                  >
                     <i class="fa-solid fa-camera"></i>
                   </button>
                   <div class="mt-2">
-                    <button class="btn btn-sm btn-success" (click)="saveImage()">
+                    <button
+                      class="btn btn-sm btn-success"
+                      (click)="saveImage()"
+                    >
                       <i class="fa-solid fa-check"></i>
                     </button>
-                    <button class="btn btn-sm btn-danger ml-2" (click)="cancelEditImage()">
+                    <button
+                      class="btn btn-sm btn-danger ml-2"
+                      (click)="cancelEditImage()"
+                    >
                       <i class="fa-solid fa-times"></i>
                     </button>
                   </div>
                 </div>
-                <button *ngIf="!editingImage" class="btn btn-light btn-sm edit-image-btn" (click)="toggleEditImage()">
+                <button
+                  *ngIf="
+                    !editingImage &&
+                    getId(idNguoiDungHienTai) === getId(selectedRoom?.admin)
+                  "
+                  class="btn btn-light btn-sm edit-image-btn"
+                  (click)="toggleEditImage()"
+                >
                   <i class="fa-solid fa-pen"></i>
                 </button>
               </div>
               <!-- Hiển thị ten chat group -->
-                <div class="username mt-4 d-flex flex-row align-items-center text-center">
-                  <ng-container *ngIf="!editingName; else editMode">
-                    <p class="name mr-3 mb-0">
-                      {{ selectedRoom.chatRoomName }}
-                    </p>
-                    <i class="fa-solid fa-pen ml-2 clickable" (click)="toggleEditName()"></i>
-                  </ng-container>
-                
-                  <ng-template #editMode>
-                    <div class="d-flex align-items-center">
-                      <input [(ngModel)]="editedRoomName" class="form-control" />
-                      <button class="btn btn-sm btn-success ml-2" (click)="saveRoomName()">
-                        <i class="fa-solid fa-check"></i>
-                      </button>
-                      <button class="btn btn-sm btn-danger ml-2" (click)="cancelEditName()">
-                        <i class="fa-solid fa-times"></i>
-                      </button>
-                    </div>
-                  </ng-template>
-                </div>
-              
+              <div
+                class="username mt-3 d-flex flex-row align-items-center text-center"
+                [ngClass]="{
+                  'override-ml': getId(idNguoiDungHienTai) !== getId(selectedRoom.admin)
+                }"
+              >
+                <ng-container *ngIf="!editingName; else editMode">
+                  <p class="name mr-3 mb-0 fw-bold fs-5">
+                    {{ selectedRoom.chatRoomName }}
+                  </p>
+                  <i
+                    class="fa-solid fa-pen ml-2 clickable"
+                    (click)="toggleEditName()"
+                    *ngIf="getId(idNguoiDungHienTai) === getId(selectedRoom?.admin)"
+                  ></i>
+                </ng-container>
+
+                <ng-template #editMode>
+                  <div class="d-flex align-items-center">
+                    <input [(ngModel)]="editedRoomName" class="form-control" />
+                    <button
+                      class="btn btn-sm btn-success ml-2"
+                      (click)="saveRoomName()"
+                    >
+                      <i class="fa-solid fa-check"></i>
+                    </button>
+                    <button
+                      class="btn btn-sm btn-danger ml-2"
+                      (click)="cancelEditName()"
+                    >
+                      <i class="fa-solid fa-times"></i>
+                    </button>
+                  </div>
+                </ng-template>
+              </div>
+
               <div class="mt-2 mb-1 w-100">
                 <div data-content="GROUP" class="divider-text"></div>
               </div>
 
-                <!-- Members -->
-                <button type="button" class="btn btn-primary"  (click)="toggleAddMembersModal()">
-                  <span class="d-inline-flex align-items-center">
-                    Add Member<i class="fa-solid fa-user-plus" style="color:#fff"></i>
-                  </span>
-                </button>
-                  <!-- Search Input -->
-                <input
-                  type="text"
-                  placeholder="Search..."
-                  [(ngModel)]="searchTermMember"
-                  class="members-searchbar"
-                />
+              <!-- Members -->
+              <button
+                type="button"
+                class="btn btn-primary"
+                (click)="toggleAddMembersModal()"
+              >
+                <span class="d-inline-flex align-items-center">
+                  Add Member<i
+                    class="fa-solid fa-user-plus"
+                    style="color: #fff"
+                  ></i>
+                </span>
+              </button>
+              <!-- Search Input -->
+              <input
+                type="text"
+                placeholder="Search..."
+                [(ngModel)]="searchTermMember"
+                class="members-searchbar"
+              />
 
-                <!-- Show only filtered members -->
-                <ng-container *ngFor="let mem of membersList">
-                  <div 
-                    class="left-section friends d-flex justify-content-between align-items-center" 
-                    [class.active]="selectedMember?._id === mem._id"
-                    (click)="selectMember(mem)"
-                  >
-                    <div class="d-flex align-items-center w-100">
-                      <div 
-                        class="photo" 
-                        [style.backgroundImage]="'url(' + mem.avatarUrl + ')'"
-                      >
-                        <!-- <div class="online" *ngIf="friend.online === true"></div> -->
-                      </div>
-                      <div class="desc-contact">
-                        <div class="username">
-                          <p class="name mb-0">{{ mem.name }}</p>
-                        </div>
+              <!-- Show only filtered members -->
+              <ng-container *ngFor="let mem of membersList">
+                <div
+                  class="left-section friends d-flex justify-content-between align-items-center"
+                  [class.active]="selectedMember?._id === mem._id"
+                  (click)="selectMember(mem)"
+                >
+                  <div class="d-flex align-items-center w-100">
+                    <div
+                      class="photo"
+                      [style.backgroundImage]="'url(' + mem.avatarUrl + ')'"
+                    >
+                      <!-- <div class="online" *ngIf="friend.online === true"></div> -->
+                    </div>
+                    <div class="desc-contact">
+                      <div class="username">
+                        <p class="name mb-0">{{ mem.name }}</p>
                       </div>
                     </div>
-                   <!-- Nếu mem là admin thì luôn hiển thị chữ "Admin" cho tất cả -->
-                    <ng-container *ngIf="getId(mem) === getId(selectedRoom?.admin)">
-                      <p style="font-size: small; margin: center;">
-                        Admin
-                      </p>
-                    </ng-container>
-
-                    <!-- Nếu mem không phải là admin và người dùng hiện tại là admin thì hiển thị nút xoá -->
-                    <ng-container *ngIf="getId(mem) !== getId(selectedRoom?.admin) && getId(selectedRoom?.admin) === getId(idNguoiDungHienTai)">
-                      <i 
-                        class="icon clickable fa-solid fa-square-xmark right ms-2" 
-                        aria-hidden="true" 
-                        (click)="removeMember(mem._id); $event.stopPropagation();">
-                      </i>
-                    </ng-container>
-
                   </div>
-                </ng-container>
-                <div class="mb-1 w-100" *ngIf="selectedRoom.admin === idNguoiDungHienTai">
-                  <div data-content="Owner & admin" class="divider-text"></div>
-                </div>
-                
-                <div class="role d-flex flex-column align-items-center text-center w-100" *ngIf="selectedRoom.admin === idNguoiDungHienTai">
-                  <button class="btn w-100 border-0" (click)="toggleMembersModal()">Change admin</button>
-                </div>
-                
-                <!-- Optional: No matches -->
-                <div class="no-results" *ngIf="searchTermMember && membersList.length === 0">
-                  No members found.
-                </div>
+                  <!-- Nếu mem là admin thì luôn hiển thị chữ "Admin" cho tất cả -->
+                  <ng-container
+                    *ngIf="getId(mem) === getId(selectedRoom?.admin)"
+                    class="m-0"
+                  >
+                    <i
+                      class="fa-solid fa-user-tie right ms-2"
+                      style="font-size: 21px"
+                    ></i>
+                  </ng-container>
 
+                  <!-- Nếu mem không phải là admin và người dùng hiện tại là admin thì hiển thị nút xoá -->
+                  <ng-container
+                    *ngIf="
+                      getId(mem) !== getId(selectedRoom?.admin) &&
+                      getId(selectedRoom?.admin) === getId(idNguoiDungHienTai)
+                    "
+                  >
+                    <i
+                      class="icon clickable fa-solid fa-square-xmark right ms-2"
+                      aria-hidden="true"
+                      (click)="removeMember(mem._id); $event.stopPropagation()"
+                    >
+                    </i>
+                  </ng-container>
+                </div>
+              </ng-container>
+              <div
+                class="mb-1 w-100"
+                *ngIf="selectedRoom.admin === idNguoiDungHienTai"
+              >
+                <div data-content="Owner & admin" class="divider-text"></div>
+              </div>
+
+              <div
+                class="role d-flex flex-column align-items-center text-center w-100"
+                *ngIf="selectedRoom.admin === idNguoiDungHienTai"
+              >
+                <button
+                  class="btn w-100 border-0"
+                  (click)="toggleMembersModal()"
+                >
+                  Change admin
+                </button>
+              </div>
+
+              <!-- Optional: No matches -->
+              <div
+                class="no-results"
+                *ngIf="searchTermMember && membersList.length === 0"
+              >
+                No members found.
+              </div>
+
+              <app-modal-profile
+                *ngIf="showProfileModal && selectedMember"
+                [isOpen]="showProfileModal"
+                [user]="selectedMember"
+                (closeModal)="toggleProfileModal()"
+                [trangThaiKetBan]="
+                  kiemTraBanHayDaGuiYeuCauKetBan(selectedMember)
+                "
+                title="Profile"
+              >
+              </app-modal-profile>
             </ng-container>
-        
+
             <!-- 1v1 CHAT -->
             <ng-template #oneAndOne>
-              <div class="d-flex flex-column align-items-center text-center pt-4 w-100">
+              <div
+                class="d-flex flex-column align-items-center text-center pt-4 w-100"
+              >
                 <div>
                   <img
-                    [src]="(selectedRoom.otherMembers && selectedRoom.otherMembers.length > 0 ? selectedRoom.otherMembers[0].avatarUrl : defaultAvatarUrl)"
+                    [src]="
+                      nguoiDung && nguoiDung.length > 0
+                        ? nguoiDung[0].avatarUrl
+                        : defaultAvatarUrl
+                    "
                     alt="User"
                     class="rounded-circle p-1 bg-primary"
                     width="110"
-                  >
+                  />
                 </div>
-                <div class="username mt-4  ms-0 d-flex flex-row align-items-center text-center">
+                <div
+                  class="username mt-4 ms-0 d-flex flex-row align-items-center text-center"
+                >
                   <p class="name mb-0">
-                    {{ selectedRoom.otherMembers && selectedRoom.otherMembers.length > 0 ? selectedRoom.otherMembers[0].name : 'Unknown' }}
+                    {{ roomName }}
                   </p>
                 </div>
-                
+
                 <div class="mt-2 mb-2 w-100">
                   <div class="divider-text"></div>
                 </div>
-                <button class="mb-2 border-0 bg-transparent" (click)="toggleGroupsToInviteModal()">Invite to group</button>
+                <button
+                  class="mb-2 border-0 bg-transparent"
+                  (click)="toggleGroupsToInviteModal()"
+                >
+                  Mời vào nhóm
+                </button>
               </div>
-            </ng-template>            
+            </ng-template>
 
             <div class="w-100">
-              <div class="divider-text"> </div>
+              <div class="divider-text"></div>
             </div>
-            <button *ngIf="selectedRoom.isGroupChat === false" type="button" class="btn btn-outline-danger mb-2" (click)="deleteChatRoom()">Xóa cuộc trò chuyện</button>
+            <button
+              *ngIf="selectedRoom.isGroupChat === false"
+              type="button"
+              class="btn btn-outline-danger mb-2"
+              (click)="deleteChatRoom()"
+            >
+              Xóa cuộc trò chuyện
+            </button>
             <p *ngIf=""></p>
-            <button *ngIf="selectedRoom.isGroupChat === true" type="button" class="btn btn-outline-danger mb-2" (click)="leaveChatRoom()">Rời nhóm</button>
-            <button *ngIf="selectedRoom.isGroupChat === true &&  getId(selectedRoom.admin) === idNguoiDungHienTai" type="button" class="btn btn-outline-danger mb-2" (click)="deleteChatRoom()">Xóa nhóm</button>
+            <button
+              *ngIf="selectedRoom.isGroupChat === true"
+              type="button"
+              class="btn btn-outline-danger mb-2"
+              (click)="leaveChatRoom()"
+            >
+              Rời nhóm
+            </button>
+            <button
+              *ngIf="
+                selectedRoom.isGroupChat === true &&
+                getId(selectedRoom.admin) === idNguoiDungHienTai
+              "
+              type="button"
+              class="btn btn-outline-danger mb-2"
+              (click)="deleteChatRoom()"
+            >
+              Xóa nhóm
+            </button>
           </div>
-              <!-- Invite to group modal -->
-              <app-members-modal
-                *ngIf="showGroupsToInvite"
-                [isOpen]="showGroupsToInvite"
-                [modalView]="0"
-                (closeModal)="toggleGroupsToInviteModal()"
-                (confirmUpdate)="addMemChatRoom()">
-              </app-members-modal>
-              <!-- Add member modal -->
-              <app-members-modal
-                *ngIf="showAddMembersModal"
-                [isOpen]="showAddMembersModal"
-                [addedMembers]="addedMembers"
-                [memberListFromChatRoom]="layNguoiDungKhac(selectedRoom)"
-                [modalView]="1"
-                (closeModal)="toggleAddMembersModal()"
-                (changedMembers)="addedMembers = $event"
-                [updateChatRoom]="updateChatRoom.bind(this)"
-                [selectedRoom]="selectedRoom"
-                (confirmUpdate)="updateChatRoom()"
-                >
-              </app-members-modal>
+          <!-- Invite to group modal -->
+          <app-members-modal
+            *ngIf="showGroupsToInvite"
+            [isOpen]="showGroupsToInvite"
+            [modalView]="0"
+            (closeModal)="toggleGroupsToInviteModal()"
+            (confirmUpdate)="addMemChatRoom()"
+            [chatRooms]="chatRooms"
+            [selectedRoom]="selectedRoom"
+          >
+          </app-members-modal>
+          <!-- Add member modal -->
+          <app-members-modal
+            *ngIf="showAddMembersModal"
+            [isOpen]="showAddMembersModal"
+            [addedMembers]="addedMembers"
+            [memberListFromChatRoom]="layNguoiDungKhac(selectedRoom)"
+            [modalView]="1"
+            (closeModal)="toggleAddMembersModal()"
+            (changedMembers)="addedMembers = $event"
+            [updateChatRoom]="updateChatRoom.bind(this)"
+            [selectedRoom]="selectedRoom"
+            (confirmUpdate)="onConfirmUpdate($event)"
+          >
+          </app-members-modal>
 
-              <!-- Change Admin modal -->
-              <app-members-modal
-                *ngIf="showMembers"
-                [isOpen]="showMembers"
-                [users]="layNguoiDungKhac(selectedRoom)"
-                [modalView]="2"
-                (closeModal)="toggleMembersModal()"
-                (newAdminSelected)="changedAdmin = $event"
-                [updateChatRoom]="updateChatRoom.bind(this)"
-                [selectedRoom]="selectedRoom"
-                (confirmUpdate)="updateChatRoom()"
-                >
-              </app-members-modal>
-
+          <!-- Change Admin modal -->
+          <app-members-modal
+            *ngIf="showMembers"
+            [isOpen]="showMembers"
+            [users]="layNguoiDungKhac(selectedRoom)"
+            [modalView]="2"
+            (closeModal)="toggleMembersModal()"
+            (newAdminSelected)="changedAdmin = $event"
+            [updateChatRoom]="updateChatRoom.bind(this)"
+            [selectedRoom]="selectedRoom"
+            (confirmUpdate)="updateChatRoom()"
+          >
+          </app-members-modal>
         </div>
-
       </ng-container>
     </div>
   </div>
@@ -274,15 +444,35 @@
   <!--start------Phần hiển thị chat Room-->
 
   <section class="Left-section">
-    <div *ngFor="let room of chatRooms" class="left-section message"
-      [class.message-active]="room._id === selectedRoom?._id" (click)="getRoom(room._id)">
+    <div
+      *ngFor="let room of chatRooms"
+      class="left-section message"
+      [class.message-active]="room._id === selectedRoom?._id"
+      (click)="getRoom(room._id)"
+    >
       <ng-container>
-        <div class="photo"
-          [style.backgroundImage]="'url(' + (room.isGroupChat ? (room.image || defaulGrouptAvatarUrl) : (room.otherMembers && room.otherMembers.length > 0 ? room.otherMembers[0].avatarUrl : defaultAvatarUrl)) + ')'">
-        </div>
+        <div
+          class="photo"
+          [style.backgroundImage]="
+            'url(' +
+            (room.isGroupChat
+              ? room.image || defaulGrouptAvatarUrl
+              : room.otherMembers && room.otherMembers.length > 0
+              ? room.otherMembers[0].avatarUrl
+              : defaultAvatarUrl) +
+            ')'
+          "
+        ></div>
         <div class="desc-contact">
           <div class="username">
-            <p class="name" *ngIf="room.isGroupChat === false && room.otherMembers && room.otherMembers.length > 0">
+            <p
+              class="name"
+              *ngIf="
+                room.isGroupChat === false &&
+                room.otherMembers &&
+                room.otherMembers.length > 0
+              "
+            >
               {{ room.otherMembers[0].name }}
             </p>
             <p class="name" *ngIf="room.isGroupChat === true">
@@ -291,32 +481,49 @@
           </div>
 
           <!-- Hiển thị tin nhắn đã thu hồi với chính mình -->
-          <div class="message"
-            *ngIf="room.latestMessage?.recall === '1' &&
-              (room.latestMessage?.sendID?._id || room.latestMessage?.sendID) === idNguoiDungHienTai">
+          <div
+            class="message"
+            *ngIf="
+              room.latestMessage?.recall === '1' &&
+              (room.latestMessage?.sendID?._id ||
+                room.latestMessage?.sendID) === idNguoiDungHienTai
+            "
+          >
             <i>Thu hồi với chính mình</i>
           </div>
 
-                  <!-- Hiển thị tin nhắn cuối cùng -->
-          <div class="message" *ngIf="room.latestMessage?.content?.type === 'text'">
+          <!-- Hiển thị tin nhắn cuối cùng -->
+          <div
+            class="message"
+            *ngIf="room.latestMessage?.content?.type === 'text'"
+          >
             {{ room.latestMessage?.content?.text }}
           </div>
 
           <!-- Hiển thị tin nhắn cuối cùng nhiều file -->
-          <div class="message" *ngIf="room.latestMessage?.content?.type === 'file'">
+          <div
+            class="message"
+            *ngIf="room.latestMessage?.content?.type === 'file'"
+          >
             [Tệp tin]
           </div>
 
           <!-- Hiển thị tin nhắn cuối cùng nhiều ảnh -->
-          <div class="message" *ngIf="room.latestMessage?.content?.type === 'media'">
+          <div
+            class="message"
+            *ngIf="room.latestMessage?.content?.type === 'media'"
+          >
             [Hình ảnh]
           </div>
-         
+
           <!-- Hiển thị tin nhắn đã thu hồi với tất cả -->
           <div class="message" *ngIf="room.latestMessage?.recall === '2'">
             <i>Tin nhắn đã bị thu hồi.</i>
           </div>
-
+        </div>
+        <!-- Thời gian sau khi nhận được tin nhắn mới nhất -->
+        <div class="timer">
+          {{ room.timeAgo }}
         </div>
       </ng-container>
     </div>
@@ -325,7 +532,7 @@
       Không có cuộc hội thoại nào hãy bắt đầu
     </div>
   </section>
-    <!--end-----Phần hiển thị chat Room-->
+  <!--end-----Phần hiển thị chat Room-->
 
   <section class="Right-section">
     <div *ngIf="selectedRoom?._id && idNguoiDungHienTai && selectedRoom">
@@ -334,24 +541,32 @@
           <!-- Nếu message đã bị recall cho tất cả -->
           <div *ngIf="msg.recall === '2'" class="Messages">
             <div class="message" *ngIf="msg.sendID._id !== idNguoiDungHienTai">
-              <div class="photo"
-                [style.backgroundImage]="'url(' + (getUserFromId(msg.sendID._id)?.avatarUrl || defaultAvatarUrl) + ')'">
-              </div>
+              <div
+                class="photo"
+                [style.backgroundImage]="
+                  'url(' +
+                  (getUserFromId(msg.sendID._id)?.avatarUrl ||
+                    defaultAvatarUrl) +
+                  ')'
+                "
+              ></div>
               <div class="bubble-wrapper">
                 <div class="bubble">
                   <div class="text">
                     <p class="senderOnMsg" *ngIf="selectedRoom.isGroupChat">
-                      {{msg.sendID.name}}
+                      {{ msg.sendID.name }}
                     </p>
                     <i>Tin nhắn đã bị thu hồi.</i>
                   </div>
                 </div>
-                <p class="time">{{ msg.createdAt | date: 'shortTime' }}</p>
+                <p class="time">{{ msg.createdAt | date : "shortTime" }}</p>
               </div>
             </div>
             <div class="response" *ngIf="msg.sendID._id === idNguoiDungHienTai">
               <p class="text"><i>Tin nhắn đã bị thu hồi.</i></p>
-              <div class="response-time time">{{ msg.createdAt | date: 'shortTime' }}</div>
+              <div class="response-time time">
+                {{ msg.createdAt | date : "shortTime" }}
+              </div>
             </div>
           </div>
 
@@ -360,86 +575,138 @@
           <div *ngIf="msg.recall === '1'">
             <div class="message" *ngIf="msg.sendID._id !== idNguoiDungHienTai">
               <!-- Người nhận vẫn thấy -->
-              <div class="photo"
-                [style.backgroundImage]="'url(' + (getUserFromId(msg.sendID._id)?.avatarUrl || defaultAvatarUrl) + ')'">
-              </div>
+              <div
+                class="photo"
+                [style.backgroundImage]="
+                  'url(' +
+                  (getUserFromId(msg.sendID._id)?.avatarUrl ||
+                    defaultAvatarUrl) +
+                  ')'
+                "
+              ></div>
               <div class="bubble-wrapper">
                 <div class="bubble">
                   <div class="text">
                     <p class="senderOnMsg" *ngIf="selectedRoom.isGroupChat">
-                      {{msg.sendID.name}}
+                      {{ msg.sendID.name }}
                     </p>
                     {{ msg.content.text }}
                   </div>
                 </div>
-                <p class="time">{{ msg.createdAt | date: 'shortTime' }}</p>
+                <p class="time">{{ msg.createdAt | date : "shortTime" }}</p>
               </div>
             </div>
           </div>
 
           <!-- Message bình thường -->
-          <div *ngIf="msg.recall === '0'" class="Messages" (mouseleave)="closeMessageOptions()">
+          <div
+            *ngIf="msg.recall === '0'"
+            class="Messages"
+            (mouseleave)="closeMessageOptions()"
+          >
             <!-- 💬 Tin nhắn từ người khác -->
-            <div class="message" *ngIf="msg.sendID._id.toString() !== idNguoiDungHienTai.toString()">
-              <div class="photo"
-                [style.backgroundImage]="'url(' + (getUserFromId(msg.sendID._id)?.avatarUrl || defaultAvatarUrl) + ')'">
-              </div>
+            <div
+              class="message"
+              *ngIf="
+                msg.sendID._id.toString() !== idNguoiDungHienTai.toString()
+              "
+            >
+              <div
+                class="photo"
+                [style.backgroundImage]="
+                  'url(' +
+                  (getUserFromId(msg.sendID._id)?.avatarUrl ||
+                    defaultAvatarUrl) +
+                  ')'
+                "
+              ></div>
               <div class="bubble-wrapper">
                 <div class="bubble">
-                  
                   <div class="reply-preview" *ngIf="msg.replyToMessage">
-                    <p class="reply-info">
-                      Reply to
-                    </p>
+                    <p class="reply-info">Phản hồi tin nhắn</p>
 
                     <!-- ✅ Nếu là text -->
-                    <p *ngIf="msg.replyToMessage.content.text" class="reply-text">
+                    <p
+                      *ngIf="msg.replyToMessage.content.text"
+                      class="reply-text"
+                    >
                       "{{ msg.replyToMessage.content.text }}"
                     </p>
 
                     <!-- ✅ Nếu có ảnh -->
-                    <img *ngIf="msg.replyToMessage.content.media?.length" [src]="msg.replyToMessage.content.media[0]"
-                      class="reply-image" alt="replied image" />
+                    <img
+                      *ngIf="msg.replyToMessage.content.media?.length"
+                      [src]="msg.replyToMessage.content.media[0]"
+                      class="reply-image"
+                      alt="replied image"
+                    />
 
                     <!-- ✅ Nếu có file -->
-                    <p *ngIf="msg.replyToMessage.content.files?.length" class="reply-file">
-                      📎 {{ msg.replyToMessage.content.files[0].split('/').pop() }}
+                    <p
+                      *ngIf="msg.replyToMessage.content.files?.length"
+                      class="reply-file"
+                    >
+                      📎
+                      {{ msg.replyToMessage.content.files[0].split("/").pop() }}
                     </p>
                   </div>
 
                   <!-- Hiển thị ảnh -->
-                  <div class="image-preview" *ngIf="msg.content.media && msg.content.media.length > 1">
-                    <img *ngFor="let img of msg.content.media" [src]="img" class="message-image" />
+                  <div
+                    class="image-preview"
+                    *ngIf="msg.content.media && msg.content.media.length > 1"
+                  >
+                    <img
+                      *ngFor="let img of msg.content.media"
+                      [src]="img"
+                      class="message-image"
+                    />
                   </div>
-                  <div class="image-preview single" *ngIf="msg.content.media && msg.content.media.length === 1">
-                    <img *ngFor="let img of msg.content.media" [src]="img" class="message-image" />
+                  <div
+                    class="image-preview single"
+                    *ngIf="msg.content.media && msg.content.media.length === 1"
+                  >
+                    <img
+                      *ngFor="let img of msg.content.media"
+                      [src]="img"
+                      class="message-image"
+                    />
                   </div>
 
                   <!-- Hiển thị file tài liệu -->
                   <div class="file-preview" *ngIf="msg.content.files?.length">
-                    <div *ngFor="let file of msg.content.files" class="message-file">
+                    <div
+                      *ngFor="let file of msg.content.files"
+                      class="message-file"
+                    >
                       <a [href]="file" target="_blank">
                         <i class="fa-solid fa-file"></i>
-                        {{ file.split('/').pop() }}
+                        {{ file.split("/").pop() }}
                       </a>
                     </div>
                   </div>
-                  
+
                   <div class="text" *ngIf="msg.content.text">
                     <p class="senderOnMsg" *ngIf="selectedRoom.isGroupChat">
-                      {{msg.sendID.name}}
+                      {{ msg.sendID.name }}
                     </p>
                     {{ msg.content.text }}
                   </div>
                 </div>
-                <p class="time">{{ msg.createdAt | date: 'shortTime' }}</p>
+                <p class="time">{{ msg.createdAt | date : "shortTime" }}</p>
               </div>
 
               <!-- Menu icon -->
-              <i class="fa-solid fa-ellipsis-vertical" (click)="toggleMessageOptions(i)"></i>
+              <i
+                class="fa-solid fa-ellipsis-vertical"
+                (click)="toggleMessageOptions(i)"
+              ></i>
 
               <!-- Menu tuỳ chọn bên trái -->
-              <div class="message-options left" *ngIf="selectedMessageIndex === i">
+              <div
+                class="message-options left"
+                *ngIf="selectedMessageIndex === i"
+              >
                 <ul>
                   <li (click)="replyToMessage(i)">Reply to</li>
                 </ul>
@@ -447,13 +714,16 @@
             </div>
 
             <!-- ✅ Tin nhắn của chính mình -->
-            <div class="response" *ngIf="msg.sendID._id.toString() === idNguoiDungHienTai.toString()">
+            <div
+              class="response"
+              *ngIf="
+                msg.sendID._id.toString() === idNguoiDungHienTai.toString()
+              "
+            >
               <!-- Nội dung tin nhắn -->
               <!-- ✅ Hiển thị khung reply nếu có -->
               <div class="reply-preview" *ngIf="msg.replyToMessage">
-                <p class="reply-info">
-                  Reply to
-                </p>
+                <p class="reply-info">Reply to</p>
 
                 <!-- ✅ Nếu là text -->
                 <p *ngIf="msg.replyToMessage.content.text" class="reply-text">
@@ -461,78 +731,125 @@
                 </p>
 
                 <!-- ✅ Nếu có ảnh -->
-                <img *ngIf="msg.replyToMessage.content.media?.length" [src]="msg.replyToMessage.content.media[0]"
-                  class="reply-image" alt="replied image" />
+                <img
+                  *ngIf="msg.replyToMessage.content.media?.length"
+                  [src]="msg.replyToMessage.content.media[0]"
+                  class="reply-image"
+                  alt="replied image"
+                />
 
                 <!-- ✅ Nếu có file -->
-                <p *ngIf="msg.replyToMessage.content.files?.length" class="reply-file">
-                  📎 {{ msg.replyToMessage.content.files[0].split('/').pop() }}
+                <p
+                  *ngIf="msg.replyToMessage.content.files?.length"
+                  class="reply-file"
+                >
+                  📎 {{ msg.replyToMessage.content.files[0].split("/").pop() }}
                 </p>
               </div>
 
               <!-- Hiển thị ảnh -->
-              <div class="image-preview" *ngIf="msg.content.media && msg.content.media.length > 1">
-                <img *ngFor="let img of msg.content.media" [src]="img" class="message-image" />
+              <div
+                class="image-preview"
+                *ngIf="msg.content.media && msg.content.media.length > 1"
+              >
+                <img
+                  *ngFor="let img of msg.content.media"
+                  [src]="img"
+                  class="message-image"
+                />
               </div>
-              <div class="image-preview single" *ngIf="msg.content.media && msg.content.media.length === 1">
-                <img *ngFor="let img of msg.content.media" [src]="img" class="message-image" />
+              <div
+                class="image-preview single"
+                *ngIf="msg.content.media && msg.content.media.length === 1"
+              >
+                <img
+                  *ngFor="let img of msg.content.media"
+                  [src]="img"
+                  class="message-image"
+                />
               </div>
 
               <!-- Hiển thị file tài liệu -->
               <div class="file-preview" *ngIf="msg.content.files?.length">
-                <div *ngFor="let file of msg.content.files" class="message-file">
+                <div
+                  *ngFor="let file of msg.content.files"
+                  class="message-file"
+                >
                   <a [href]="file" target="_blank">
                     <i class="fa-solid fa-file"></i>
-                    {{ file.split('/').pop() }}
+                    {{ file.split("/").pop() }}
                   </a>
                 </div>
               </div>
 
-              <p class="text" *ngIf="msg.content.text">{{ msg.content.text }}</p>
-              <div class="response-time time">{{ msg.createdAt | date: 'shortTime' }}</div>
+              <p class="text" *ngIf="msg.content.text">
+                {{ msg.content.text }}
+              </p>
+              <div class="response-time time">
+                {{ msg.createdAt | date : "shortTime" }}
+              </div>
 
               <!-- Biểu tượng menu -->
-              <i class="fa-solid fa-ellipsis-vertical" (click)="toggleMessageOptions(i)"
-                [ngClass]="{'has-reply': msg.replyToMessage}">
+              <i
+                class="fa-solid fa-ellipsis-vertical"
+                (click)="toggleMessageOptions(i)"
+                [ngClass]="{ 'has-reply': msg.replyToMessage }"
+              >
               </i>
 
               <!-- Tuỳ chọn bên phải -->
-              <div class="message-options right" *ngIf="selectedMessageIndex === i">
+              <div
+                class="message-options right"
+                *ngIf="selectedMessageIndex === i"
+              >
                 <ul>
-                  <li (click)="recallMessage(msg._id, i, 1)">Thu hồi chỉ với mình</li>
-                  <li (click)="recallMessage(msg._id, i, 2)">Thu hồi tin nhắn</li>
+                  <li (click)="recallMessage(msg._id, i, 1)">
+                    Thu hồi chỉ với mình
+                  </li>
+                  <li (click)="recallMessage(msg._id, i, 2)">
+                    Thu hồi tin nhắn
+                  </li>
                   <li (click)="replyToMessage(i)">Trả lời tin nhắn</li>
                 </ul>
               </div>
             </div>
           </div>
         </ng-container>
-
         <!-- 🧷 Khung reply phía dưới input -->
         <div class="reply-box" *ngIf="replyingTo">
           <p>
-            Replying to:
-            {{ replyingTo.sendID._id === idNguoiDungHienTai ? getDisplayName(idNguoiDungHienTai) :
-            getUserName(replyingTo.sendID._id) }}
+            Trả lời :
+            {{
+              replyingTo.sendID._id === idNguoiDungHienTai
+                ? getDisplayName(idNguoiDungHienTai)
+                : getUserName(replyingTo.sendID._id)
+            }}
           </p>
 
           <!-- Nếu là text -->
-          <p *ngIf="replyingTo.content.text">
-            "{{ replyingTo.content.text }}"
-          </p>
+          <p *ngIf="replyingTo.content.text">"{{ replyingTo.content.text }}"</p>
 
           <!-- Nếu là ảnh -->
-          <img *ngIf="replyingTo.content.media?.length" [src]="replyingTo.content.media[0]" alt="reply image"
-            style="width: 60px; height: 60px; object-fit: cover; border-radius: 5px; margin-bottom: 5px;" />
+          <img
+            *ngIf="replyingTo.content.media?.length"
+            [src]="replyingTo.content.media[0]"
+            alt="reply image"
+            style="
+              width: 60px;
+              height: 60px;
+              object-fit: cover;
+              border-radius: 5px;
+              margin-bottom: 5px;
+            "
+          />
 
           <!-- Nếu là file -->
           <p *ngIf="replyingTo.content.files?.length">
-            📎 {{ replyingTo.content.files[0].split('/').pop() }}
+            📎 {{ replyingTo.content.files[0].split("/").pop() }}
           </p>
 
-          <button (click)="cancelReply()" style="width:15%">Cancel</button>
+          <button (click)="cancelReply()" style="width: 15%">Cancel</button>
         </div>
-
         <!-- Footer Input Section -->
         <div class="footer-chat">
           <div class="sub-footer">
@@ -546,7 +863,7 @@
               (emojiSelect)="addEmoji($event)"></emoji-mart>
 
             <!-- Message Input -->
-            <input type="text" class="write-message" [(ngModel)]="messageText" placeholder="Type your message here"
+            <input type="text" class="write-message" [(ngModel)]="messageText" placeholder="Nhập tin nhắn của bạn ở đây"
               (keydown.enter)="createMessage(messageText)" />
 
             <!-- Icon chọn ảnh -->
@@ -556,11 +873,11 @@
 
             <!-- Icon chọn tài liệu -->
             <i class="icon attach fa-solid fa-paperclip clickable" (click)="chonTaiLieu()"></i>
-            <input #fileInput type="file" accept=".pdf,.doc,.docx,.txt,.zip,.rar" multiple
+            <input #fileInput type="file" accept=".pdf,.doc,.docx,.txt,.zip,.rar,.mp4" multiple
               (change)="xuLyFiles($event, 'doc')" style="display: none;" />
 
             <!-- Hiển thị ảnh đã chọn -->
-            <div class="preview-container">
+            <div class="preview-container" [ngStyle]="{ bottom: replyingTo ? '300%' : '120%' }">
               <div *ngFor="let file of imageFiles; let i = index" class="image-wrapper">
                 <img [src]="file.preview" alt="preview" />
                 <div class="file-name">{{ file.file.name }}</div>
@@ -568,26 +885,57 @@
               </div>
             </div>
             <!-- Hiển thị file tài liệu đã chọn -->
-            <div class="preview-container">
+            <div class="preview-container " [ngStyle]="{ bottom: replyingTo ? '300%' : '120%' }">
               <div *ngFor="let file of docFiles; let i = index" class="file-wrapper">
               <ng-container [ngSwitch]="file.file.type">
                 
                 <!-- PDF Preview -->
-                <iframe
-                  *ngSwitchCase="'application/pdf'"
-                  [src]="file.preview"
-                  class="doc-preview"
-                  type="application/pdf">
-                </iframe>
+                <ng-container *ngSwitchCase="'application/pdf'">
+                  <div class="file-wrapper">
+                    <i class="fa-solid fa-file-pdf fa-2x mb-1"></i>
+                    <p class="file-name" [title]="file.name">{{ file.name }}</p>
+                  </div>
+                </ng-container>
 
-                <!-- Word, Excel, ... -->
-                <div *ngSwitchDefault class="file-icon">
-                  📄 {{ file.name }}
+                <!-- Word Preview -->
+                <ng-container *ngSwitchCase="'application/vnd.openxmlformats-officedocument.wordprocessingml.document'">
+                  <div class="file-wrapper">
+                    <i class="fa-solid fa-file-word fa-2x mb-1"></i> <!-- thay đổi icon tùy ý -->
+                    <p class="file-name" [title]="file.name">{{ file.name }}</p>
+                  </div>
+                </ng-container>
+                <!-- PPT Preview -->
+                <ng-container *ngSwitchCase="'application/vnd.openxmlformats-officedocument.presentationml.presentation'">
+                  <div class="file-wrapper">
+                    <i class="fa-solid fa-file-powerpoint fa-2x mb-1"></i> <!-- thay đổi icon tùy ý -->
+                    <p class="file-name" [title]="file.name">{{ file.name }}</p>
+                  </div>
+                </ng-container>
+                <!-- EXCEL Preview -->
+                <ng-container *ngSwitchCase="'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'">
+                  <div class="file-wrapper">
+                    <i class="fa-solid fa-file-excel fa-2x mb-1"></i> <!-- thay đổi icon tùy ý -->
+                    <p class="file-name" [title]="file.name">{{ file.name }}</p>
+                  </div>
+                </ng-container>
+                <!-- Video Preview -->
+                <ng-container *ngSwitchCase="'video/mp4'">
+                  <div class="file-wrapper">
+                    <i class="fa-solid fa-file-video fa-2x mb-1"></i> <!-- thay đổi icon tùy ý -->
+                    <p class="file-name" [title]="file.name">{{ file.name }}</p>
+                  </div>
+                </ng-container>
+
+
+                <!-- các file khác, ... -->
+                <div *ngSwitchDefault class="file-wrapper">
+                  <i class="fa-solid fa-file-lines fa-2x mb-1"></i>
+                  <p class="file-name" [title]="file.name">{{ file.name }}</p>
                 </div>
               </ng-container>
 
               <button class="cancel-file" (click)="xoaFile('doc', i)">❌</button>
-            </div>
+              </div>
             </div>
           </div>
 
@@ -602,10 +950,3 @@
     </div>
   </section>
 </div>
-<app-modal-profile
-  *ngIf="showProfileModal"
-  [isOpen]="showProfileModal"
-  [user]="foundUser"
-  (closeModal)="toggleProfileModal()"
-  title="Profile">
-</app-modal-profile>

@@ -19,32 +19,36 @@
               <button
                 class="btn px-4 flex-fill text-white"
                 [ngClass]="{
-                  'btn-success': isFriend,
-                  'btn btn-info': requestSent && !isFriend,
-                  'btn-primary': !requestSent && !isFriend
+                  'btn-success': trangThaiKetBan === 'ban',
+                  'btn btn-info': trangThaiKetBan === 'daGuiYeuCau',
+                  'btn-primary': trangThaiKetBan === 'daNhanYeuCau' || trangThaiKetBan === 'chuaKetBan'
                 }"
+                [disabled]="trangThaiKetBan === 'ban' || trangThaiKetBan === 'daNhanYeuCau'"
                 style="max-width: 175px;"
                 (click)="sendRequest(user._id)"
               >
-                <ng-container *ngIf="isFriend">
-                  Friend <i class="fa-solid fa-user-check"></i>
+                <ng-container *ngIf="trangThaiKetBan === 'ban'">
+                  Đã kết bạn <i class="fa-solid fa-user-check"></i>
                 </ng-container>
 
-                <ng-container *ngIf="!isFriend">
+                <ng-container *ngIf="trangThaiKetBan === 'daGuiYeuCau'">
                   <span class="d-inline-flex align-items-center">
-                    <ng-container *ngIf="requestSent; else notSent">
-                      <span class="d-inline-flex align-items-center">
-                        Request Sent <i class="fa-solid fa-xmark"></i>
-                      </span>
-                    </ng-container>
-                    <ng-template #notSent>
-                      <span class="d-inline-flex align-items-center">
-                        Add Friend<i class="fa-solid fa-user-plus" style="color:#fff"></i>
-                      </span>
-                    </ng-template>
-                  </span>                  
-                  
+                    Đã gởi yêu cầu <i class="fa-solid fa-xmark"></i>
+                  </span>
                 </ng-container>
+
+                <ng-container *ngIf="trangThaiKetBan === 'daNhanYeuCau'">
+                  <span class="d-inline-flex align-items-center">
+                    Chờ kết bạn <i class="fa-solid fa-user-plus" style="color:#fff"></i>
+                  </span>
+                </ng-container>
+                
+                <ng-container *ngIf="trangThaiKetBan === 'chuaKetBan'">
+                  <span class="d-inline-flex align-items-center">
+                    Thêm bạn<i class="fa-solid fa-user-plus" style="color:#fff"></i>
+                  </span>
+                </ng-container>
+
               </button>
 
               <button
@@ -76,4 +80,6 @@
       </div>
     </div>
   </div>
+
 </div>
+

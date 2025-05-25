@@ -7,7 +7,7 @@ import { UserService } from '../../services/user.service';
 import { Userr } from '../../models/user.model';
 import { firstValueFrom, Observable } from 'rxjs';
 import { ChatRoomService } from '../../services/chatRoom.service';
-import { SearchService } from '../../services/serachService.service';
+import { SearchService } from '../../services/searchService.service';
 import { Router } from '@angular/router';
 import { ChatRoom } from '../../models/chatRoom.model';
 import { defaultAvatarUrl, defaulGrouptAvatarUrl } from '../../contants';
@@ -29,7 +29,7 @@ export class ContactsComponent implements OnInit {
   selectedTab: number = 0;
   defaultAvatarUrl = defaultAvatarUrl;
   defaulGrouptAvatarUrl = defaulGrouptAvatarUrl;
-  tabTitles: string[] = ['Friends List', 'Group List', 'Requests'];
+  tabTitles: string[] = ['Danh sách bạn bè', 'Danh sách nhóm', 'Lời mời'];
   searchTerm: string = '';
   searchTermGroup: string = '';
   friendsList: Userr[] = [];
@@ -39,7 +39,9 @@ export class ContactsComponent implements OnInit {
   currentUser: Userr | undefined;
   foundUser: Userr | undefined;
   friendRequests: Userr[] = [];
+  sentRequests: Userr[] = [];
   idNguoiDungHienTai: string | null = sessionStorage.getItem('userId');
+  ban: string = 'ban';
   // sentRequests: Userr[] = [];
 
 
@@ -189,6 +191,15 @@ export class ContactsComponent implements OnInit {
         error: (err) => console.error('Failed to load friend request user:', err)
       });
     });
+    this.sentRequests = [];
+    this.currentUser?.requestfriends.forEach(userId => {
+      this.userService.getUserById(userId).subscribe({
+        next: (user) => {
+          this.sentRequests.push(user);
+        },
+        error: (err) => console.error('Failed to load sent request:', err)
+      });
+    });
   }
 
   async requestResponse(code: string, userId: string): Promise<void> {
@@ -249,6 +260,21 @@ export class ContactsComponent implements OnInit {
       },
       error: (err) => {
         console.error("Failed to unfriend:", err);
+      }
+    });
+  }
+
+  huyYeuCauKetBan(userId: string) {
+    this.userService.cancelRequestFriend(userId).subscribe({
+      next: (res: any) => {
+        this.user = res;
+        this.socketService.huyKetBan(userId);
+        alert("✅ Đã hủy yêu cầu kết bạn!");
+        console.log("Cancel request sent to:", this.user);
+      },
+      error: (err) => {
+        console.error('Lỗi khi hủy yêu cầu kết bạn:', err);
+        alert("❌ Hủy yêu cầu kết bạn thất bại!");
       }
     });
   }
