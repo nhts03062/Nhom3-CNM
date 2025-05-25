@@ -26,6 +26,7 @@ const AddFriendScreen = () => {
     const [loading, setLoading] = useState(false);
     const [sending, setSending] = useState(false);
     const [userFriends, setUserFriends] = useState([]);
+    const [userSentRequests, setUserSentRequests] = useState([]);
 
     // Fetch user's friend list on component mount
     const fetchFriends = useCallback(async () => {
@@ -42,18 +43,76 @@ const AddFriendScreen = () => {
             setUserFriends(response.data.map(friend => friend._id));
         } catch (error) {
             console.error('Error fetching friends:', error);
+            setUserFriends([]); // Set empty array on error
         }
     }, [token]);
 
+    // Fetch user's sent friend requests with better error handling
+    const fetchSentRequests = useCallback(async () => {
+        try {
+            // Validate user object first
+            if (!user || !user._id) {
+                console.warn('User object or user._id is missing');
+                setUserSentRequests([]);
+                return;
+            }
+
+            console.log('Fetching sent requests for user:', user._id);
+
+            const response = await axios.get(
+                `${API_URL}/user/${user._id}`,
+                {
+                    headers: {
+                        Authorization: token
+                    }
+                }
+            );
+
+            // Debug: Log the response to see the structure
+            console.log('User data response:', response.data);
+            console.log('Request friends:', response.data.requestfriends);
+
+            // Handle both array of IDs and array of objects
+            const requestFriends = response.data.requestfriends || [];
+            let requestIds = [];
+
+            if (requestFriends.length > 0) {
+                // Check if it's array of objects or array of IDs
+                if (typeof requestFriends[0] === 'object') {
+                    requestIds = requestFriends.map(req => req._id || req.userId || req);
+                } else {
+                    requestIds = requestFriends;
+                }
+            }
+
+            console.log('Processed request IDs:', requestIds);
+            setUserSentRequests(requestIds);
+        } catch (error) {
+            console.error('Error fetching sent requests:', error);
+            if (error.response) {
+                console.error('Error response:', error.response.status, error.response.data);
+            }
+            // Set empty array on error to prevent app crash
+            setUserSentRequests([]);
+        }
+    }, [token, user._id]);
+
     useEffect(() => {
         fetchFriends();
-    }, [fetchFriends]);
+        // Only fetch sent requests if user is available
+        if (user && user._id) {
+            fetchSentRequests();
+        }
+    }, [fetchFriends, fetchSentRequests, user]);
 
     useFocusEffect(
         useCallback(() => {
             fetchFriends();
+            if (user && user._id) {
+                fetchSentRequests();
+            }
             setSearchResults([]);
-        }, [fetchFriends])
+        }, [fetchFriends, fetchSentRequests, user])
     );
 
     const handleSearch = async () => {
@@ -64,8 +123,6 @@ const AddFriendScreen = () => {
 
         try {
             setLoading(true);
-            // Xác định nếu searchTerm là email hay số điện thoại
-            const isEmail = searchTerm.includes('@');
 
             // Tạo object searchData để truyền đúng thông tin tìm kiếm
             const searchData = { searchTerm: searchTerm.trim() };
@@ -83,11 +140,33 @@ const AddFriendScreen = () => {
 
             // Enhance search results with friendship status
             const resultsWithStatus = response.data.map(foundUser => {
+                // Check if this user is the current user
+                const isCurrentUser = foundUser._id === user?._id;
+
                 // Check if this user is already a friend
                 const isFriend = userFriends.includes(foundUser._id);
+
+                // Check if already sent friend request - more thorough check
+                const hasSentRequest = userSentRequests.some(reqId => {
+                    if (typeof reqId === 'object') {
+                        return reqId._id === foundUser._id || reqId.userId === foundUser._id;
+                    }
+                    return reqId === foundUser._id;
+                });
+
+                console.log(`User ${foundUser.name}:`, {
+                    isCurrentUser,
+                    isFriend,
+                    hasSentRequest,
+                    userId: foundUser._id,
+                    sentRequests: userSentRequests
+                });
+
                 return {
                     ...foundUser,
-                    isFriend: isFriend
+                    isCurrentUser: isCurrentUser,
+                    isFriend: isFriend,
+                    hasSentRequest: hasSentRequest
                 };
             });
 
@@ -119,12 +198,27 @@ const AddFriendScreen = () => {
             );
             Alert.alert('Thành công', 'Đã gửi lời mời kết bạn');
 
-            // Update the state to show the button as disabled
+            // Update the state to show the button as "sent request"
             setSearchResults(prev =>
                 prev.map(user =>
-                    user._id === userId ? { ...user, requestSent: true } : user
+                    user._id === userId ? { ...user, hasSentRequest: true } : user
                 )
             );
+
+            // Update local sent requests state - add the userId directly
+            setUserSentRequests(prev => {
+                if (!prev.includes(userId)) {
+                    return [...prev, userId];
+                }
+                return prev;
+            });
+
+            // Refresh sent requests to get latest data
+            setTimeout(() => {
+                if (user && user._id) {
+                    fetchSentRequests();
+                }
+            }, 500);
 
         } catch (error) {
             console.error('Error sending friend request:', error);
@@ -132,6 +226,55 @@ const AddFriendScreen = () => {
                 Alert.alert('Thông báo', error.response.data.msg);
             } else {
                 Alert.alert('Lỗi', 'Không thể gửi lời mời kết bạn. Vui lòng thử lại sau.');
+            }
+        } finally {
+            setSending(false);
+        }
+    };
+
+    const handleCancelFriendRequest = async (userId) => {
+        try {
+            setSending(true);
+            const response = await axios.post(
+                `${API_URL}/user/cancelreqfriend`,
+                { userId },
+                {
+                    headers: {
+                        Authorization: token,
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+            Alert.alert('Thành công', 'Đã hủy lời mời kết bạn');
+
+            // Update the state to show the button as "add friend" again
+            setSearchResults(prev =>
+                prev.map(user =>
+                    user._id === userId ? { ...user, hasSentRequest: false } : user
+                )
+            );
+
+            // Update local sent requests state - remove the userId
+            setUserSentRequests(prev => prev.filter(reqId => {
+                if (typeof reqId === 'object') {
+                    return reqId._id !== userId && reqId.userId !== userId;
+                }
+                return reqId !== userId;
+            }));
+
+            // Refresh sent requests to get latest data
+            setTimeout(() => {
+                if (user && user._id) {
+                    fetchSentRequests();
+                }
+            }, 500);
+
+        } catch (error) {
+            console.error('Error canceling friend request:', error);
+            if (error.response?.data?.msg) {
+                Alert.alert('Thông báo', error.response.data.msg);
+            } else {
+                Alert.alert('Lỗi', 'Không thể hủy lời mời kết bạn. Vui lòng thử lại sau.');
             }
         } finally {
             setSending(false);
@@ -151,6 +294,79 @@ const AddFriendScreen = () => {
         }
     };
 
+    const renderActionButton = (user) => {
+        console.log(`Rendering button for ${user.name}:`, {
+            isCurrentUser: user.isCurrentUser,
+            isFriend: user.isFriend,
+            hasSentRequest: user.hasSentRequest
+        });
+
+        // Don't show any button for current user
+        if (user.isCurrentUser) {
+            return (
+                <View style={styles.currentUserContainer}>
+                    <Text style={styles.currentUserText}>Bản thân</Text>
+                </View>
+            );
+        }
+
+        // If already friends
+        if (user.isFriend) {
+            return (
+                <View style={styles.friendStatusContainer}>
+                    <Text style={styles.friendStatus}>Bạn bè</Text>
+                    <TouchableOpacity
+                        style={styles.chatButton}
+                        onPress={() => handleStartChat(user._id)}
+                    >
+                        <Text style={styles.buttonText}>Nhắn tin</Text>
+                    </TouchableOpacity>
+                </View>
+            );
+        }
+
+        // If already sent friend request
+        if (user.hasSentRequest) {
+            return (
+                <TouchableOpacity
+                    style={[styles.cancelButton, sending && styles.disabledButton]}
+                    onPress={() => handleCancelFriendRequest(user._id)}
+                    disabled={sending}
+                >
+                    <Text style={styles.cancelButtonText}>
+                        {sending ? 'Đang hủy...' : 'Hủy lời mời'}
+                    </Text>
+                </TouchableOpacity>
+            );
+        }
+
+        // Default: show add friend button
+        return (
+            <TouchableOpacity
+                style={[styles.addButton, sending && styles.disabledButton]}
+                onPress={() => handleSendFriendRequest(user._id)}
+                disabled={sending}
+            >
+                <Text style={styles.buttonText}>
+                    {sending ? 'Đang gửi...' : 'Kết bạn'}
+                </Text>
+            </TouchableOpacity>
+        );
+    };
+
+    // Add a temporary debug button to test the functionality
+    const handleDebugTest = () => {
+        console.log('Current user:', user);
+        console.log('User sent requests:', userSentRequests);
+        console.log('User friends:', userFriends);
+
+        // Manually set a test request to see if UI updates
+        const testUserId = '675f8b4d4a297e8c8c123456'; // Replace with actual user ID from search
+        setUserSentRequests(prev => [...prev, testUserId]);
+
+        Alert.alert('Debug', `Added test request for ${testUserId}. Check console for details.`);
+    };
+
     return (
         <View style={styles.container}>
             <View style={styles.header}>
@@ -158,7 +374,6 @@ const AddFriendScreen = () => {
                     <Ionicons name="arrow-back" size={24} color="#fff" />
                 </TouchableOpacity>
                 <Text style={styles.title}>Thêm bạn</Text>
-                <View style={{ width: 24 }} />
             </View>
 
             <View style={styles.searchContainer}>
@@ -198,30 +413,7 @@ const AddFriendScreen = () => {
                             {user.phone && <Text style={styles.userPhone}>{user.phone}</Text>}
                         </View>
                         <View style={styles.actionButtons}>
-                            {user.isFriend ? (
-                                <View style={styles.friendStatusContainer}>
-                                    <Text style={styles.friendStatus}>Bạn bè</Text>
-                                    <TouchableOpacity
-                                        style={styles.chatButton}
-                                        onPress={() => handleStartChat(user._id)}
-                                    >
-                                        <Text style={styles.buttonText}>Nhắn tin</Text>
-                                    </TouchableOpacity>
-                                </View>
-                            ) : (
-                                <TouchableOpacity
-                                    style={[
-                                        styles.addButton,
-                                        (user.requestSent || sending) && styles.disabledButton
-                                    ]}
-                                    onPress={() => handleSendFriendRequest(user._id)}
-                                    disabled={user.requestSent || sending}
-                                >
-                                    <Text style={styles.buttonText}>
-                                        {user.requestSent ? 'Đã gửi' : 'Kết bạn'}
-                                    </Text>
-                                </TouchableOpacity>
-                            )}
+                            {renderActionButton(user)}
                         </View>
                     </View>
                 ))}
@@ -247,7 +439,9 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 18,
         fontWeight: 'bold',
-        color: '#fff'
+        color: '#fff',
+        textAlign: 'center',
+        flex: 1,
     },
     searchContainer: {
         padding: 16,
@@ -278,6 +472,22 @@ const styles = StyleSheet.create({
         borderBottomRightRadius: 10,
         justifyContent: 'center',
         alignItems: 'center',
+    },
+    debugContainer: {
+        backgroundColor: '#f0f0f0',
+        padding: 8,
+        marginHorizontal: 16,
+        marginBottom: 8,
+        borderRadius: 4,
+    },
+    debugText: {
+        fontSize: 12,
+        color: '#666',
+    },
+    debugUserText: {
+        fontSize: 10,
+        color: '#999',
+        marginTop: 2,
     },
     resultContainer: {
         flex: 1,
@@ -324,6 +534,16 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         marginBottom: 4,
     },
+    currentUserContainer: {
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+    },
+    currentUserText: {
+        fontSize: 12,
+        color: '#999',
+        fontStyle: 'italic',
+    },
     addButton: {
         backgroundColor: '#0999fa',
         paddingVertical: 8,
@@ -336,12 +556,24 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         borderRadius: 20,
     },
+    cancelButton: {
+        backgroundColor: '#ff6b6b',
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        borderRadius: 20,
+    },
     disabledButton: {
         backgroundColor: '#b9e0fb',
     },
     buttonText: {
         color: '#fff',
         fontWeight: '500',
+        fontSize: 12,
+    },
+    cancelButtonText: {
+        color: '#fff',
+        fontWeight: '500',
+        fontSize: 12,
     },
 });
 
