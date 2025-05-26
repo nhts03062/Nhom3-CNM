@@ -26,6 +26,7 @@ messageController.create = async(req,res) =>{
         return res.status(400).json({ msg: 'Content không hợp lệ (parse lỗi)' });
       }
     }
+
     if(content.type.toString() !== 'text'){
 
         if(content.type.toString() === 'file'){
@@ -77,7 +78,6 @@ messageController.create = async(req,res) =>{
 }
 
 //Lấy tất cả tin nhắn
-
 messageController.getAll = async(req, res) =>{
     try{
         const {chatId} = req.params
