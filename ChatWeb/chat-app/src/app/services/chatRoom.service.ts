@@ -51,9 +51,9 @@ export class ChatRoomService {
       { headers: this.getHeaders() }
     );
   }
-  
 
-  inviteToChatRoom(data:{userId: string, chatRoomId: string}): Observable<any> {
+
+  inviteToChatRoom(data: { userId: string, chatRoomId: string }): Observable<any> {
     return this.http.post<any>(
       this.apiService.getApiUrl('chatroom/invite'),
       data,
@@ -61,14 +61,14 @@ export class ChatRoomService {
     );
   }
 
-  addMembersChatRoom(data:{userIds: string[], chatRoomId: string}): Observable<any> {
+  addMembersChatRoom(data: { userIds: string[], chatRoomId: string }): Observable<any> {
     return this.http.post<any>(
       this.apiService.getApiUrl('chatroom/invitemany'),
       data,
       { headers: this.getHeaders() }
     );
   }
-  roiPhongChat(chatRoomId:string):Observable<any>{
+  roiPhongChat(chatRoomId: string): Observable<any> {
     return this.http.delete<any>(
       this.apiService.getApiUrl(`chatroom/leave/${chatRoomId}`),
       { headers: this.getHeaders() }
@@ -81,11 +81,33 @@ export class ChatRoomService {
     });
   }
 
-  
-  private selectedRoomId = new BehaviorSubject<string | null>(null);
-  selectedRoomId$ = this.selectedRoomId.asObservable();
+  // Chuyển trang và mở chat room sau đó
+  private readonly STORAGE_KEY = 'chatRoomId';
+  private roomIdSubject = new BehaviorSubject<string | null>(
+    localStorage.getItem(this.STORAGE_KEY)
+  );
 
-  setRoomId(id: string) {
-    this.selectedRoomId.next(id);
+  /** Trả về Observable để subscribe theo dõi roomId */
+  getRoomId(): Observable<string | null> {
+    return this.roomIdSubject.asObservable();
   }
+
+  /** Đặt roomId mới và lưu vào localStorage */
+  setRoomId(id: string): void {
+    if (!id) return;
+    localStorage.setItem(this.STORAGE_KEY, id);
+    this.roomIdSubject.next(id);
+  }
+
+  /** Lấy roomId hiện tại (từ BehaviorSubject) */
+  getCurrentRoomId(): string | null {
+    return this.roomIdSubject.value;
+  }
+
+  /** Xóa roomId khi thoát khỏi phòng */
+  clearRoomId(): void {
+    localStorage.removeItem(this.STORAGE_KEY);
+    this.roomIdSubject.next(null);
+  }
+
 }

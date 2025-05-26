@@ -367,8 +367,6 @@ border: 3px solid #FAFAFA;
   border-radius: 12px;
   margin-left: 14px;
   margin-bottom:10px;
-  width: fit-content;
-  /* float: right; */
   &.hide-text{
     display:none;
   }
@@ -408,7 +406,6 @@ border: 3px solid #FAFAFA;
 
 .response .text {
   background-color: #e3effd !important;
-  margin-left: auto !important;
 }
 .override-ml {
   margin-left: 0 !important;
@@ -547,88 +544,16 @@ border: 3px solid #FAFAFA;
 }
 
 .search-dropdown {
-  max-width: 400px;
-  max-height: 220px;  /* Giới hạn chiều cao, có scroll nếu vượt */
+  position: absolute;
+  background: white;
+  border: 1px solid #ccc;
+  z-index: 100;
+  max-height: 200px;
   overflow-y: auto;
-  background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  padding: 8px 12px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-  font-size: 14px;
-  margin-top: 6px;
-}
-
-.search-dropdown > div {
-  padding: 8px 10px;
-  border-bottom: 1px solid #eee;
-  cursor: pointer;
-}
-
-.search-dropdown > div:last-child {
-  border-bottom: none;
-}
-
-.message-author {
-  font-weight: 600;
-  color: #333;
-  margin: 0 0 2px 0;
-  font-size: 13px;
-}
-
-.message-preview {
-  margin: 0 0 4px 0;
-  color: #555;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  overflow: hidden;
-  max-width: 100%;
-}
-
-.message-time {
-  font-size: 11px;
-  color: #999;
-  margin: 0;
-}
-
-/* Khi không có kết quả */
-.no-results {
-  color: #777;
-  font-style: italic;
-  padding: 8px 12px;
-}
-
-.highlighted-message {
-  background-color: yellow; /* Màu nền highlight */
-  transition: background-color 0.5s ease; /* Hiệu ứng mượt mà */
-  border-radius: 5px; /* Bo góc */
-  padding: 5px; /* Khoảng cách */
-}
-
-.member-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.member-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px;
-  border-bottom: 1px solid #e0e0e0;
-}
-
-.avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  object-fit: cover;
-}
-
-.member-name {
-  font-size: 14px;
-  font-weight: 500;
+  width: 52vh;
+  top:57px;
+  border-radius: 5px;
+  padding:5px;
 }
 
 .left-section.chat-conversation {
@@ -956,6 +881,108 @@ border: 3px solid #FAFAFA;
   height: 200px;
   border: 1px solid #ccc;
   border-radius: 6px;
+}
+
+.date-wrapper {
+  display: flex;
+  justify-content: center; /* Canh giữa theo chiều ngang */
+  margin: 10px 0;           /* Khoảng cách với các tin nhắn */
+}
+
+.date-divider {
+  font-size: 14px;
+  text-align: center;
+  color: #777;
+  background-color: #ebeaea;
+  width: fit-content;
+  padding: 5px 15px;
+  border-radius: 25px;
+}
+
+
+.search-dropdown {
+  max-width: 400px;
+  max-height: 220px;  /* Giới hạn chiều cao, có scroll nếu vượt */
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 8px 12px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  font-size: 14px;
+  margin-top: 6px;
+}
+
+.search-dropdown > div {
+  padding: 8px 10px;
+  border-bottom: 1px solid #eee;
+  cursor: pointer;
+}
+
+.search-dropdown > div:last-child {
+  border-bottom: none;
+}
+
+.message-author {
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 2px 0;
+  font-size: 13px;
+}
+
+.message-preview {
+  margin: 0 0 4px 0;
+  color: #555;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  max-width: 100%;
+}
+
+.message-time {
+  font-size: 11px;
+  color: #999;
+  margin: 0;
+}
+
+/* Khi không có kết quả */
+.no-results {
+  color: #777;
+  font-style: italic;
+  padding: 8px 12px;
+}
+
+.highlighted-message {
+  background-color: yellow; /* Màu nền highlight */
+  transition: background-color 0.5s ease; /* Hiệu ứng mượt mà */
+  border-radius: 5px; /* Bo góc */
+  padding: 5px; /* Khoảng cách */
+}
+
+.member-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.member-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.member-name {
+  font-size: 14px;
+  font-weight: 500;
 }
 
 

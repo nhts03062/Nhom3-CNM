@@ -34,7 +34,7 @@
         <!-- Search Input -->
         <input
         type="text"
-        placeholder="Search..."
+        placeholder="Tìm kiếm...."
         [(ngModel)]="searchTerm"
         class="friends-searchbar"
         />
@@ -166,6 +166,6 @@
     [isOpen]="showProfileModal"
     [user]="selectedFriend"
     (closeModal)="toggleProfileModal()"
-    [trangThaiKetBan]="ban"
+    [currentUser]="currentUser"
     title="Profile">
   </app-modal-profile>

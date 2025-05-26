@@ -41,9 +41,6 @@ export class ContactsComponent implements OnInit {
   friendRequests: User[] = [];
   sentRequests: User[] = [];
   idNguoiDungHienTai: string | null = sessionStorage.getItem('userId');
-  ban: string = 'ban';
-  // sentRequests: User[] = [];
-
 
   constructor(private userService: UserService,
     private chatRoomService: ChatRoomService,
@@ -109,11 +106,33 @@ export class ContactsComponent implements OnInit {
     this.selectedFriend = friend;
     console.log("🚀 ~ ContactsComponent ~ selectFriend ~ this.selectedFriend:", this.selectedFriend)
     if (this.selectedFriend) {
+      console.log('mở')
       this.toggleProfileModal(); // Show the modal
     }
   }
   /**---start----load thông tin khi vừa mở lên------------ */
   
+  getFriendRequestsList() {
+    this.friendRequests = [];
+    this.currentUser?.friendRequestsReceived.forEach(userId => {
+      this.userService.getUserById(userId).subscribe({
+        next: (user) => {
+          this.friendRequests.push(user);
+        },
+        error: (err) => console.error('Failed to load friend request user:', err)
+      });
+    });
+    this.sentRequests = [];
+    this.currentUser?.requestfriends.forEach(userId => {
+      this.userService.getUserById(userId).subscribe({
+        next: (user) => {
+          this.sentRequests.push(user);
+        },
+        error: (err) => console.error('Failed to load sent request:', err)
+      });
+    });
+  }
+
   loadUser(): void {
     const userId = sessionStorage.getItem('userId');
     console.log("🚀 ~ ContactsComponent ~ loadUser ~ userId:", userId)
@@ -121,9 +140,9 @@ export class ContactsComponent implements OnInit {
       this.userService.getUserById(userId).subscribe({
         next: (user) => {
           this.currentUser = user;
-          this.friendRequests = this.currentUser.friendRequestsReceived;
-          this.sentRequests = this.currentUser?.requestfriends;
           console.log("Current User:", this.currentUser);
+          this.getFriendRequestsList();
+          // this.getSentRequestsList();
         },
         error: (err) => console.error("Failed to load user:", err)
       });

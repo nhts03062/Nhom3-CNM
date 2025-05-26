@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, EventEmitter, Input, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, Output, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ChatRoomService } from '../../../services/chatRoom.service';
 import { ChatRoom } from '../../../models/chatRoom.model';
@@ -42,16 +42,18 @@ export class ModalProfileComponent {
   close() {
     this.closeModal.emit();
   }
-
-
-  ngOnInit(): void {
-    // this.loadUser();
-    if (this.user) {
-      this.kiemTraBanHayDaGuiYeuCauKetBan(this.user._id);
-      console.log("🚀 ~ ModalProfileComponent ~ this.userService.getUserById ~ this.kiemTraBanHayDaGuiYeuCauKetBan(this.user._id):", this.kiemTraBanHayDaGuiYeuCauKetBan(this.user._id))
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['user'] && changes['user'].currentValue) {
+      this.kiemTraBanHayDaGuiYeuCauKetBan(this.user!._id);
     }
 
+  }
+
+  ngOnInit(): void {
+
     this.socketService.nhanskThemBan((data: any) => {
+      
+      console.log('[Socket] nhanskThemBan received data:', data, 'this.user:', this.user);
       if (data._id === this.user?._id) {
         this.trangThaiKetBan = 'daGuiYeuCau'; // hoặc cập nhật lại đúng logic
         this.cdr.detectChanges();
@@ -60,6 +62,7 @@ export class ModalProfileComponent {
 
 
     this.socketService.nhanskHuyKetBan((data: any) => {
+      console.log('[Socket] nhanskHuyKetBan received data:', data, 'this.user:', this.user);
       if (data === this.user?._id) {
         this.reloadUserProfile();
       }
@@ -90,9 +93,9 @@ export class ModalProfileComponent {
   }
 
   kiemTraBanHayDaGuiYeuCauKetBan = (userId: string): void => {
-    const ban = this.currentUser?.friends?.some(friend => friend._id === userId);
-    const daGuiYeuCau = this.currentUser?.requestfriends?.some(req => req._id === userId);
-    const daNhanYeuCau = this.currentUser?.friendRequestsReceived?.some(req => req._id === userId);
+    const ban = this.currentUser?.friends?.includes(userId);
+    const daGuiYeuCau = this.currentUser?.requestfriends?.includes(userId);
+    const daNhanYeuCau = this.currentUser?.friendRequestsReceived?.includes(userId);
 
     this.trangThaiKetBan = ban
       ? 'ban'
@@ -207,14 +210,15 @@ export class ModalProfileComponent {
 
     this.userService.getUserById(this.user._id).subscribe({
       next: (resUser) => {
-        this.user = resUser;
-
+        this.user = resUser; 
         // cập nhật luôn currentUser
         if (this.currentUserId) {
           this.userService.getUserById(this.currentUserId).subscribe({
             next: (resCurrentUser) => {
               this.currentUser = resCurrentUser;
               this.kiemTraBanHayDaGuiYeuCauKetBan(this.user!._id);
+              console.log('✅ trạng thái sau socket:', this.trangThaiKetBan);
+
             },
             error: (err) => console.error('❌ Không thể lấy currentUser:', err)
           });

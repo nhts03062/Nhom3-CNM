@@ -578,7 +578,10 @@
           </div>
         </div>
         <!-- Thời gian sau khi nhận được tin nhắn mới nhất -->
-        <div class="timer">
+        <div
+          class="timer"
+          *ngIf="room.latestMessage?.content?.type !== 'first'"
+        >
           {{ room.timeAgo }}
         </div>
       </ng-container>
@@ -594,6 +597,10 @@
     <div *ngIf="selectedRoom?._id && idNguoiDungHienTai && selectedRoom">
       <div class="messages-chat">
         <ng-container *ngFor="let msg of messagees; let i = index">
+          <div *ngIf="isNewDate(i)" class="date-wrapper">
+            <div class="date-divider">{{ formatDate(msg.createdAt) }}</div>
+          </div>
+
           <!-- Nếu message đã bị recall cho tất cả -->
           <div
             *ngIf="msg.recall === '2'"

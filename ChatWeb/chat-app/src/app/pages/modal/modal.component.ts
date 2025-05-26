@@ -17,6 +17,7 @@ import { User } from '../../models/user.model';
 import { ChatRoomService } from '../../services/chatRoom.service';
 import { Router } from '@angular/router';
 import { SocketService } from '../../socket.service';
+import { UploadService } from '../../services/upload.service';
 
 @Component({
   selector: 'app-modal',
@@ -61,8 +62,9 @@ export class ModalComponent implements OnInit {
     private chatRoomService: ChatRoomService,
     private SearchService: SearchService,
     private router: Router,
-    private socketService: SocketService
-  ) {}
+    private socketService: SocketService,
+    private uploadService: UploadService
+  ) { }
 
   ngOnInit(): void {
     this.loadFriends();
@@ -183,6 +185,7 @@ export class ModalComponent implements OnInit {
     this.errorGroup = '';
     this.selectedFriends = [];
     this.groupName = '';
+    this.groupImg = '';
   }
 
   setTab(tab: 'friend' | 'group') {
@@ -215,7 +218,7 @@ export class ModalComponent implements OnInit {
         img.src = e.target.result;
 
         img.onload = () => {
-          const size = 200; // desired size for avatar
+          const size = 100; // desired size for avatar
           const canvas = document.createElement('canvas');
           const ctx = canvas.getContext('2d');
           if (!ctx) return;
@@ -238,6 +241,7 @@ export class ModalComponent implements OnInit {
 
           const base64Image = canvas.toDataURL('image/jpeg', 0.9);
           this.groupImg = base64Image;
+          console.log("🚀 ~ ModalComponent ~ onImageSelected ~ this.groupImg:", this.groupImg)
           // Không gọi updateChatRoom() ngay lập tức - đợi người dùng nhấn lưu
         };
       };
@@ -300,10 +304,10 @@ export class ModalComponent implements OnInit {
     const status = ban
       ? 'ban'
       : daNhanYeuCau
-      ? 'daNhanYeuCau'
-      : daGuiYeuCau
-      ? 'daGuiYeuCau'
-      : 'chuaKetBan';
+        ? 'daNhanYeuCau'
+        : daGuiYeuCau
+          ? 'daGuiYeuCau'
+          : 'chuaKetBan';
     return status;
   }
 
@@ -406,11 +410,57 @@ export class ModalComponent implements OnInit {
   }
 
   //tạo nhóm
+  // createGroup(friendIds: string[]): void {
+  //   this.errorGroup = '';
+
+  //   if (friendIds.length < 2) {
+  //     this.errorGroup = 'Cân ít nhất 2 thành viên để tạo nhóm';
+  //     return;
+  //   }
+
+  //   if (!this.currentUserId) {
+  //     console.error('⚠️ Cannot start chat: user._id is undefined');
+  //     return;
+  //   }
+
+  //   console.log('📦 Creating room with:', {
+  //     currentUserId: this.currentUserId,
+  //     friendIds: friendIds,
+  //   });
+
+  //   if (!this.groupName) {
+  //     this.errorGroup = 'Tên nhóm không được để trống';
+  //     return;
+  //   }
+
+  //   const roomData = {
+  //     members: [...friendIds],
+  //     chatRoomName: this.groupName,
+  //     image: this.groupImg || this.defaulGrouptAvatarUrl
+  //   };
+
+  //   console.log('🚀 ~ ModalComponent ~ createGroup ~ roomData:', roomData);
+
+  //   this.chatRoomService.createChatRoom(roomData).subscribe({
+  //     next: (newRoom) => {
+  //       console.log('Chat Room Created:', newRoom);
+  //       this.close();
+  //       this.navigateToChatRoom(newRoom._id);
+  //       this.socketService.joinRoom(newRoom._id);
+  //       // Navigate to the new chat room or handle it accordingly
+  //       this.socketService.taoPhongChat(newRoom._id, newRoom);
+
+  //       this.selectedFriends = [];
+  //       this.groupName = '';
+  //     },
+  //     error: (err) => console.error('Failed to create chat room:', err), // Handle errors here
+  //   });
+  // }
   createGroup(friendIds: string[]): void {
     this.errorGroup = '';
 
     if (friendIds.length < 2) {
-      this.errorGroup = 'Cân ít nhất 2 thành viên để tạo nhóm';
+      this.errorGroup = 'Cần ít nhất 2 thành viên để tạo nhóm';
       return;
     }
 
@@ -419,44 +469,70 @@ export class ModalComponent implements OnInit {
       return;
     }
 
-    console.log('📦 Creating room with:', {
-      currentUserId: this.currentUserId,
-      friendIds: friendIds,
-    });
-
     if (!this.groupName) {
       this.errorGroup = 'Tên nhóm không được để trống';
       return;
     }
 
-    const roomData = {
-      members: [...friendIds],
-      chatRoomName: this.groupName,
-      image: this.defaulGrouptAvatarUrl || this.groupImg,
+    const proceedToCreate = (imageUrl: string) => {
+      console.log("🚀 ~ ModalComponent ~ proceedToCreate ~ imageUrl:", imageUrl)
+      const roomData = {
+        members: [...friendIds],
+        chatRoomName: this.groupName,
+        image: imageUrl || this.defaulGrouptAvatarUrl
+      };
+
+      console.log('🚀 ~ ModalComponent ~ createGroup ~ roomData:', roomData);
+
+      this.chatRoomService.createChatRoom(roomData).subscribe({
+        next: (newRoom) => {
+          console.log('Chat Room Created:', newRoom);
+          this.close();
+          this.navigateToChatRoom(newRoom._id);
+          this.socketService.joinRoom(newRoom._id);
+          this.socketService.taoPhongChat(newRoom._id, newRoom);
+
+          this.selectedFriends = [];
+          this.groupName = '';
+          this.groupImg = '';
+        },
+        error: (err) => console.error('❌ Failed to create chat room:', err),
+      });
     };
 
-    console.log('🚀 ~ ModalComponent ~ createGroup ~ roomData:', roomData);
+    // Nếu có ảnh tùy chỉnh, upload trước
+    if (this.groupImg && this.groupImg !== this.defaulGrouptAvatarUrl) {
+      this.uploadService.uploadBase64Image(this.groupImg).subscribe({
+        next: (res) => {
+          console.log('📤 Full upload response:', JSON.stringify(res));
 
-    this.chatRoomService.createChatRoom(roomData).subscribe({
-      next: (newRoom) => {
-        console.log('Chat Room Created:', newRoom);
-        this.close();
-        this.navigateToChatRoom(newRoom._id);
-        this.socketService.joinRoom(newRoom._id);
-        // Navigate to the new chat room or handle it accordingly
-        this.socketService.taoPhongChat(newRoom._id, newRoom);
-
-        this.selectedFriends = [];
-        this.groupName = '';
-      },
-      error: (err) => console.error('Failed to create chat room:', err), // Handle errors here
-    });
+          // Giải pháp fallback cho mọi kiểu phản hồi thường gặp
+          const uploadedUrl = typeof res === 'string'
+      ? res
+      : res?.url || res?.data?.url || res?.fileUrl;
+          if (uploadedUrl) {
+            proceedToCreate(uploadedUrl);
+          } else {
+            console.error('❌ Không tìm thấy URL ảnh trong phản hồi:', res);
+            this.errorGroup = 'Không thể lấy URL ảnh từ phản hồi máy chủ';
+          }
+        },
+        error: (err) => {
+          console.error('❌ Failed to upload image:', err);
+          this.errorGroup = 'Tải ảnh lên thất bại. Vui lòng thử lại.';
+        }
+      });
+    } else {
+      proceedToCreate(this.defaulGrouptAvatarUrl);
+    }
   }
+
   /**---------end-----Xử lý sự kiện tạo nhóm------------------*/
 
   navigateToChatRoom(chatRoomId: string): void {
     console.log('Navigating to chat room with ID:', chatRoomId);
+    this.chatRoomService.setRoomId(chatRoomId);
     // Navigate to chat page
-    this.router.navigate([`/chat`], { queryParams: { roomId: chatRoomId } });
+    this.router.navigate([`/chat`]);
   }
 }

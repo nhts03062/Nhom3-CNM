@@ -21,7 +21,7 @@
             [(ngModel)]="searchTerm"
             (keyup.enter)="searchFriend()"
           />
-          <div *ngIf="isSearching" class="loading">Searching...</div>
+          <div *ngIf="isSearching" class="loading">Tìm kiếm ...</div>
           <p class="error" *ngIf="searchError" style="color: red;">{{ searchError }}</p>
 
           <ul class="search-results mt-3" *ngIf="danhSachNguoiDungSauKhiTimKiem.length > 0">
@@ -63,7 +63,14 @@
         <ng-container *ngIf="activeTab === 'group'">
           <div class="d-flex flex-row align-items-center gap-2 p-2">
             <div class="upload-img" (click)="chonHinhAnhGroup()">
-              <!-- <i class="fa-solid fa-camera-retro"></i> -->
+               <div class="group-avatar position-relative">
+                <img
+                  [src]="groupImg ||defaulGrouptAvatarUrl"
+                  alt="Group"
+                  class="rounded-circle p-1 bg-primary"
+                  width="60"
+                />
+                </div>
               <input #imageInput type="file" accept="image/*" (change)="onImageSelected($event)" style="display: none;" />
             </div>
 
@@ -72,7 +79,7 @@
           <!-- Search Input -->
             <input
             type="text"
-            placeholder="Tìm..."
+            placeholder="Tìm bạn bè . . . ."
             [(ngModel)]="searchTerm"
             class="friends-searchbar"
             />
@@ -83,15 +90,16 @@
               <div 
                 class="left-section friends" 
                 [class.active]="selectedFriends.includes(friend._id)"
+                (click)="toggleFriendSelection(friend._id)"
                 >
     
-                <div class="checkbox-wrapper-15">
+                <div class="checkbox-wrapper-15" >
                   <input 
                     class="inp-cbx" 
                     [id]="'cbx-15-' + i" 
                     type="checkbox" 
                     [checked]="selectedFriends.includes(friend._id)"
-                    (change)="toggleFriendSelection(friend._id)"
+                    (click)="$event.stopPropagation()"
                     style="display: none;" />
             
                   <label class="cbx" [for]="'cbx-15-' + i">
@@ -115,7 +123,7 @@
 
             <!-- Optional: No matches -->
             <div class="no-results" *ngIf="searchTerm && filteredFriends.length === 0">
-            No friends found.
+              Không tìm thấy bạn bè
             </div>
 
         </ng-container>

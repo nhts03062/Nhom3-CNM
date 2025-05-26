@@ -131,7 +131,7 @@ export class MembersModalComponent implements OnInit {
 
   selectedNewAdmin:string = ''
   toggleSelectionAdmin(userId: string): void {
-    if (this.selectedNewAdmin[0] === userId) {
+    if (this.selectedNewAdmin === userId) {
       // Deselect if already selected
       this.selectedNewAdmin = '';
       this.newAdminSelected.emit(''); // Emit empty if deselecting the admin
@@ -162,6 +162,7 @@ export class MembersModalComponent implements OnInit {
 
 
   filteredRooms: ChatRoom[] = [];
+  otherUserId:string ='';
     //Check xem người dùng có tồn tại trong chat group muốn mời không
   filteredChatRoomsToInvite() {
     // Lấy user còn lại trong phòng hiện tại (ngoại trừ currentUser)
@@ -170,13 +171,13 @@ export class MembersModalComponent implements OnInit {
     );
 
     // otherUser là object User, lấy id thành chuỗi
-    const otherUserId = otherUser?._id.toString() || '';
+    this.otherUserId = otherUser?._id.toString() || '';
 
     // Lọc các phòng nhóm mà không chứa otherUserId
     const rooms = this.chatRooms.filter(room =>
       room.isGroupChat === true &&
       !room.members.some((member: User) =>
-        member._id.toString() === otherUserId
+        member._id.toString() === this.otherUserId
       )
     );
 
@@ -196,7 +197,7 @@ export class MembersModalComponent implements OnInit {
       alert('Vui lòng chọn ít nhất một phòng chat.');
       return;
     }
-    const userId = this.selectedRoom?.otherMembers?.[0]?._id;
+    const userId = this.otherUserId;
       if (!userId) {
         alert("Không thể xác định người dùng cần mời.");
         return;

@@ -4,7 +4,7 @@ export interface Messagee {
   sendID: ISenderId;
   replyToMessage?: Messagee | null;
   content: {
-    type: 'text' | 'file' | 'media';
+    type: 'text' | 'file' | 'media'|'first';
     text: string;
     media: string[]; // array of URLs
     files: string[]; // array of file names/URLs

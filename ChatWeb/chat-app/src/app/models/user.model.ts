@@ -19,12 +19,12 @@ export interface User {
   phone: string;
   address: string;
   avatarUrl: string;
-  // requestfriends: string[]; // array of user IDs
-  // friendRequestsReceived: string[];
-  // friends: string[];
-  friends: User[];
-  friendRequestsReceived: User[];
-  requestfriends: User[];
+  requestfriends: string[]; // array of user IDs
+  friendRequestsReceived: string[];
+  friends: string[];
+  // friends: User[];
+  // friendRequestsReceived: User[];
+  // requestfriends: User[];
   createdAt: string;
   updatedAt: string;
 }

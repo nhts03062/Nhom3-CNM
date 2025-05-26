@@ -19,6 +19,7 @@ import { defaultAvatarUrl, apiUrl, defaulGrouptAvatarUrl } from '../../contants'
 import { ModalProfileComponent } from '../profile/modal-profile/modal-profile.component';
 import { MembersModalComponent } from "./members-modal/members-modal.component";
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { distinctUntilChanged, startWith, Subscription } from 'rxjs';
 
 
 @Component({
@@ -71,6 +72,7 @@ export class ChattingComponent implements OnInit {
   usersList: User[] = [];
   showMembers: boolean = false;
   selectedHighlightMessageId: string | null = null;
+  roomIdSubscription: Subscription | undefined;
   onClickSearchedMessage(msg: Messagee) {
     this.selectedHighlightMessageId = msg._id;
     this.searchTerm = ''; // ẩn dropdown tìm kiếm
@@ -220,6 +222,23 @@ export class ChattingComponent implements OnInit {
     if (this.idNguoiDungHienTai) {
       this.socketService.joinRoom(this.idNguoiDungHienTai);
     }
+
+
+    // Xử lý mở phòng chat khi chuyển trang
+    const currentRoomId = this.chatRoomService.getCurrentRoomId();
+
+    this.roomIdSubscription = this.chatRoomService.getRoomId().pipe(
+      startWith(currentRoomId),           // Đẩy giá trị hiện tại vào stream
+    ).subscribe((roomId) => {
+      if (roomId) {
+        console.log('🔄 Room ID changed or initialized:', roomId);
+        this.chatRoomIdDuocChon = roomId;
+        this.getRoom(roomId); // Chỉ gọi 1 lần duy nhất ban đầu + khi thay đổi
+        this.isSidebarOpen = false;
+        this.showProfileModal = false;
+      }
+    });
+
   }
   ngOnDestroy(): void {
     this.socketService.offNhanskTaoPhongChat();
@@ -230,7 +249,13 @@ export class ChattingComponent implements OnInit {
 
     this.socketService.offNhanskXoaTinNhan();
     this.socketService.offOnNewMessage();
+    this.roomIdSubscription?.unsubscribe();
   }
+  canSendMessage(): boolean {
+    return !!(this.messageText?.trim() || this.imageFiles.length || this.docFiles.length);
+  }
+
+
 
   toggleModal(): void {
     this.showModal = !this.showModal;
@@ -320,10 +345,6 @@ export class ChattingComponent implements OnInit {
       }
     })
   }
-  //Check có phải là lastmessage khi vừa tạo phòng không
-  isNotFirst(type: string | undefined): boolean {
-    return type !== 'first';
-  }
 
   layPhongChat(roomId: string, callback?: () => void): void {
     this.chatRoomService.getChatRoomById(roomId).subscribe({
@@ -410,16 +431,39 @@ export class ChattingComponent implements OnInit {
     });
   }
 
+
+  // Ngày của mỗi tin nhắn
+  extractUniqueDates(messages: Messagee[]): string[] {
+    return [...new Set(messages.map(msg => msg.createdAt.split('T')[0]))];
+  }
+
+
+  // Check xem phải ngày mới nhất không
+  isNewDate(index: number): boolean {
+    if (index === 0) return true;
+    const current = this.messagees[index].createdAt.split('T')[0];
+    const prev = this.messagees[index - 1].createdAt.split('T')[0];
+    return current !== prev;
+  }
+  formatDate(dateStr: string): string {
+    return new Date(dateStr).toLocaleDateString('vi-VN', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+    });
+  }
+
+
+  ngayHienThi: string[] = [];
   chatRoomDuocChon(id: string): void {
 
     this.messageService.getAllMessages(id).subscribe({
       next: (res: any) => {
         this.messagees = res;
         console.log('tin nhắn: ', this.messagees);
+        this.ngayHienThi = this.extractUniqueDates(this.messagees);
         // Log toàn bộ sendID
-        const allSendIDs = this.messagees.map(msg => msg.sendID);
-        console.log('🔍 Tất cả sendID:', allSendIDs);
-        console.log('🙋‍♂️ idNguoiDungHienTai:', this.idNguoiDungHienTai);
+        // const allSendIDs = this.messagees.map(msg => msg.sendID);
+        // console.log('🔍 Tất cả sendID:', allSendIDs);
+        // console.log('🙋‍♂️ idNguoiDungHienTai:', this.idNguoiDungHienTai);
 
       },
       error: err => {
@@ -475,6 +519,9 @@ export class ChattingComponent implements OnInit {
   }
 
   createMessage(text: string): void {
+    if (!this.canSendMessage()) {
+      return;
+    }
     const chatRoom = this.selectedRoom?._id;
     if (!this.nguoiDungHienTai) {
       console.warn("Thông tin người dùng bị thiếu.");
@@ -527,13 +574,13 @@ export class ChattingComponent implements OnInit {
         text: this.messageText || '',
         media: [],
         files: [],
-        replyToMessage: this.replyingTo?._id || null, 
+        replyToMessage: this.replyingTo?._id || null,
       };
 
       formData.append('chatId', chatRoom);
       formData.append('sendID', JSON.stringify(user));
       formData.append('recall', '0');
-      // formData.append('content', JSON.stringify(content));
+      formData.append('content', JSON.stringify(content));
       formData.append('createdAt', new Date().toISOString());
       formData.append('updatedAt', new Date().toISOString());
 
@@ -546,8 +593,9 @@ export class ChattingComponent implements OnInit {
       }
 
       if (this.replyingTo) {
-        
-        formData.append('content', JSON.stringify(content));
+
+        formData.append('replyToMessage', this.replyingTo._id);
+        console.log("Gửi reply media/file, replyTo ID:", this.replyingTo?._id);
         this.http.post<Messagee>(`${this.baseApiUrl}/message/reply/`, formData, {
           headers: this.getHeaders()
         }).subscribe(this.getHttpObserver(chatRoom));
@@ -744,10 +792,11 @@ export class ChattingComponent implements OnInit {
           if (index !== -1) {
             this.chatRooms[index] = updatedRoom;
           }
-          this.selectedRoom = updatedRoom;
-
-          if (this.selectedRoom)
+          // this.selectedRoom = updatedRoom;
+          this.layPhongChat(updatedRoom._id);
+          if (this.selectedRoom) {
             this.socketService.capNhatPhongChat(this.selectedRoom._id, this.selectedRoom);
+          }
 
           // Reset form values/UI states
           this.showAddMembersModal = false;
@@ -894,7 +943,7 @@ export class ChattingComponent implements OnInit {
           // Xóa tin nhắn
           this.messagees = [];
           // Hiển thị thông báo thành công
-          alert('Đã xóa phòng chat');
+          // alert('Đã xóa phòng chat');
 
         },
         error: (err) => {
