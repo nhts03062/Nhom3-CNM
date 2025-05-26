@@ -54,7 +54,7 @@ router.post("/register", async (req, res) => {
       html: `
         <h3>Chào ${name},</h3>
         <p>Nhấn vào link dưới đây để xác thực tài khoản:</p>
-        <a href="http://localhost:5000/api/auth/verify?token=${encodeURIComponent(token)}">Xác thực tài khoản</a>
+        <a href="http://chat.fff3l.click/api/auth/verify?token=${encodeURIComponent(token)}">Xác thực tài khoản</a>
       `,
     };
 
@@ -157,7 +157,7 @@ router.post("/forgot-password", async (req, res) => {
       html: `
         <h3>Chào ${user.name},</h3>
         <p>Nhấn vào link dưới đây để đặt lại mật khẩu:</p>
-        <a href="http://localhost:5000/api/auth/verify-reset-password?token=${token}&room=${roomId}">Đặt lại mật khẩu</a>
+        <a href="http://chat.fff3l.click/api/auth/verify-reset-password?token=${token}&room=${roomId}">Đặt lại mật khẩu</a>
       `,
     };
 
