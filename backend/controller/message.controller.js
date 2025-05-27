@@ -222,6 +222,42 @@ messageController.replyTo = async (req, res) => {
   }
 };
 
+//Chuyển tiếp tin nhắn
+messageController.forward = async (req,res) =>{
+    try {
+        const { messageId, chatId } = req.body;
+        const userForwardId = req.user._id;
+
+        if (!messageId || !chatId) {
+            return res.status(400).json({ msg: 'Thiếu messageId hoặc chatId' });
+        }
+
+        // Kiểm tra xem tin nhắn có tồn tại không
+        const messageToForward = await Message.findById(messageId);
+        if (!messageToForward) {
+            return res.status(404).json({ msg: 'Tin nhắn không tồn tại' });
+        }
+
+        // Tạo một bản sao của nội dung tin nhắn để chuyển tiếp
+        const contentCopy = messageToForward.content;
+
+        // Tạo tin nhắn mới với nội dung đã sao chép
+        const newMessage = new Message({
+            chatId: chatId,
+            sendID: userForwardId,
+            content: contentCopy
+        });
+
+        await newMessage.save();
+
+        // Trả về tin nhắn mới đã được chuyển tiếp
+        return res.status(200).json(newMessage);
+    } catch (err) {
+        console.error('Lỗi chuyển tiếp tin nhắn:', err);
+        return res.status(500).json({ msg: 'Lỗi chuyển tiếp tin nhắn' });
+    }
+}
+
 
 
 

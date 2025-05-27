@@ -68,7 +68,7 @@ app.use('/api/upload', require('./routes/upload.route'))
 // server tự động phát hiện và gọi callback trong "connection". và disconnect cũng vậyvậy
 
 
-
+let userOnline = []
 
 
 io.on("connection", (socket) => {
@@ -88,7 +88,68 @@ io.on("connection", (socket) => {
     
     await User.findByIdAndUpdate(socket.user, { online: true }) //Cập nhật trạng thái online cho người dùng
     socket.broadcast.emit('onlined', socket.user)
+
+    const user = userOnline.find(user => user.userId === userId)
+    if (user){
+      user.socketId = socket.id
+    }else{
+      userOnline.push({ userId, socketId: socket.id });
+    }
   })
+
+    /**-----start------Call video----------- */
+    socket.on('call-request', ({ caller, recipient }) => {
+        console.log('Caller:', caller);
+        console.log('Recipient:', recipient);
+      
+        const recipientSocket = userOnline.find(
+            (user) => user.userId === recipient._id,
+        );
+        console.log('Recipient socket:', recipientSocket);
+        if (recipientSocket) {
+        
+            io.to(recipientSocket.socketId).emit('call-received', { caller });
+        }
+    });
+
+     socket.on('accept-call', ({ caller, recipient }) => {
+        console.log('Accepted call from:', caller);
+        console.log('Recipient:', recipient);
+
+        const callerSocket = userOnline.find((user) => user.userId === caller._id);
+        console.log('Caller socket:', callerSocket);
+        if (callerSocket) {
+         
+            io.to(callerSocket.socketId).emit('call-accepted', {
+                recipient,
+                caller,
+            });
+        }
+    });
+
+        socket.on('reject-call', ({ caller, recipient }) => {
+        console.log('Rejected call from:', caller);
+        console.log('Recipient:', recipient);
+
+        const callerSocket = users.find((user) => user.userId === caller._id);
+        console.log('Caller socket:', callerSocket);
+        if (callerSocket) {
+
+            io.to(callerSocket.socketId).emit('call-rejected');
+        }
+    });
+    socket.on('offer', (offer) => {
+      socket.broadcast.emit('offer', offer);
+    });
+
+    socket.on('answer', (answer) => {
+      socket.broadcast.emit('answer', answer);
+    });
+
+    socket.on('ice-candidate', (candidate) => {
+      socket.broadcast.emit('ice-candidate', candidate);
+    });
+    /**-----End------Call video----------- */
 
   /**-----start------reset password----------- */
 // Khi frontend join vào phòng cá nhân
