@@ -25,4 +25,5 @@ export interface Userr {
   createdAt: string;
   updatedAt: string;
   __v?: number;
+  online?: boolean;
 }
