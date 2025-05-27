@@ -69,4 +69,15 @@ router.patch('/synccontact', authMiddelware, UserController.synchronizeContacts)
 router.post('/changepassword', authMiddelware, UserController.changePassword)
 
 
+router.get('/online-status', async (req, res) => {
+  try {
+    const ids = req.query.ids?.split(',') || [];
+    const users = await User.find({ _id: { $in: ids } }).select('_id online');
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ message: 'Lỗi server' });
+  }
+});
+
+
 module.exports = router;
