@@ -55,6 +55,7 @@ export class ChattingComponent implements OnInit {
   showEmojiPicker: boolean = false;
   showModal = false;
   searchTerm: string = '';
+  messageSearchTerm: string = ''; // Thêm cho tìm kiếm tin nhắn
   selectedRoom?: ChatRoom | undefined;
   otherUsersChat: Userr[] = [];
   isSidebarOpen: boolean = false;
@@ -94,6 +95,22 @@ export class ChattingComponent implements OnInit {
 
   ngOnInit(): void {
     this.getChatRooms();
+
+    this.chatRooms.forEach(room => {
+  room.unreadCount = Math.floor(Math.random() * 5); // từ 0 đến 4 tin chưa đọc
+});
+
+this.socketService.onUserOnline((userId: string) => {
+    console.log(`User ${userId} is online`);
+    this.updateUserOnlineStatus(userId, true);
+  });
+
+  // Xử lý sự kiện người dùng offline
+  this.socketService.onUserOffline((userId: string) => {
+    console.log(`User ${userId} is offline`);
+    this.updateUserOnlineStatus(userId, false);
+  });
+
 
     //Xử lý khi có tin nhắn mới socket
     this.socketService.onNewMessage(msg => {
@@ -227,6 +244,8 @@ export class ChattingComponent implements OnInit {
 
     this.socketService.offNhanskXoaTinNhan();
     this.socketService.offOnNewMessage();
+    this.socketService.offUserOnline();
+  this.socketService.offUserOffline();
   }
 
   toggleModal(): void {
@@ -313,6 +332,8 @@ export class ChattingComponent implements OnInit {
     const status = ban ? 'ban' : daNhanYeuCau ? 'daNhanYeuCau' : daGuiYeuCau ? 'daGuiYeuCau' : 'chuaKetBan';
     return status;
   };
+  
+  
 layPhongChat(roomId: string, callback?: () => void): void {
     this.chatRoomService.getChatRoomById(roomId).subscribe({
       next: (res) => {
@@ -338,6 +359,7 @@ layPhongChat(roomId: string, callback?: () => void): void {
       console.error('⛔️ roomId không tồn tại khi gọi getRoom');
       return;
     }
+    
     this.selectedRoom = this.chatRooms.find(room => room._id.toString() === roomId)
 
     console.log("🚀 ~ ChattingComponent ~ getRoom ~ this.selectedRoom:", this.selectedRoom)
@@ -1053,23 +1075,25 @@ xoaFile(type: 'image' | 'doc', index: number) {
     this.replyingTo = null;
   }
 
-  get filteredChats(): ChatRoom[] {
+  get filteredChatRooms(): ChatRoom[] {
+    const term = this.searchTerm?.trim().toLowerCase();
+    if (!term) return [];
     return this.chatRooms.filter(chatRoom => {
-      return chatRoom.members.some((memberId: string) => {
-        const user = this.nguoiDung.find(u => u._id === memberId);
-        return user?.name.toLowerCase().includes(this.searchTerm.toLowerCase());
-      });
+      if (chatRoom.isGroupChat) {
+        return chatRoom.chatRoomName?.toLowerCase().includes(term);
+      } else {
+        return chatRoom.otherMembers?.[0]?.name.toLowerCase().includes(term);
+      }
     });
   }
 
   get filteredMessages(): Messagee[] {
-  const term = this.searchTerm?.trim().toLowerCase();
-  if (!term || !Array.isArray(this.messagees)) return [];
-
-  return this.messagees.filter(
-    (msg) => msg.content?.type === 'text' && msg.content.text?.toLowerCase().includes(term)
-  );
-}
+    const term = this.messageSearchTerm?.trim().toLowerCase();
+    if (!term || !Array.isArray(this.messagees)) return [];
+    return this.messagees.filter(
+      (msg) => msg.content?.type === 'text' && msg.content.text?.toLowerCase().includes(term)
+    );
+  }
 
 goToMessage(msg: Messagee): void {
   const el = document.getElementById('msg-' + msg._id);
@@ -1098,6 +1122,19 @@ scrollToMessage() {
   }
 }
 
+// Hàm cập nhật trạng thái online/offline
+private updateUserOnlineStatus(userId: string, isOnline: boolean): void {
+  this.chatRooms.forEach(room => {
+    if (!room.isGroupChat && room.otherMembers?.length > 0) {
+      const member = room.otherMembers[0];
+      if (member._id === userId) {
+        member.online = isOnline;
+      }
+    }
+  });
+  // Cập nhật lại giao diện nếu cần
+  this.chatRooms = [...this.chatRooms]; // Trigger change detection
+}
 
 //...
 
