@@ -15,6 +15,7 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../../contexts/AuthContext';
 import axios from 'axios';
+import io from 'socket.io-client';
 
 const API_URL = require('../../../services/api');
 
@@ -28,6 +29,60 @@ const ContactListScreen = () => {
     const [groups, setGroups] = useState([]);
     const [loading, setLoading] = useState(true);
     const [requestLoading, setRequestLoading] = useState(false);
+    const [socket, setSocket] = useState(null);
+    const [isJoin, setIsJoin] = useState(false);
+    const [onlineUsers, setOnlineUsers] = useState(new Set());
+
+    // Initialize Socket.IO connection
+    useEffect(() => {
+        const newSocket = io(API_URL.replace('/api', ''), {
+            auth: {
+                token: token
+            }
+        });
+
+        setSocket(newSocket);
+
+        return () => {
+            if (newSocket) newSocket.disconnect();
+        };
+    }, [token]);
+
+    // Handle Socket.IO events
+    useEffect(() => {
+        if (!socket || !user) return;
+
+        // Join the user's personal room
+        if (!isJoin) {
+            console.log('Joining personal room for user:', user._id);
+            socket.emit('join', user._id);
+            setIsJoin(true);
+            // Add current user to online users immediately
+            setOnlineUsers(new Set([user._id]));
+        }
+
+        // Listen for users coming online
+        socket.on('onlined', (userId) => {
+            console.log('User came online:', userId);
+            setOnlineUsers(prev => new Set([...prev, userId]));
+        });
+
+        // Listen for users going offline
+        socket.on('offlined', (userId) => {
+            console.log('User went offline:', userId);
+            setOnlineUsers(prev => {
+                const newSet = new Set([...prev]);
+                newSet.delete(userId);
+                return newSet;
+            });
+        });
+
+        return () => {
+            socket.off('join');
+            socket.off('onlined');
+            socket.off('offlined');
+        };
+    }, [socket, user]);
 
     const fetchFriends = useCallback(async () => {
         try {
@@ -147,6 +202,11 @@ const ContactListScreen = () => {
         }
     };
 
+    // Check if a user is online
+    const isUserOnline = (userId) => {
+        return onlineUsers.has(userId);
+    };
+
     const filteredData = activeTab === 'friends'
         ? friends.filter(friend =>
             friend.name.toLowerCase().includes(searchText.toLowerCase()) ||
@@ -172,14 +232,22 @@ const ContactListScreen = () => {
 
     const renderItem = ({ item }) => {
         if (activeTab === 'friends') {
+            const isOnline = isUserOnline(item._id);
+
             return (
                 <TouchableOpacity
                     style={styles.item}
                     onPress={() => handleChatWithFriend(item)}
                 >
-                    <Image source={getAvatarSource(item)} style={styles.avatar} />
+                    <View style={styles.avatarContainer}>
+                        <Image source={getAvatarSource(item)} style={styles.avatar} />
+                        {isOnline && <View style={styles.onlineIndicator} />}
+                    </View>
                     <View style={styles.itemInfo}>
-                        <Text style={styles.name}>{item.name}</Text>
+                        <View style={styles.nameRow}>
+                            <Text style={styles.name}>{item.name}</Text>
+                            {isOnline && <Text style={styles.onlineText}>Đang hoạt động</Text>}
+                        </View>
                         {item.phone && <Text style={styles.info}>{item.phone}</Text>}
                     </View>
                     <TouchableOpacity style={styles.chatButton}>
@@ -431,9 +499,41 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: '#eee',
     },
-    avatar: { width: 40, height: 40, borderRadius: 20, marginRight: 12 },
+    avatarContainer: {
+        position: 'relative',
+        marginRight: 12,
+    },
+    avatar: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+    },
+    onlineIndicator: {
+        position: 'absolute',
+        bottom: 0,
+        right: 0,
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        backgroundColor: '#4CAF50', // Green color for online status
+        borderWidth: 2,
+        borderColor: '#FFFFFF',
+    },
     itemInfo: { flex: 1 },
-    name: { fontSize: 16, fontWeight: '500' },
+    nameRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    name: {
+        fontSize: 16,
+        fontWeight: '500'
+    },
+    onlineText: {
+        fontSize: 12,
+        color: '#4CAF50',
+        marginLeft: 8,
+        fontStyle: 'italic',
+    },
     info: { fontSize: 12, color: '#666', marginTop: 2 },
     chatButton: {
         padding: 8,

@@ -138,6 +138,12 @@ const UserProfileScreen = ({ route }) => {
         });
     };
 
+    const handlePersonalProfile = () => {
+        navigation.navigate('HomeProfileScreen', {
+            profileUser: user
+        });
+    };
+
     return (
         <ScrollView style={styles.container}>
             <View style={styles.header}>
@@ -164,7 +170,7 @@ const UserProfileScreen = ({ route }) => {
                         <Ionicons name="search" size={20} color="#333" />
                         <Text style={styles.iconText}>Tìm tin nhắn</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.iconCircle}>
+                    <TouchableOpacity style={styles.iconCircle} onPress={handlePersonalProfile}>
                         <Ionicons name="person" size={20} color="#333" />
                         <Text style={styles.iconText}>Trang cá nhân</Text>
                     </TouchableOpacity>

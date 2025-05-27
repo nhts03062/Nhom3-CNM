@@ -98,6 +98,8 @@ const GroupOptionsScreen = () => {
     };
 
     const handleImagePicker = async () => {
+        if (!isCurrentUserAdmin) return; // Chỉ admin mới đổi ảnh
+
         try {
             const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
             if (!permissionResult.granted) {
@@ -112,11 +114,48 @@ const GroupOptionsScreen = () => {
             });
 
             if (!result.canceled && result.assets && result.assets.length > 0) {
-                setNewGroupImage(result.assets[0].uri);
+                // 1. Upload file lên server
+                const formData = new FormData();
+                formData.append('file', {
+                    uri: result.assets[0].uri,
+                    name: `group_${chatRoom._id}_${Date.now()}.jpg`,
+                    type: 'image/jpeg'
+                });
+
+                // Nhớ thêm headers cho form-data upload
+                const uploadRes = await axios.post(
+                    `${API_URL}/upload`,
+                    formData,
+                    {
+                        headers: {
+                            Authorization: token,
+                            'Content-Type': 'multipart/form-data'
+                        }
+                    }
+                );
+                const imageUrl = typeof uploadRes.data === 'string' ? uploadRes.data : uploadRes.data.url || uploadRes.data.fileUrl;
+
+                // 2. Gọi API cập nhật nhóm
+                const response = await axios.put(`${API_URL}/chatroom`, {
+                    chatRoomId: chatRoom._id,
+                    chatRoomName: chatRoom.chatRoomName,
+                    image: imageUrl,
+                    members: chatRoom.members.map(member => member._id),
+                }, {
+                    headers: { Authorization: token }
+                });
+
+                const updatedChatRoom = response.data;
+                setChatRoom(updatedChatRoom);
+                setNewGroupImage(updatedChatRoom.image || imageUrl);
+
+                Alert.alert('Thành công', 'Đã đổi hình nền nhóm!');
+                // Optionally, cập nhật các màn hình khác
+                navigation.setParams({ updatedChatRoom });
             }
         } catch (error) {
-            console.error('Error picking image:', error);
-            Alert.alert('Lỗi', 'Không thể chọn ảnh. Vui lòng thử lại sau.');
+            console.error('Error picking/uploading image:', error);
+            Alert.alert('Lỗi', 'Không thể đổi hình nền nhóm. Vui lòng thử lại sau.');
         }
     };
 
@@ -318,6 +357,57 @@ const GroupOptionsScreen = () => {
         );
     }
 
+    // Add this function with other handler functions
+    const handleDisbandGroup = () => {
+        Alert.alert(
+            'Giải tán nhóm',
+            'Bạn có chắc chắn muốn giải tán nhóm? Hành động này không thể hoàn tác và tất cả tin nhắn sẽ bị xóa.',
+            [
+                { text: 'Hủy', style: 'cancel' },
+                {
+                    text: 'Giải tán',
+                    style: 'destructive',
+                    onPress: performDisbandGroup
+                }
+            ]
+        );
+    };
+
+    const performDisbandGroup = async () => {
+        try {
+            setLoading(true);
+
+            // Call API to delete the chatroom
+            await axios.delete(`${API_URL}/chatroom/${chatRoom._id}`, {
+                headers: { Authorization: token }
+            });
+
+            Alert.alert(
+                'Thành công',
+                'Nhóm đã được giải tán.',
+                [
+                    {
+                        text: 'OK',
+                        onPress: () => {
+                            // Navigate back to chat list and refresh
+                            navigation.navigate('ChatRoomListScreen');
+                        }
+                    }
+                ]
+            );
+
+        } catch (error) {
+            console.error('Error disbanding group:', error);
+            let errorMessage = 'Không thể giải tán nhóm';
+            if (error.response) {
+                errorMessage = error.response.data?.msg || 'Lỗi không xác định';
+            }
+            Alert.alert('Lỗi', errorMessage);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <View style={styles.container}>
             <ScrollView>
@@ -342,10 +432,35 @@ const GroupOptionsScreen = () => {
                 </View>
 
                 <View style={styles.actions}>
-                    <TouchableOpacity style={styles.actionButton}>
+                    <TouchableOpacity
+                        style={styles.actionButton}
+                        onPress={() => {
+                            // Mở modal nhập từ khóa tìm kiếm
+                            Alert.prompt(
+                                'Tìm tin nhắn',
+                                'Nhập từ khóa cần tìm:',
+                                [
+                                    { text: 'Hủy', style: 'cancel' },
+                                    {
+                                        text: 'Tìm',
+                                        onPress: (keyword) => {
+                                            if (keyword && keyword.trim().length > 0) {
+                                                navigation.navigate('ChatScreen', {
+                                                    chatRoom,
+                                                    searchKeyword: keyword.trim()
+                                                });
+                                            }
+                                        }
+                                    }
+                                ],
+                                'plain-text'
+                            );
+                        }}
+                    >
                         <Ionicons name="search-outline" size={20} />
                         <Text style={styles.actionText}>Tìm tin nhắn</Text>
                     </TouchableOpacity>
+
                     <TouchableOpacity
                         style={styles.actionButton}
                         onPress={() => navigation.navigate('AddGroupMembersScreen', { chatRoom })}
@@ -353,10 +468,12 @@ const GroupOptionsScreen = () => {
                         <Ionicons name="person-add-outline" size={20} />
                         <Text style={styles.actionText}>Thêm thành viên</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.actionButton}>
-                        <Ionicons name="image-outline" size={20} />
-                        <Text style={styles.actionText}>Đổi hình nền</Text>
-                    </TouchableOpacity>
+                    {isCurrentUserAdmin && (
+                        <TouchableOpacity style={styles.actionButton} onPress={handleImagePicker}>
+                            <Ionicons name="image-outline" size={20} />
+                            <Text style={styles.actionText}>Đổi hình nền</Text>
+                        </TouchableOpacity>
+                    )}
                     <TouchableOpacity style={styles.actionButton}>
                         <Ionicons name="notifications-outline" size={20} />
                         <Text style={styles.actionText}>Tắt thông báo</Text>
@@ -386,6 +503,16 @@ const GroupOptionsScreen = () => {
                     <Text style={styles.leaveSectionText}>Rời nhóm</Text>
                 </TouchableOpacity>
 
+                {isCurrentUserAdmin && (
+                    <TouchableOpacity
+                        style={styles.disbandSection}
+                        onPress={handleDisbandGroup}
+                    >
+                        <Ionicons name="trash-outline" size={20} color="#f44336" style={styles.leaveSectionIcon} />
+                        <Text style={styles.leaveSectionText}>Giải tán nhóm</Text>
+                    </TouchableOpacity>
+                )}
+
             </ScrollView>
 
             {/* Edit Modal */}
@@ -393,12 +520,18 @@ const GroupOptionsScreen = () => {
                 <View style={styles.modalOverlay}>
                     <View style={styles.editModal}>
                         <Text style={styles.modalTitle}>Chỉnh sửa thông tin nhóm</Text>
-                        <TouchableOpacity onPress={handleImagePicker}>
+                        <TouchableOpacity onPress={isCurrentUserAdmin ? handleImagePicker : undefined}>
                             <Image
                                 source={{ uri: newGroupImage || 'https://static.vecteezy.com/system/resources/previews/026/019/617/original/group-profile-avatar-icon-default-social-media-forum-profile-photo-vector.jpg' }}
                                 style={styles.modalImage}
                             />
+                            {!isCurrentUserAdmin &&
+                                <Text style={{ color: '#888', fontSize: 12, textAlign: 'center' }}>
+                                    (Chỉ trưởng nhóm mới được đổi hình nền)
+                                </Text>
+                            }
                         </TouchableOpacity>
+
                         <TextInput
                             style={styles.modalInput}
                             value={newGroupName}
@@ -413,11 +546,13 @@ const GroupOptionsScreen = () => {
                                 <Text style={styles.modalButtonText}>Hủy</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
-                                style={[styles.modalButton, styles.saveButton]}
+                                style={[styles.modalButton, styles.saveButton, !isCurrentUserAdmin && { opacity: 0.5 }]}
                                 onPress={handleEditGroup}
+                                disabled={!isCurrentUserAdmin}
                             >
                                 <Text style={[styles.modalButtonText, { color: '#FFF' }]}>Lưu</Text>
                             </TouchableOpacity>
+
                         </View>
                     </View>
                 </View>
@@ -687,6 +822,14 @@ const styles = StyleSheet.create({
     },
     disabledButton: {
         backgroundColor: '#ccc',
+    },
+    disbandSection: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 16,
+        paddingHorizontal: 20,
+        borderBottomWidth: 1,
+        borderBottomColor: '#eee',
     },
 });
 

@@ -17,6 +17,7 @@ import AddGroupMembersScreen from './components/pages/screens/AddGroupMembersScr
 import PersonalScreen from './components/pages/screens/PersonalScreen';
 import AccountSettingsScreen from './components/pages/screens/AccountSettingsScreen';
 import UserProfileScreen from './components/pages/screens/UserProfileScreen';
+import HomeProfileScreen from './components/pages/screens/HomeProfileScreen';
 
 const Stack = createStackNavigator();
 
@@ -102,6 +103,7 @@ const App = () => {
           <Stack.Screen name="AddGroupMembersScreen" component={AddGroupMembersScreen} />
           <Stack.Screen name="PersonalScreen" component={PersonalScreen} />
           <Stack.Screen name="AccountSettingsScreen" component={AccountSettingsScreen} />
+          <Stack.Screen name="HomeProfileScreen" component={HomeProfileScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </AuthProvider>

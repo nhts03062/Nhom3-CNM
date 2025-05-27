@@ -52,23 +52,22 @@ const PersonalScreen = () => {
                 });
 
                 newSocket.on('connect', () => {
-                    console.log('Socket connected in PersonalScreen');
+                    //console.log('Socket connected in PersonalScreen');
                 });
 
                 newSocket.on('connect_error', (error) => {
-                    console.error('Socket connection error:', error);
+                    //console.error('Socket connection error:', error);
                 });
 
                 setSocket(newSocket);
 
                 return () => {
                     if (newSocket && newSocket.connected) {
-                        console.log('Disconnecting socket on cleanup');
                         newSocket.disconnect();
                     }
                 };
             } catch (error) {
-                console.error('Error setting up socket connection:', error);
+                //console.error('Error setting up socket connection:', error);
             }
         }
     }, [token, user]);
@@ -88,13 +87,11 @@ const PersonalScreen = () => {
                         try {
                             setLoggingOut(true);
                             if (socket) {
-                                console.log('Disconnecting socket before logout');
                                 socket.disconnect();
                                 setSocket(null);
                             }
                             const logoutSuccess = await logout();
                             if (logoutSuccess) {
-                                console.log('Logout successful, navigating to Auth screen');
                                 navigation.reset({
                                     index: 0,
                                     routes: [{ name: 'Auth' }],
@@ -103,7 +100,6 @@ const PersonalScreen = () => {
                                 throw new Error('Logout function returned false');
                             }
                         } catch (error) {
-                            console.error('Logout error:', error);
                             Alert.alert(
                                 'Lỗi đăng xuất',
                                 'Không thể đăng xuất. Vui lòng thử lại sau.',
@@ -125,7 +121,6 @@ const PersonalScreen = () => {
                                                     routes: [{ name: 'Auth' }],
                                                 });
                                             } catch (forceLogoutError) {
-                                                console.error('Force logout error:', forceLogoutError);
                                                 Alert.alert('Lỗi nghiêm trọng', 'Không thể đăng xuất. Vui lòng khởi động lại ứng dụng.');
                                             }
                                         }
@@ -145,7 +140,6 @@ const PersonalScreen = () => {
         try {
             setLoading(true);
             if (!user) {
-                console.log('No user data available');
                 return;
             }
 
@@ -162,8 +156,6 @@ const PersonalScreen = () => {
             if (userDataString) {
                 try {
                     const parsedUserData = JSON.parse(userDataString);
-                    console.log("PersonalScreen - Retrieved user data from AsyncStorage:", parsedUserData);
-
                     finalUserData = {
                         name: parsedUserData.name || finalUserData.name,
                         email: parsedUserData.email || finalUserData.email,
@@ -172,27 +164,20 @@ const PersonalScreen = () => {
                         avatarUrl: parsedUserData.avatarUrl || finalUserData.avatarUrl,
                         _id: finalUserData._id
                     };
-                } catch (parseError) {
-                    console.error('Error parsing user data from AsyncStorage:', parseError);
-                }
+                } catch (parseError) { }
             }
 
             setUserData(finalUserData);
 
-            // Cập nhật AuthContext với dữ liệu mới nhất
             if (updateUserContext && (
                 user.name !== finalUserData.name ||
                 user.avatarUrl !== finalUserData.avatarUrl ||
                 user.phone !== finalUserData.phone ||
                 user.address !== finalUserData.address
             )) {
-                console.log('PersonalScreen - Updating user context with latest data:', finalUserData);
                 updateUserContext(finalUserData);
             }
-
-            console.log('PersonalScreen - Final user data set:', finalUserData);
         } catch (error) {
-            console.error('Error fetching user data:', error);
         } finally {
             setLoading(false);
         }
@@ -204,7 +189,6 @@ const PersonalScreen = () => {
 
     useFocusEffect(
         useCallback(() => {
-            console.log('PersonalScreen focused, refreshing user data');
             fetchUserData();
             return () => { };
         }, [fetchUserData])
@@ -219,8 +203,6 @@ const PersonalScreen = () => {
 
     const updateUserProfile = async (updatedData) => {
         try {
-            console.log("PersonalScreen - Sending update data:", updatedData);
-
             const response = await axios.put(
                 `${API_URL}/user/updateuser`,
                 updatedData,
@@ -237,29 +219,16 @@ const PersonalScreen = () => {
                     ...userData,
                     ...updatedData
                 };
-
-                // Lưu vào AsyncStorage
                 await AsyncStorage.setItem('user', JSON.stringify(updatedUserData));
-                console.log('PersonalScreen - Saved updated data to AsyncStorage:', updatedUserData);
-
-                // Cập nhật state local
                 setUserData(updatedUserData);
-
-                // Cập nhật AuthContext
                 if (updateUserContext) {
-                    console.log('PersonalScreen - Updating AuthContext with new user data:', updatedUserData);
                     updateUserContext(updatedUserData);
                 }
-
                 Alert.alert('Thành công', 'Cập nhật hồ sơ thành công');
-
-                // Refresh data để đảm bảo consistency
                 fetchUserData();
             }
         } catch (error) {
-            console.error('Error updating profile:', error);
             if (error.response) {
-                console.error('Server error response:', error.response.data);
                 Alert.alert('Cập nhật thất bại', `Lỗi máy chủ: ${error.response.status}`);
             } else if (error.request) {
                 Alert.alert('Cập nhật thất bại', 'Không nhận được phản hồi từ máy chủ. Kiểm tra kết nối của bạn.');
@@ -270,25 +239,14 @@ const PersonalScreen = () => {
     };
 
     const getAvatarSource = () => {
-        console.log('PersonalScreen - Getting avatar source - userData:', {
-            name: userData.name,
-            avatarUrl: userData.avatarUrl
-        });
-
-        // Nếu có avatarUrl và không phải URL mặc định từ backend
         if (userData.avatarUrl &&
             userData.avatarUrl.trim() !== "" &&
             userData.avatarUrl !== "https://bookvexe.vn/wp-content/uploads/2023/04/chon-loc-25-avatar-facebook-mac-dinh-chat-nhat_2.jpg") {
-            console.log('PersonalScreen - Using user avatar URL:', userData.avatarUrl);
             return { uri: userData.avatarUrl };
         }
-
-        // Tạo avatar từ tên người dùng với encoding UTF-8 phù hợp
         const userName = userData.name || user?.name || 'User';
         const encodedName = encodeURIComponent(userName.trim());
         const fallbackUrl = `https://ui-avatars.com/api/?name=${encodedName}&background=0999fa&color=fff&size=128&format=png&rounded=true`;
-
-        console.log('PersonalScreen - Using fallback avatar for user:', userName, '- URL:', fallbackUrl);
         return { uri: fallbackUrl };
     };
 
@@ -301,9 +259,15 @@ const PersonalScreen = () => {
         );
     }
 
+    const handleViewPersonalProfile = () => {
+        navigation.navigate('HomeProfileScreen', {
+            profileUser: userData
+        });
+    };
+
     return (
         <View style={styles.container}>
-            <ScrollView style={styles.scrollContainer}>
+            <ScrollView>
                 <View style={styles.header}>
                     <TouchableOpacity onPress={handleSettingsPress} style={styles.settingsIcon}>
                         <Ionicons name="settings-outline" size={24} color="#fff" />
@@ -311,15 +275,12 @@ const PersonalScreen = () => {
                 </View>
 
                 <View style={styles.profileRow}>
-                    <Image
-                        source={getAvatarSource()}
-                        style={styles.avatar}
-                        onError={(e) => {
-                            console.log('PersonalScreen - Error loading avatar:', e.nativeEvent.error);
-                        }}
-                        onLoad={() => console.log('PersonalScreen - Avatar loaded successfully')}
-                        onLoadStart={() => console.log('PersonalScreen - Avatar loading started')}
-                    />
+                    <TouchableOpacity onPress={handleViewPersonalProfile}>
+                        <Image
+                            source={getAvatarSource()}
+                            style={styles.avatar}
+                        />
+                    </TouchableOpacity>
                     <View style={{ flex: 1 }}>
                         <Text style={styles.name}>{userData.name || 'Loading...'}</Text>
                         <Text style={styles.emailText}>{userData.email}</Text>
@@ -330,7 +291,7 @@ const PersonalScreen = () => {
 
                 {personalOptions.map((item, index) => (
                     <TouchableOpacity key={index} style={styles.optionRow}>
-                        <Ionicons name={item.icon} size={20} color="#0999fa" style={{ marginRight: 12 }} />
+                        <Ionicons name={item.icon} size={27} color="#0999fa" style={{ marginHorizontal: 12 }} />
                         <View style={{ flex: 1 }}>
                             <Text style={styles.optionLabel}>{item.label}</Text>
                             {item.desc && <Text style={styles.optionDesc}>{item.desc}</Text>}
@@ -346,7 +307,7 @@ const PersonalScreen = () => {
                     {loggingOut ? (
                         <ActivityIndicator size="small" color="#ff3b30" style={{ marginRight: 12 }} />
                     ) : (
-                        <Ionicons name="log-out-outline" size={20} color="#ff3b30" style={{ marginRight: 12 }} />
+                        <Ionicons name="log-out-outline" size={27} color="#ff3b30" style={{ marginRight: 12 }} />
                     )}
                     <Text style={[styles.optionLabel, { color: '#ff3b30' }]}>
                         {loggingOut ? 'Đang đăng xuất...' : 'Đăng xuất'}
@@ -392,9 +353,6 @@ const styles = StyleSheet.create({
     loadingText: {
         marginTop: 10,
         color: '#0999fa',
-    },
-    scrollContainer: {
-        paddingHorizontal: 16
     },
     header: {
         flexDirection: 'row',
@@ -459,6 +417,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingVertical: 14,
         marginTop: 10,
+        marginHorizontal: 16,
         marginBottom: 20,
     },
     disabledButton: {

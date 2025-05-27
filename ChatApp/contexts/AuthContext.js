@@ -3,6 +3,7 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { Alert } from 'react-native';
+import io from 'socket.io-client';
 
 const API_BASE_URL = require('../services/api');
 
@@ -17,6 +18,21 @@ export function AuthProvider({ children }) {
         user: null,
         isAuthenticated: false,
     });
+    const [socket, setSocket] = useState(null);
+
+    // Initialize socket connection
+    useEffect(() => {
+        if (state.token) {
+            const newSocket = io(API_BASE_URL.replace('/api', ''), {
+                auth: { token: state.token }
+            });
+            setSocket(newSocket);
+
+            return () => {
+                if (newSocket) newSocket.disconnect();
+            };
+        }
+    }, [state.token]);
 
     // Load stored auth data when app starts
     useEffect(() => {
@@ -98,6 +114,11 @@ export function AuthProvider({ children }) {
                 isAuthenticated: true,
             });
 
+            // Emit socket event to notify online status after login
+            if (socket) {
+                socket.emit('join', user._id);
+            }
+
             return true;
         } catch (error) {
             console.error('Login error:', error);
@@ -108,6 +129,12 @@ export function AuthProvider({ children }) {
     // Logout function
     const logout = async () => {
         try {
+            // Notify server user is going offline before clearing token
+            if (socket && state.user) {
+                socket.emit('disconnect');
+                socket.disconnect();
+            }
+
             // Clear AsyncStorage
             await AsyncStorage.removeItem('token');
             await AsyncStorage.removeItem('user');

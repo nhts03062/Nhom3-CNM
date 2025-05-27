@@ -14,7 +14,8 @@ import {
     Alert,
     Image,
     Modal,
-    Linking
+    Linking,
+    FlatList
 } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -48,9 +49,107 @@ const ChatScreen = () => {
     const navigation = useNavigation();
     const { token, user } = useAuth();
     const [isJoin, setIsJoin] = useState(false);
+    const [isFriend, setIsFriend] = useState(null);
+    const [showForwardModal, setShowForwardModal] = useState(false);
+    const [forwardMessage, setForwardMessage] = useState(null);
+    const [forwardChatRooms, setForwardChatRooms] = useState([]);
+    const [selectedForwardChatRooms, setSelectedForwardChatRooms] = useState([]);
+    const [searchText, setSearchText] = useState('');
+    const [forwardLoading, setForwardLoading] = useState(false);
+    const [imagePreviewVisible, setImagePreviewVisible] = useState(false);
+    const [previewImageUri, setPreviewImageUri] = useState(null);
+    const [searchKeyword, setSearchKeyword] = useState(route.params?.searchKeyword || null);
+    const [searchResults, setSearchResults] = useState([]);
+    const [currentSearchIndex, setCurrentSearchIndex] = useState(0);
+    const HEADER_HEIGHT = 90;
 
     const chatRoomParam = route.params?.chatRoom;
     const userIdParam = route.params?.userId;
+
+    const getOtherUserInPersonalChat = (chatRoom, user) => {
+        if (!chatRoom || chatRoom.isGroupChat || !chatRoom.members) return null;
+        return chatRoom.members.find(member => member._id !== user._id);
+    };
+
+    useFocusEffect(
+        useCallback(() => {
+            if (route.params?.searchKeyword) {
+                setSearchKeyword(route.params.searchKeyword);
+                handleSearchMessages(route.params.searchKeyword);
+            }
+        }, [route.params?.searchKeyword, messages])
+    );
+
+    const handleSearchMessages = (keyword) => {
+        if (!keyword || !messages.length) {
+            setSearchResults([]);
+            return;
+        }
+        const lowerKeyword = keyword.toLowerCase();
+        const resultIds = messages
+            .filter(msg =>
+                msg.content.type === 'text' &&
+                msg.content.text.toLowerCase().includes(lowerKeyword)
+            )
+            .map(msg => msg._id);
+
+        setSearchResults(resultIds);
+
+        // Auto scroll đến tin nhắn đầu tiên khớp
+        if (resultIds.length) {
+            const idx = messages.findIndex(m => m._id === resultIds[0]);
+            setTimeout(() => {
+                scrollViewRef.current?.scrollTo({ y: 60 * idx, animated: true });
+            }, 300);
+        }
+    };
+
+    const scrollToSearchResult = (resultIdx) => {
+        if (searchResults[resultIdx] !== undefined && scrollViewRef.current) {
+            // Tìm index của tin nhắn trong mảng messages
+            const messageId = searchResults[resultIdx];
+            const idx = messages.findIndex(m => m._id === messageId);
+
+            if (idx >= 0) {
+                const offset = idx * 70 - HEADER_HEIGHT;
+                scrollViewRef.current.scrollTo({ y: offset > 0 ? offset : 0, animated: true });
+            }
+        }
+    };
+
+    useEffect(() => {
+        setCurrentSearchIndex(0);
+        if (searchResults.length > 0) {
+            scrollToSearchResult(0);
+        }
+    }, [searchKeyword, searchResults]);
+
+
+    useFocusEffect(
+        useCallback(() => {
+            if (!route.params?.searchKeyword) {
+                setSearchKeyword(null);
+                setSearchResults([]);
+            }
+        }, [route.params?.searchKeyword])
+    );
+
+
+    // Kiểm tra bạn bè
+    const checkIsFriend = async (otherUser) => {
+        try {
+            const response = await axios.get(`${API_URL}/user/allfriend`, {
+                headers: { Authorization: token }
+            });
+            const friends = response.data;
+            const friendStatus = friends.some(friend => friend._id === otherUser._id);
+            setIsFriend(friendStatus);
+            return friendStatus;
+        } catch {
+            setIsFriend(false);
+            return false;
+        }
+    };
 
     const formatFileSize = (bytes) => {
         if (bytes === 0) return '0 B';
@@ -64,10 +163,48 @@ const ChatScreen = () => {
         useCallback(() => {
             if (route.params?.updatedChatRoom) {
                 setChatRoom(route.params.updatedChatRoom);
+                fetchMessages(route.params.updatedChatRoom._id);
+            } else if (chatRoom && chatRoom._id) {
+                fetchMessages(chatRoom._id);
             }
-            return () => { };
-        }, [route.params?.updatedChatRoom])
+
+            // Add this to update friendship status
+            if (route.params?.friendshipUpdated !== undefined) {
+                setIsFriend(route.params.friendshipUpdated);
+            }
+        }, [route.params?.updatedChatRoom, chatRoom?._id, route.params?.friendshipUpdated])
     );
+
+    const handleSendFriendRequest = async () => {
+        try {
+            const otherUser = getOtherUserInPersonalChat(chatRoom, user);
+            if (!otherUser) return;
+
+            const response = await axios.post(
+                `${API_URL}/user/sendreqfriend`,
+                { userId: otherUser._id },
+                {
+                    headers: {
+                        Authorization: token,
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+
+            Alert.alert(
+                'Thành công',
+                'Đã gửi lời mời kết bạn',
+                [{ text: 'OK' }]
+            );
+        } catch (error) {
+            console.error('Error sending friend request:', error);
+            if (error.response?.data?.msg) {
+                Alert.alert('Thông báo', error.response.data.msg);
+            } else {
+                Alert.alert('Lỗi', 'Không thể gửi lời mời kết bạn. Vui lòng thử lại sau.');
+            }
+        }
+    };
 
     useEffect(() => {
         if (chatRoom) {
@@ -147,29 +284,16 @@ const ChatScreen = () => {
                 if (chatRoomParam) {
                     setChatRoom(chatRoomParam);
                     await fetchMessages(chatRoomParam._id);
-                } else if (userIdParam) {
-                    const response = await axios.get(`${API_URL}/chatroom`, {
-                        headers: { Authorization: token }
-                    });
 
-                    const existingChat = response.data.find(room =>
-                        !room.isGroupChat &&
-                        room.members.some(member => member._id === userIdParam)
-                    );
-
-                    if (existingChat) {
-                        setChatRoom(existingChat);
-                        await fetchMessages(existingChat._id);
-                    } else {
-                        const createResponse = await axios.post(`${API_URL}/chatroom`, {
-                            members: [userIdParam],
-                        }, {
-                            headers: { Authorization: token }
-                        });
-
-                        setChatRoom(createResponse.data);
-                        await fetchMessages(createResponse.data._id);
+                    // Check friendship status if it's a personal chat
+                    if (!chatRoomParam.isGroupChat) {
+                        const otherUser = getOtherUserInPersonalChat(chatRoomParam, user);
+                        if (otherUser) {
+                            await checkIsFriend(otherUser);
+                        }
                     }
+                } else if (userIdParam) {
+                    // Rest of existing code...
                 }
             } catch (error) {
                 console.error('Error loading chat:', error);
@@ -406,8 +530,28 @@ const ChatScreen = () => {
             return;
         }
 
+        // KIỂM TRA HẠN THU HỒI VỚI MỌI NGƯỜI
+        if (code === '2') {
+            if (selectedMessage.createdAt) {
+                const createdAtTime = new Date(selectedMessage.createdAt).getTime();
+                const now = Date.now();
+
+                // NẾU KHÔNG HỢP LỆ -> KHÔNG THU HỒI, THÔNG BÁO VÀ RETURN
+                if (isNaN(createdAtTime) || (now - createdAtTime > 24 * 60 * 60 * 1000)) {
+                    Alert.alert('Không thể thu hồi', 'Bạn chỉ có thể thu hồi tin nhắn trong 1 ngày sau khi gửi.');
+                    setShowMessageOptions(false);
+                    return;
+                }
+            } else {
+                // Trường hợp không có createdAt (phòng lỗi)
+                Alert.alert('Không thể thu hồi', 'Không xác định được thời gian gửi tin nhắn.');
+                setShowMessageOptions(false);
+                return;
+            }
+        }
+
+        // PHẦN DƯỚI GIỮ NGUYÊN, KHÔNG ĐỔI
         try {
-            // Kiểm tra xem tin nhắn đã bị thu hồi chưa
             if (selectedMessage.recall === '1' || selectedMessage.recall === '2') {
                 Alert.alert('Lỗi', 'Tin nhắn đã được thu hồi trước đó.');
                 setShowMessageOptions(false);
@@ -524,6 +668,25 @@ const ChatScreen = () => {
         const showAvatar = !isOwnMessage && shouldShowAvatar(index);
         const sender = typeof msg.sendID === 'object' ? msg.sendID : { name: 'User', _id: senderId, avatarUrl: null };
 
+        {
+            msg.isForwarded && (
+                <View style={styles.forwardedContainer}>
+                    <Ionicons
+                        name="arrow-redo-outline"
+                        size={12}
+                        color={isOwnMessage ? "#fff" : "#666"}
+                        style={{ marginRight: 4 }}
+                    />
+                    <Text style={[
+                        styles.forwardedText,
+                        isOwnMessage && styles.ownForwardedText
+                    ]}>
+                        Tin nhắn được chuyển tiếp
+                    </Text>
+                </View>
+            )
+        }
+
         if (msg.isRecalling) {
             return (
                 <View
@@ -620,6 +783,23 @@ const ChatScreen = () => {
                         <Text style={styles.senderName}>{sender.name}</Text>
                     )}
 
+                    {msg.content.forwarded && (
+                        <View style={styles.forwardedContainer}>
+                            <Ionicons
+                                name="arrow-redo-outline"
+                                size={12}
+                                color={isOwnMessage ? "#fff" : "#666"}
+                                style={{ marginRight: 4 }}
+                            />
+                            <Text style={[
+                                styles.forwardedText,
+                                isOwnMessage && styles.ownForwardedText
+                            ]}>
+                                Được chuyển tiếp từ {msg.content.forwardedFrom}
+                            </Text>
+                        </View>
+                    )}
+
                     {msg.replyToMessage && (
                         <View style={[
                             styles.replyContainer,
@@ -650,14 +830,16 @@ const ChatScreen = () => {
                     )}
 
                     {msg.content.type === 'text' && (
-                        <Text
-                            style={[
-                                styles.messageText,
-                                isOwnMessage && styles.ownMessageText
-                            ]}
-                        >
-                            {msg.content.text}
-                        </Text>
+                        <View style={searchResults[currentSearchIndex] === msg._id ? styles.highlightMessage : null}>
+                            <Text
+                                style={[
+                                    styles.messageText,
+                                    isOwnMessage && styles.ownMessageText
+                                ]}
+                            >
+                                {msg.content.text}
+                            </Text>
+                        </View>
                     )}
 
                     {msg.content.type === 'file' && msg.content.files && msg.content.files.length > 0 && (
@@ -737,12 +919,13 @@ const ChatScreen = () => {
                     {msg.content.type === 'media' && msg.content.media && msg.content.media.length > 0 && (
                         <View style={styles.mediaContainer}>
                             {msg.content.media.map((mediaUrl, index) => (
-                                <Image
-                                    key={index}
-                                    source={{ uri: mediaUrl }}
-                                    style={styles.mediaImage}
-                                    resizeMode="cover"
-                                />
+                                <TouchableOpacity key={index} onPress={() => handlePreviewImage(mediaUrl)} activeOpacity={0.9}>
+                                    <Image
+                                        source={{ uri: mediaUrl }}
+                                        style={styles.mediaImage}
+                                        resizeMode="cover"
+                                    />
+                                </TouchableOpacity>
                             ))}
                             {msg.content.text && msg.content.text.trim() !== '' && (
                                 <Text
@@ -771,11 +954,15 @@ const ChatScreen = () => {
         );
     };
 
+    // Thay đổi hàm renderMessageOptionsModal để thêm tùy chọn chuyển tiếp
     const renderMessageOptionsModal = () => {
         if (!showMessageOptions || !selectedMessage) return null;
 
         const isOwnMessage = selectedMessage?.sendID?._id === user._id;
         const isRecalled = selectedMessage.recall === '1' || selectedMessage.recall === '2';
+
+        // Không cho chuyển tiếp tin nhắn đã bị thu hồi
+        const canForward = !isRecalled;
 
         return (
             <Modal
@@ -790,6 +977,19 @@ const ChatScreen = () => {
                     onPress={() => setShowMessageOptions(false)}
                 >
                     <View style={styles.messageOptionsContainer}>
+                        {canForward && (
+                            <>
+                                <TouchableOpacity
+                                    style={styles.optionButton}
+                                    onPress={() => handleForwardMessage(selectedMessage)}
+                                >
+                                    <Ionicons name="arrow-redo-outline" size={22} color="#333" />
+                                    <Text style={styles.optionText}>Chuyển tiếp</Text>
+                                </TouchableOpacity>
+                                <View style={styles.optionSeparator} />
+                            </>
+                        )}
+
                         <TouchableOpacity
                             style={styles.optionButton}
                             onPress={() => handleReplyToMessage(selectedMessage)}
@@ -870,7 +1070,6 @@ const ChatScreen = () => {
         navigation.goBack();
     };
 
-
     if (loading) {
         return (
             <View style={styles.loadingContainer}>
@@ -879,6 +1078,295 @@ const ChatScreen = () => {
             </View>
         );
     }
+
+    const handleHeaderNamePress = async () => {
+        if (!chatRoom || chatRoom.isGroupChat) return;
+        const otherUser = getOtherUserInPersonalChat(chatRoom, user);
+        if (!otherUser) return;
+
+        // If isFriend state is null, check the API
+        if (isFriend === null) {
+            await checkIsFriend(otherUser);
+        }
+
+        navigation.navigate('UserProfileScreen', {
+            user: otherUser,
+            chatRoom: chatRoom,
+            isFriend: isFriend
+        });
+    };
+
+    const handleForwardMessage = (message) => {
+        if (!message || message.recall === '1' || message.recall === '2') return;
+
+        setForwardMessage(message);
+        setSelectedForwardChatRooms([]);
+        setShowMessageOptions(false);
+
+        // Fetch danh sách cuộc trò chuyện để chuyển tiếp
+        setForwardLoading(true);
+        axios.get(`${API_URL}/chatroom`, {
+            headers: { Authorization: token }
+        })
+            .then(response => {
+                // Loại bỏ cuộc trò chuyện hiện tại
+                const filteredRooms = response.data.filter(room => room._id !== chatRoom._id);
+                setForwardChatRooms(filteredRooms);
+                setShowForwardModal(true);
+            })
+            .catch(error => {
+                console.error('Error fetching chat rooms for forwarding:', error);
+                Alert.alert('Lỗi', 'Không thể lấy danh sách cuộc trò chuyện. Vui lòng thử lại.');
+            })
+            .finally(() => {
+                setForwardLoading(false);
+            });
+    };
+
+    const toggleChatRoomSelection = (chatRoomId) => {
+        setSelectedForwardChatRooms(prev => {
+            if (prev.includes(chatRoomId)) {
+                return prev.filter(id => id !== chatRoomId);
+            } else {
+                return [...prev, chatRoomId];
+            }
+        });
+    };
+
+    // Thay đổi hàm sendForwardMessage trong ChatScreen.js
+    const sendForwardMessage = async () => {
+        if (selectedForwardChatRooms.length === 0) {
+            Alert.alert('Thông báo', 'Vui lòng chọn ít nhất 1 cuộc trò chuyện để chuyển tiếp');
+            return;
+        }
+
+        setForwardLoading(true);
+
+        try {
+            const messageId = forwardMessage._id;
+
+            const forwardPromises = selectedForwardChatRooms.map(async (chatRoomId) => {
+                try {
+                    const response = await axios.post(
+                        `${API_URL}/message/forward`,
+                        {
+                            messageId: messageId,
+                            chatId: chatRoomId
+                        },
+                        { headers: { Authorization: token } }
+                    );
+
+                    const forwardedMessage = {
+                        ...response.data,
+                        content: {
+                            ...response.data.content,
+                            forwarded: true,
+                            forwardedFrom: typeof forwardMessage.sendID === 'object'
+                                ? forwardMessage.sendID.name
+                                : 'Người dùng'
+                        }
+                    };
+
+                    if (socket) {
+                        socket.emit('create-message', {
+                            chatRoomId: chatRoomId,
+                            data: forwardedMessage
+                        });
+                    }
+
+                    return { success: true, chatRoomId, data: forwardedMessage };
+                } catch (error) {
+                    return { success: false, chatRoomId, error };
+                }
+            });
+
+            const results = await Promise.all(forwardPromises);
+            const successCount = results.filter(r => r.success).length;
+            const failCount = results.filter(r => !r.success).length;
+
+            // Lấy forwarded message của phòng chat hiện tại (nếu chuyển tiếp cho chính phòng này)
+            const myForwarded = results.find(r => r.success && r.chatRoomId === chatRoom._id);
+
+            if (successCount > 0) {
+                Alert.alert(
+                    'Thành công',
+                    `Đã chuyển tiếp tin nhắn đến ${successCount} cuộc trò chuyện` +
+                    (failCount > 0 ? `. ${failCount} cuộc trò chuyện thất bại.` : '')
+                );
+
+                setShowForwardModal(false);
+                setForwardMessage(null);
+                setSelectedForwardChatRooms([]);
+
+                navigation.navigate('ChatRoomListScreen', {
+                    forwardedMessage: true,
+                    forwardedData: myForwarded ? myForwarded.data : null,
+                    chatRoomId: myForwarded ? myForwarded.chatRoomId : null,
+                    timestamp: Date.now()
+                });
+            } else {
+                Alert.alert('Lỗi', 'Không thể chuyển tiếp tin nhắn đến bất kỳ cuộc trò chuyện nào. Vui lòng thử lại.');
+            }
+        } catch (error) {
+            Alert.alert('Lỗi', 'Có lỗi xảy ra khi chuyển tiếp tin nhắn. Vui lòng thử lại.');
+        } finally {
+            setForwardLoading(false);
+        }
+    };
+
+    // Hàm render modal chọn người nhận tin nhắn chuyển tiếp
+    const renderForwardModal = () => {
+        if (!showForwardModal) return null;
+
+        // Lấy nội dung tin nhắn cần hiển thị
+        const getMessagePreview = (message) => {
+            if (!message || !message.content) return '';
+
+            const { content } = message;
+            switch (content.type) {
+                case 'text':
+                    return content.text || '';
+                case 'file':
+                    return `📎 ${content.fileName || 'Tệp đính kèm'}`;
+                case 'media':
+                    return '🖼️ Hình ảnh/Video';
+                default:
+                    return 'Tin nhắn';
+            }
+        };
+
+        // Lọc cuộc trò chuyện theo tìm kiếm
+        const filteredChatRooms = forwardChatRooms.filter(room => {
+            if (!searchText) return true;
+
+            // Lấy tên cuộc trò chuyện
+            let chatName = room.chatRoomName || '';
+            if (!room.isGroupChat && room.members) {
+                const otherMember = room.members.find(member => member._id !== user._id);
+                if (otherMember) chatName = otherMember.name;
+            }
+
+            return chatName.toLowerCase().includes(searchText.toLowerCase());
+        });
+
+        // Hàm lấy tên cuộc trò chuyện
+        const getChatRoomName = (chatRoom) => {
+            if (chatRoom.chatRoomName) return chatRoom.chatRoomName;
+            if (!chatRoom.isGroupChat && chatRoom.members) {
+                const otherMember = chatRoom.members.find(member => member._id !== user._id);
+                return otherMember ? otherMember.name : 'Người dùng';
+            }
+            return 'Nhóm chat';
+        };
+
+        // Hàm lấy avatar của cuộc trò chuyện
+        const getAvatarSourceForList = (chatRoom) => {
+            if (chatRoom.isGroupChat && chatRoom.image) {
+                return { uri: chatRoom.image };
+            }
+            if (!chatRoom.isGroupChat && chatRoom.members) {
+                const otherMember = chatRoom.members.find(member => member._id !== user._id);
+                if (otherMember && otherMember.avatarUrl &&
+                    otherMember.avatarUrl !== "https://bookvexe.vn/wp-content/uploads/2023/04/chon-loc-25-avatar-facebook-mac-dinh-chat-nhat_2.jpg") {
+                    return { uri: otherMember.avatarUrl };
+                }
+            }
+            const chatName = getChatRoomName(chatRoom);
+            const encodedName = encodeURIComponent(chatName);
+            const fallbackUrl = `https://ui-avatars.com/api/?name=${encodedName}&background=0999fa&color=fff&size=128&format=png`;
+            return { uri: fallbackUrl };
+        };
+
+        return (
+            <Modal
+                transparent={true}
+                visible={showForwardModal}
+                animationType="slide"
+                onRequestClose={() => setShowForwardModal(false)}
+            >
+                <View style={styles.forwardModalContainer}>
+                    <View style={styles.forwardModalHeader}>
+                        <TouchableOpacity
+                            style={styles.closeButton}
+                            onPress={() => setShowForwardModal(false)}
+                        >
+                            <Ionicons name="close" size={24} color="#333" />
+                        </TouchableOpacity>
+                        <Text style={styles.forwardModalTitle}>Chuyển tiếp tin nhắn</Text>
+                        <TouchableOpacity
+                            style={[
+                                styles.sendForwardButton,
+                                selectedForwardChatRooms.length === 0 && styles.disabledButton
+                            ]}
+                            onPress={sendForwardMessage}
+                            disabled={selectedForwardChatRooms.length === 0 || forwardLoading}
+                        >
+                            {forwardLoading ? (
+                                <ActivityIndicator size="small" color="#fff" />
+                            ) : (
+                                <Text style={styles.sendForwardButtonText}>Gửi</Text>
+                            )}
+                        </TouchableOpacity>
+                    </View>
+
+                    <View style={styles.forwardMessagePreview}>
+                        <Text style={styles.forwardMessagePreviewLabel}>Tin nhắn chuyển tiếp:</Text>
+                        <Text style={styles.forwardMessagePreviewText} numberOfLines={3}>
+                            {getMessagePreview(forwardMessage)}
+                        </Text>
+                    </View>
+
+                    <View style={styles.searchContainer}>
+                        <Ionicons name="search" size={18} color="#666" />
+                        <TextInput
+                            style={styles.forwardSearchInput}
+                            placeholder="Tìm kiếm cuộc trò chuyện..."
+                            value={searchText}
+                            onChangeText={setSearchText}
+                        />
+                    </View>
+
+                    <FlatList
+                        data={filteredChatRooms}
+                        keyExtractor={(item) => item._id}
+                        style={styles.forwardChatRoomList}
+                        renderItem={({ item }) => (
+                            <TouchableOpacity
+                                style={[
+                                    styles.forwardChatRoomItem,
+                                    selectedForwardChatRooms.includes(item._id) && styles.selectedChatRoom
+                                ]}
+                                onPress={() => toggleChatRoomSelection(item._id)}
+                            >
+                                <Image
+                                    source={getAvatarSourceForList(item)}
+                                    style={styles.forwardChatRoomAvatar}
+                                />
+                                <Text style={styles.forwardChatRoomName}>
+                                    {getChatRoomName(item)}
+                                </Text>
+                                {selectedForwardChatRooms.includes(item._id) && (
+                                    <Ionicons name="checkmark-circle" size={24} color="#0999fa" />
+                                )}
+                            </TouchableOpacity>
+                        )}
+                        ListEmptyComponent={
+                            <View style={styles.emptyForwardList}>
+                                <Text style={styles.emptyForwardText}>
+                                    Không tìm thấy cuộc trò chuyện nào
+                                </Text>
+                            </View>
+                        }
+                    />
+                </View>
+            </Modal>
+        );
+    };
+
+    const handlePreviewImage = (uri) => {
+        setPreviewImageUri(uri);
+        setImagePreviewVisible(true);
+    };
 
     return (
         <KeyboardAvoidingView
@@ -897,7 +1385,31 @@ const ChatScreen = () => {
                         style={{ marginRight: 12 }}
                         onPress={handleGoBack}
                     />
-                    <Text style={styles.headerTitle}>{getChatName()}</Text>
+                    <View style={styles.headerInfo}>
+                        <TouchableOpacity
+                            style={styles.headerTextContainer}
+                            onPress={handleHeaderNamePress}
+                            disabled={!chatRoom || chatRoom.isGroupChat}
+                            activeOpacity={chatRoom && !chatRoom.isGroupChat ? 0.7 : 1}
+                        >
+                            <Text style={styles.headerTitle}>{getChatName()}</Text>
+                            {chatRoom && !chatRoom.isGroupChat && (
+                                <View style={styles.headerStatusContainer}>
+                                    <Text style={styles.headerSubtitle}>
+                                        {isFriend ? 'Bấm để xem thông tin' : 'Người lạ'}
+                                    </Text>
+                                    {!isFriend && (
+                                        <TouchableOpacity
+                                            style={styles.addFriendButton}
+                                            onPress={handleSendFriendRequest}
+                                        >
+                                            <Ionicons name="person-add-outline" size={16} color="#fff" />
+                                        </TouchableOpacity>
+                                    )}
+                                </View>
+                            )}
+                        </TouchableOpacity>
+                    </View>
 
                     <View style={styles.headerIcons}>
                         <TouchableOpacity style={styles.headerIcon}>
@@ -926,10 +1438,90 @@ const ChatScreen = () => {
             >
                 {messages.map((msg, index) => renderMessage(msg, index))}
             </ScrollView>
+            {searchKeyword && searchResults.length > 0 && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 8, backgroundColor: '#fffbe6' }}>
+                    <TouchableOpacity
+                        style={{
+                            backgroundColor: '#FFD600',
+                            borderRadius: 4,
+                            paddingHorizontal: 16,
+                            paddingVertical: 6,
+                            marginHorizontal: 8,
+                            opacity: currentSearchIndex === 0 ? 0.5 : 1
+                        }}
+                        disabled={currentSearchIndex === 0}
+                        onPress={() => {
+                            const prevIndex = Math.max(0, currentSearchIndex - 1);
+                            setCurrentSearchIndex(prevIndex);
+                            scrollToSearchResult(prevIndex);
+                        }}
+                    >
+                        <Text style={{ fontWeight: 'bold' }}>Trước</Text>
+                    </TouchableOpacity>
+                    <Text style={{ fontSize: 16, color: '#222' }}>
+                        {currentSearchIndex + 1}/{searchResults.length}
+                    </Text>
+                    <TouchableOpacity
+                        style={{
+                            backgroundColor: '#FFD600',
+                            borderRadius: 4,
+                            paddingHorizontal: 16,
+                            paddingVertical: 6,
+                            marginHorizontal: 8,
+                            opacity: currentSearchIndex === searchResults.length - 1 ? 0.5 : 1
+                        }}
+                        disabled={currentSearchIndex === searchResults.length - 1}
+                        onPress={() => {
+                            const nextIndex = Math.min(searchResults.length - 1, currentSearchIndex + 1);
+                            setCurrentSearchIndex(nextIndex);
+                            scrollToSearchResult(nextIndex);
+                        }}
+                    >
+                        <Text style={{ fontWeight: 'bold' }}>Sau</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
+
 
             {renderMessageOptionsModal()}
+            {renderForwardModal()}
 
             {renderReplyPreview()}
+
+            {
+                imagePreviewVisible && (
+                    <Modal
+                        visible={imagePreviewVisible}
+                        transparent={true}
+                        animationType="fade"
+                        onRequestClose={() => setImagePreviewVisible(false)}
+                    >
+                        <View style={{
+                            flex: 1,
+                            backgroundColor: 'rgba(0,0,0,0.9)',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                        }}>
+                            <TouchableOpacity
+                                style={{
+                                    position: 'absolute',
+                                    top: 50,
+                                    right: 30,
+                                    zIndex: 10,
+                                }}
+                                onPress={() => setImagePreviewVisible(false)}
+                            >
+                                <Ionicons name="close" size={36} color="#fff" />
+                            </TouchableOpacity>
+                            <Image
+                                source={{ uri: previewImageUri }}
+                                style={{ width: '90%', height: '70%', borderRadius: 10 }}
+                                resizeMode="contain"
+                            />
+                        </View>
+                    </Modal>
+                )
+            }
 
             <View style={styles.inputArea}>
                 <TouchableOpacity style={styles.inputButton} onPress={toggleEmojiPicker}>
@@ -1297,7 +1889,162 @@ const styles = StyleSheet.create({
         height: 1,
         backgroundColor: '#f0f0f0',
         marginHorizontal: 16,
-    }
+    },
+    headerHint: {
+        color: '#e2e2e2',
+        fontSize: 12,
+        fontStyle: 'italic',
+        marginTop: -2,
+        marginLeft: 2,
+    },
+    headerInfo: {
+        flex: 1,
+        justifyContent: 'center',
+    },
+    headerTextContainer: {
+        alignItems: 'flex-start',
+    },
+    headerTitle: {
+        color: 'white',
+        fontSize: 20,
+        fontWeight: '600',
+    },
+    headerSubtitle: {
+        color: '#e2e2e2',
+        fontSize: 12,
+        fontStyle: 'italic',
+        marginTop: -2,
+        marginLeft: 2,
+    },
+    headerStatusContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    addFriendButton: {
+        marginLeft: 8,
+        backgroundColor: '#0080dc',
+        borderRadius: 12,
+        padding: 4,
+    },
+    forwardedContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 4,
+    },
+    forwardedText: {
+        fontSize: 11,
+        fontStyle: 'italic',
+        color: '#666',
+    },
+    ownForwardedText: {
+        color: 'rgba(255,255,255,0.8)',
+    },
+
+    // Styles cho modal forward
+    forwardModalContainer: {
+        flex: 1,
+        backgroundColor: '#fff',
+        paddingTop: 20,
+    },
+    forwardModalHeader: {
+        height: 60,
+        backgroundColor: '#f8f8f8',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: '#eee',
+    },
+    closeButton: {
+        padding: 8,
+    },
+    forwardModalTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#333',
+    },
+    sendForwardButton: {
+        backgroundColor: '#0999fa',
+        paddingVertical: 6,
+        paddingHorizontal: 12,
+        borderRadius: 4,
+        minWidth: 60,
+        alignItems: 'center',
+    },
+    sendForwardButtonText: {
+        color: '#fff',
+        fontWeight: 'bold',
+    },
+    disabledButton: {
+        backgroundColor: '#ccc',
+    },
+    forwardMessagePreview: {
+        padding: 16,
+        backgroundColor: '#f8f8f8',
+        borderBottomWidth: 1,
+        borderBottomColor: '#eee',
+    },
+    forwardMessagePreviewLabel: {
+        fontSize: 12,
+        fontWeight: 'bold',
+        marginBottom: 4,
+        color: '#666',
+    },
+    forwardMessagePreviewText: {
+        fontSize: 14,
+        color: '#333',
+    },
+    searchContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#f0f0f0',
+        borderRadius: 20,
+        margin: 12,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+    },
+    forwardSearchInput: {
+        flex: 1,
+        marginLeft: 8,
+        fontSize: 16,
+    },
+    forwardChatRoomList: {
+        flex: 1,
+    },
+    forwardChatRoomItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#eee',
+    },
+    selectedChatRoom: {
+        backgroundColor: '#E6F0FA',
+    },
+    forwardChatRoomAvatar: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        marginRight: 12,
+    },
+    forwardChatRoomName: {
+        fontSize: 16,
+        flex: 1,
+    },
+    emptyForwardList: {
+        padding: 20,
+        alignItems: 'center',
+    },
+    emptyForwardText: {
+        fontSize: 16,
+        color: '#999',
+    },
+    highlightMessage: {
+        backgroundColor: '#FFF7B2', // Màu vàng nhẹ
+        borderRadius: 6,
+        padding: 2,
+    },
 });
 
 export default ChatScreen;

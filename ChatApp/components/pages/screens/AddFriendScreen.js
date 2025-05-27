@@ -124,8 +124,14 @@ const AddFriendScreen = () => {
         try {
             setLoading(true);
 
-            // Tạo object searchData để truyền đúng thông tin tìm kiếm
-            const searchData = { searchTerm: searchTerm.trim() };
+            let term = searchTerm.trim();
+
+            // Nếu là chuỗi có thể là số điện thoại (có +, số, khoảng trắng, - hoặc ())
+            if (/^[+0-9\s\-().]{8,}$/.test(term)) {
+                term = term.replace(/\D/g, '');
+            }
+
+            const searchData = { searchTerm: term };
 
             const response = await axios.post(
                 `${API_URL}/search`,
@@ -138,30 +144,15 @@ const AddFriendScreen = () => {
                 }
             );
 
-            // Enhance search results with friendship status
             const resultsWithStatus = response.data.map(foundUser => {
-                // Check if this user is the current user
                 const isCurrentUser = foundUser._id === user?._id;
-
-                // Check if this user is already a friend
                 const isFriend = userFriends.includes(foundUser._id);
-
-                // Check if already sent friend request - more thorough check
                 const hasSentRequest = userSentRequests.some(reqId => {
                     if (typeof reqId === 'object') {
                         return reqId._id === foundUser._id || reqId.userId === foundUser._id;
                     }
                     return reqId === foundUser._id;
                 });
-
-                console.log(`User ${foundUser.name}:`, {
-                    isCurrentUser,
-                    isFriend,
-                    hasSentRequest,
-                    userId: foundUser._id,
-                    sentRequests: userSentRequests
-                });
-
                 return {
                     ...foundUser,
                     isCurrentUser: isCurrentUser,
@@ -176,7 +167,6 @@ const AddFriendScreen = () => {
                 Alert.alert('Thông báo', 'Không tìm thấy người dùng với thông tin này');
             }
         } catch (error) {
-            console.error('Error searching user:', error);
             Alert.alert('Lỗi', 'Không thể tìm kiếm người dùng. Vui lòng thử lại sau.');
         } finally {
             setLoading(false);
