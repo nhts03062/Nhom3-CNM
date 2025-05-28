@@ -4,7 +4,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ModalProfileComponent } from '../profile/modal-profile/modal-profile.component';
 import { UserService } from '../../services/user.service';
-import { User } from '../../models/user.model';
+import { Userr } from '../../models/user.model';
 import { firstValueFrom, Observable } from 'rxjs';
 import { ChatRoomService } from '../../services/chatRoom.service';
 import { SearchService } from '../../services/searchService.service';
@@ -23,7 +23,7 @@ import { SocketService } from '../../socket.service';
 })
 
 export class ContactsComponent implements OnInit {
-  users: User[] = [];
+  users: Userr[] = [];
   showModal = false;
   showProfileModal = false;
   selectedTab: number = 0;
@@ -32,14 +32,14 @@ export class ContactsComponent implements OnInit {
   tabTitles: string[] = ['Danh sách bạn bè', 'Danh sách nhóm', 'Lời mời'];
   searchTerm: string = '';
   searchTermGroup: string = '';
-  friendsList: User[] = [];
+  friendsList: Userr[] = [];
   groupsList: ChatRoom[] = [];
-  user: User | undefined;
-  userMap: { [id: string]: User } = {};
-  currentUser: User | undefined;
-  foundUser: User | undefined;
-  friendRequests: User[] = [];
-  sentRequests: User[] = [];
+  user: Userr | undefined;
+  userMap: { [id: string]: Userr } = {};
+  currentUser: Userr | undefined;
+  foundUser: Userr | undefined;
+  friendRequests: Userr[] = [];
+  sentRequests: Userr[] = [];
   idNguoiDungHienTai: string | null = sessionStorage.getItem('userId');
 
   constructor(private userService: UserService,
@@ -100,7 +100,7 @@ export class ContactsComponent implements OnInit {
   }
 
 
-  selectedFriend: User | undefined;;
+  selectedFriend: Userr | undefined;;
 
   selectFriend(friend: any): void {
     this.selectedFriend = friend;
@@ -153,7 +153,7 @@ export class ContactsComponent implements OnInit {
     console.log("🔄 Starting to load friends...");
 
     this.userService.getFriends().subscribe({
-      next: (friends: User[]) => {
+      next: (friends: Userr[]) => {
         console.log("📥 Friends loaded:", friends);
         this.friendsList = friends; // Store the list of friends directly
       },
@@ -180,7 +180,7 @@ export class ContactsComponent implements OnInit {
 
     /**----------start--------------Xử lý thêm---------------------*/
 
-  get filteredFriends(): User[] {
+  get filteredFriends(): Userr[] {
     return this.friendsList.filter(friend =>
       friend.name.toLowerCase().includes(this.searchTerm.toLowerCase())
     );
@@ -252,7 +252,7 @@ export class ContactsComponent implements OnInit {
 
   unFriend(friendId: string): void {
     this.userService.unFriendRequest(friendId).subscribe({
-      next: (res: User) => {
+      next: (res: Userr) => {
         this.friendsList = this.friendsList.filter(friend => friend._id !== friendId);
         this.socketService.huyBanBe(friendId);
         console.log('Đã gửi sk socket hủy bạn')
