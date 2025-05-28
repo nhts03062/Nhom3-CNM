@@ -1,5 +1,5 @@
 import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
-import { User } from '../../models/user.model';
+import { Userr } from '../../models/user.model';
 import { ModalComponent } from './modal-change-pass/modal-change-pass.component';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -19,7 +19,7 @@ import { defaultAvatarUrl } from '../../contants';
 })
 export class ProfileComponent implements OnInit {
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
-  user?: User;
+  user?: Userr;
   userId: string | null = sessionStorage.getItem('userId')
   showModal = false;
   infoChangeForm: FormGroup;
@@ -48,7 +48,7 @@ export class ProfileComponent implements OnInit {
 
   loadUserData(userId: string): void {
     this.userService.getUserById(userId).subscribe({
-      next: (res: User) => {
+      next: (res: Userr) => {
         this.user = res;
         this.patchUserInfo();
         console.log('User data loaded:', this.user);
@@ -110,7 +110,7 @@ export class ProfileComponent implements OnInit {
 
 
             this.userService.updateUser(name, this.avatarUrlUpdate, phone, address).subscribe({
-              next: (res: User) => {
+              next: (res: Userr) => {
                 this.loading = false;
                 this.isSuccess = true;
                 this.formSubmitted = true;
@@ -143,7 +143,7 @@ export class ProfileComponent implements OnInit {
       } else {
         // Trường hợp không chọn ảnh thì cập nhật bình thường
         this.userService.updateUser(name, this.user?.avatarUrl || defaultAvatarUrl, phone, address).subscribe({
-          next: (res: User) => {
+          next: (res: Userr) => {
             this.loading = false;
             this.isSuccess = true;
             this.formSubmitted = true;
