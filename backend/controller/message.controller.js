@@ -26,6 +26,23 @@ messageController.create = async(req,res) =>{
         return res.status(400).json({ msg: 'Content không hợp lệ (parse lỗi)' });
       }
     }
+    
+    //Gửi tin nhắn thông báo    
+        if(content.type.toString() === 'notifi'){
+             const message = new Message({
+                    chatId,
+                    sendID : userId,
+                    content
+                })
+            
+                await message.save(); 
+            
+                const populatedMessage = 
+                await Message.findById(message._id).
+                populate('sendID', 'name email avatarUrl') //Tham số thứ 2 chọn trường muốn poppulate
+      
+                return res.status(200).json(populatedMessage)
+    }
 
     if(content.type.toString() !== 'text'){
 
@@ -69,7 +86,7 @@ messageController.create = async(req,res) =>{
     }else{
         return MessageUtil.saveMessageAndReturn(chatId,userId,content,req,res)
     }
-     
+
 
 }catch(err){
     console.log(err)
@@ -248,10 +265,25 @@ messageController.forward = async (req,res) =>{
             content: contentCopy
         });
 
-        await newMessage.save();
+        const message = await newMessage.save();
+
+            try{
+                const chatRoom = await ChatRoom.findById(chatId)
+                chatRoom.latestMessage = messageId
+                await chatRoom.save()
+            }catch(err){
+                console.log('Lỗi cập nhật latestMessage trong chatRoom:', err);
+            }
+
+        const populateMessages =  await Message.findById(message._id).
+                populate({
+                    path: 'chatId',
+                    populate: {path: 'members',select: 'name email avatarUrl' }
+                }).
+                populate('sendID', 'name email avatarUrl') 
 
         // Trả về tin nhắn mới đã được chuyển tiếp
-        return res.status(200).json(newMessage);
+        return res.status(200).json(populateMessages);
     } catch (err) {
         console.error('Lỗi chuyển tiếp tin nhắn:', err);
         return res.status(500).json({ msg: 'Lỗi chuyển tiếp tin nhắn' });

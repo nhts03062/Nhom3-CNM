@@ -26,9 +26,9 @@ messageUtil.saveMessageAndReturn = async (chatId, userId, content, req, res) =>{
         await Message.findById(message._id).
         populate({
             path: 'chatId',
-            populate: {path: 'members',select: 'name email' }
+            populate: {path: 'members',select: 'name email avatarUrl' }
         }).
-        populate('sendID', 'name email') //Tham số thứ 2 chọn trường muốn poppulate
+        populate('sendID', 'name email avatarUrl') //Tham số thứ 2 chọn trường muốn poppulate
     
         await updateLastMessage(chatId, populatedMessage._id)
         res.status(200).json(populatedMessage)
