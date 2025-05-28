@@ -1,7 +1,6 @@
-import { Component, OnInit, ElementRef, ViewChild, HostListener, Input, Output } from '@angular/core';
+import { Component, OnInit, ElementRef, ViewChild, HostListener, Input, Output, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { formatDistanceToNow } from 'date-fns';
 import { ModalComponent } from '../modal/modal.component';
 import { PickerComponent } from '@ctrl/ngx-emoji-mart';
 import { HttpClient, HttpHeaders, HttpClientModule } from '@angular/common/http';
@@ -13,13 +12,12 @@ import { SocketService } from '../../socket.service';
 import { UserService } from '../../services/user.service';
 import { ChatRoomService } from '../../services/chatRoom.service';
 import { User } from '../../models/user.model';
-import { ActivatedRoute } from '@angular/router';
 import { MessageService } from '../../services/message.service';
 import { defaultAvatarUrl, apiUrl, defaulGrouptAvatarUrl } from '../../contants';
 import { ModalProfileComponent } from '../profile/modal-profile/modal-profile.component';
 import { MembersModalComponent } from "./members-modal/members-modal.component";
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
-import { distinctUntilChanged, startWith, Subscription } from 'rxjs';
+import { startWith, Subscription } from 'rxjs';
 
 
 @Component({
@@ -30,7 +28,6 @@ import { distinctUntilChanged, startWith, Subscription } from 'rxjs';
   styleUrl: './chatting.component.css',
 })
 export class ChattingComponent implements OnInit {
-
 
   @ViewChild('imageInput') imageInput!: ElementRef<HTMLInputElement>;
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
@@ -88,7 +85,6 @@ export class ChattingComponent implements OnInit {
     private socketService: SocketService,
     private userService: UserService,
     private chatRoomService: ChatRoomService,
-    private route: ActivatedRoute,
     private messageService: MessageService,
     private uploadService: UploadService,
     private sanitizer: DomSanitizer
@@ -99,13 +95,17 @@ export class ChattingComponent implements OnInit {
     this.loadUser();
 
     //Xử lý khi có tin nhắn mới socket
+
     this.socketService.onNewMessage(msg => {
       console.log('New message received:', msg);
 
       const messageData = msg.data || msg;
-      //Trường hợp tin nhắn đến từ phòng chat đã chọn
-      if (messageData.chatId === this.chatRoomIdDuocChon ||
-        (messageData.chatId && messageData.chatId._id === this.chatRoomIdDuocChon)) {
+      const chatId = typeof messageData.chatId === 'string'
+        ? messageData.chatId
+        : messageData.chatId?._id;
+
+      // Nếu tin nhắn đến từ phòng đang mở
+      if (chatId === this.chatRoomIdDuocChon) {
         this.messagees.push(messageData);
 
         setTimeout(() => {
@@ -114,33 +114,35 @@ export class ChattingComponent implements OnInit {
             chatContainer.scrollTop = chatContainer.scrollHeight;
           }
         }, 100);
+
         if (this.selectedRoom) {
           this.selectedRoom.latestMessage = messageData;
-          //xử lý đem phòng chat có tin nhắn mới lên đầu
-          const index = this.chatRooms.findIndex(r => r._id === this.chatRoomIdDuocChon);
-          if (index !== -1) {
-            const [chatRoomCoTinNhanMoi] = this.chatRooms.splice(index, 1);
-            this.chatRooms.unshift(chatRoomCoTinNhanMoi);
-          }
         }
-      } else { //Trường hợp tin nhắn mới ko đến từ phòng đã chọn
-        this.chatRooms.forEach(room => {
-          if (room._id === messageData.chatId._id) {
-            room.latestMessage = messageData;
-            //xử lý đem phòng chat có tin nhắn mới lên đầu
-            const index = this.chatRooms.findIndex(r => r._id === room._id);
-            if (index !== -1) {
-              const [chatRoomCoTinNhanMoi] = this.chatRooms.splice(index, 1);
-              this.chatRooms.unshift(chatRoomCoTinNhanMoi);
-            }
-          }
-        })
+
+        // Đưa phòng lên đầu danh sách
+        const index = this.chatRooms.findIndex(r => r._id === chatId);
+        if (index !== -1) {
+          const [updatedRoom] = this.chatRooms.splice(index, 1);
+          updatedRoom.latestMessage = messageData;
+          this.chatRooms.unshift(updatedRoom);
+          this.chatRooms = [...this.chatRooms]; // Force Angular detect thay đổi
+        }
+      } else {
+        // Tin nhắn từ phòng khác đang không mở
+        const index = this.chatRooms.findIndex(r => r._id === chatId);
+        if (index !== -1) {
+          const [updatedRoom] = this.chatRooms.splice(index, 1);
+          updatedRoom.latestMessage = messageData;
+          this.chatRooms.unshift(updatedRoom);
+          this.chatRooms = [...this.chatRooms]; // Trigger change detection
+        }
       }
     });
 
+
     //Xử lý xóa tin nhắn socket
     this.socketService.nhanskXoaTinNhan(recal => {
-      if (recal.chatId._id.toString() == this.chatRoomIdDuocChon?.toString()) {
+      if (recal.chatId._id.toString() === this.chatRoomIdDuocChon?.toString()) {
         this.messagees = this.messagees.map(msg => msg._id === recal._id ? recal : msg);
       }
       this.chatRooms.forEach(room => {
@@ -183,23 +185,8 @@ export class ChattingComponent implements OnInit {
     })
 
     //Xử lý khi nhận sự kiện cập nhật phòng chat
-    this.socketService.nhanskCapNhatPhongChat((room: any) => {
-      const index = this.chatRooms.findIndex(r => r._id === room._id);
-      if (index !== -1) {
-        this.chatRooms[index] = room;
-        if (!this.chatRooms[index].members.some(member => member?._id.toString() === this.idNguoiDungHienTai)) {
-          this.chatRooms.splice(index, 1);
-          if (this.chatRoomIdDuocChon === room._id) {
-            this.chatRoomIdDuocChon = null;
-            this.selectedRoom = undefined;
-            this.messagees = [];
-          }
-        }
-        if (this.chatRoomIdDuocChon === room._id) {
-          this.selectedRoom = room;
-          this.membersList = this.filteredMembers(room);
-        }
-      }
+    this.socketService.nhanskCapNhatPhongChat((room: ChatRoom) => {
+      this.updateChatRoomsList(room, this.idNguoiDungHienTai);
     });
 
     //Xử lý khi nhận sự kiện rời phòng chat
@@ -218,11 +205,23 @@ export class ChattingComponent implements OnInit {
 
       }
     });
+    this.socketService.nhanskMoiVaoPhongChat((invitedUser: User) => {
+      if (this.selectedRoom) {
+        // Thêm invitedUser vào selectedRoom.members nếu chưa có
+        const exists = this.selectedRoom.members.some(u => u._id === invitedUser._id);
+        if (!exists) {
+          this.selectedRoom.members = [...this.selectedRoom.members, invitedUser];
+
+        }
+        this.updateChatRoomsList(this.selectedRoom, this.idNguoiDungHienTai);
+      }
+      console.log('🆕 User đã được mời:', invitedUser);
+      this.getChatRooms();
+    });
 
     if (this.idNguoiDungHienTai) {
       this.socketService.joinRoom(this.idNguoiDungHienTai);
     }
-
 
     // Xử lý mở phòng chat khi chuyển trang
     const currentRoomId = this.chatRoomService.getCurrentRoomId();
@@ -240,6 +239,7 @@ export class ChattingComponent implements OnInit {
     });
 
   }
+
   ngOnDestroy(): void {
     this.socketService.offNhanskTaoPhongChat();
     this.socketService.offNhanskCapNhatPhongChat();
@@ -254,8 +254,6 @@ export class ChattingComponent implements OnInit {
   canSendMessage(): boolean {
     return !!(this.messageText?.trim() || this.imageFiles.length || this.docFiles.length);
   }
-
-
 
   toggleModal(): void {
     this.showModal = !this.showModal;
@@ -293,20 +291,6 @@ export class ChattingComponent implements OnInit {
     return roomUsers;
   }
 
-  loadChattedUsers(): void {
-    this.chatRoomService.getChatRooms().subscribe({
-      next: (rooms: ChatRoom[]) => {
-        console.log("📥 rooms loaded:", rooms);
-        this.chatRooms = rooms;
-
-      },
-      error: err => {
-        console.error("❌ Failed to load rooms:", err);
-      }
-    });
-  }
-
-
   getHeaders(): HttpHeaders {
     const token = sessionStorage.getItem('token');
     return new HttpHeaders({ 'Authorization': `${token}` });
@@ -330,7 +314,6 @@ export class ChattingComponent implements OnInit {
       next: (res: any) => {
         const updatedChatRooms = res.map((room: ChatRoom) => {
 
-          console.log("🚀 ~ ChattingComponent ~ updatedChatRooms ~ room.latestMessage?.createdAt:", room.latestMessage?.createdAt)
           return {
             ...room,
             otherMembers: this.layNguoiDungKhac(room),
@@ -345,28 +328,87 @@ export class ChattingComponent implements OnInit {
       }
     })
   }
+  // Hàm dùng chung để cập nhật chatRooms list dựa trên room mới
+  updateChatRoomsList(updatedRoom: ChatRoom, currentUserId: string) {
+    const isMember = updatedRoom.members.some((m: User | string) =>
+      (typeof m === 'string' ? m : m?._id)?.toString() === currentUserId.toString()
+    );
 
+    const index = this.chatRooms.findIndex(r => r._id === updatedRoom._id);
+
+    if (index !== -1) {
+      // Phòng đã tồn tại: cập nhật
+      this.chatRooms[index] = { ...this.chatRooms[index], ...updatedRoom };
+
+      // Nếu user hiện tại không còn là thành viên, loại khỏi danh sách
+      if (!isMember) {
+        this.chatRooms.splice(index, 1);
+
+        // Nếu đang chọn phòng này thì reset selectedRoom
+        if (this.chatRoomIdDuocChon === updatedRoom._id) {
+          this.chatRoomIdDuocChon = null;
+          this.selectedRoom = undefined;
+          this.messagees = [];
+        }
+      }
+    } else if (isMember) {
+      // Phòng chưa có trong danh sách, thêm vào đầu danh sách
+      if (updatedRoom.latestMessage && typeof updatedRoom.latestMessage !== 'string' && updatedRoom.latestMessage.createdAt) {
+        updatedRoom.timeAgo = this.getTimeAgo(updatedRoom.latestMessage.createdAt);
+      }
+      this.chatRooms.unshift(updatedRoom);
+    }
+
+    // Nếu đang chọn phòng này → cập nhật selectedRoom và membersList
+    if (this.chatRoomIdDuocChon === updatedRoom._id) {
+      const current = this.chatRooms.find(r => r._id === updatedRoom._id);
+      if (current) {
+        this.selectedRoom = current;
+        this.membersList = this.filteredMembers(current);
+      }
+    }
+
+    this.chatRooms = [...this.chatRooms]; // Trigger UI update
+  }
+
+  updateCalled = false;
   layPhongChat(roomId: string, callback?: () => void): void {
     this.chatRoomService.getChatRoomById(roomId).subscribe({
-      next: (res) => {
+      next: async (res: ChatRoom) => {
+        if (typeof res.latestMessage === 'string') {
+          const fullMessage = this.getMessageById(res.latestMessage);
+          if (fullMessage) {
+            res.latestMessage = fullMessage;
+          }
+        }
+
         this.selectedRoom = res;
         this.membersList = this.filteredMembers(res);
-        console.log("✅ selectedRoom:", this.selectedRoom);
         this.nguoiDung = this.layNguoiDungKhac(res);
-        if (this.nguoiDung) {
-          this.roomName = this.nguoiDung[0].name;
-          console.log("🚀 ~ ChattingComponent ~ getRoom ~ this.roomName:", this.roomName)
+        console.log("🚀 ~ ChattingComponent ~ this.chatRoomService.getChatRoomById ~ res:", res)
+
+        // Emit socket với latestMessage là Message object
+        if (this.updateCalled === true) {
+          this.socketService.capNhatPhongChat(res._id, res);
+          this.updateChatRoomsList(res, this.idNguoiDungHienTai);
+          this.updateCalled = false;
         }
+
+        if (this.nguoiDung?.[0]) {
+          this.roomName = this.nguoiDung[0].name;
+        }
+
         if (callback) callback();
       },
       error: (err) => {
-        console.log("❌ Lỗi:", err);
+        console.error("❌ Lỗi khi lấy phòng:", err);
       }
     });
   }
+
+
   roomName: string = "Unknow";
   getRoom(roomId: string): void {
-    // this.chatRoomIdDuocChon = roomId
     if (!roomId) {
       console.error('⛔️ roomId không tồn tại khi gọi getRoom');
       return;
@@ -378,9 +420,22 @@ export class ChattingComponent implements OnInit {
       this.chatRoomDuocChon(roomId);
       console.log('Phòng chat đã chọn:', roomId);
       this.chatRoomIdDuocChon = roomId;
-      this.layPhongChat(this.chatRoomIdDuocChon, () => {
-        console.log("➡️ selectedRoom sau khi gọi xong:", this.selectedRoom);
-      });
+      if (this.chatRoomIdDuocChon) {
+        const room = this.chatRooms.find(r => r._id === this.chatRoomIdDuocChon);
+        const isMember = room?.members.some((m: User | string) => {
+          const memberId = typeof m === 'string' ? m : m._id;
+          return memberId === this.idNguoiDungHienTai;
+        });
+
+        if (isMember) {
+          this.layPhongChat(this.chatRoomIdDuocChon);
+        } else {
+          this.chatRoomIdDuocChon = null;
+          this.selectedRoom = undefined;
+          this.messagees = [];
+        }
+      }
+
 
     }
 
@@ -410,27 +465,6 @@ export class ChattingComponent implements OnInit {
   toggleGroupsToInviteModal(): void {
     this.showGroupsToInvite = !this.showGroupsToInvite;
   }
-
-
-  foundUser?: User;
-  onSearchUser() {
-    this.userService.getUsers().subscribe({
-      next: users => {
-        const found = users.find(u => u.email === this.searchTerm);
-        if (found) {
-          this.foundUser = found;
-          console.log('Found User:', this.foundUser);
-          this.showProfileModal = true; // open modal
-        } else {
-          console.log('No user found.');
-        }
-      },
-      error: err => {
-        console.error('Failed to fetch users:', err);
-      }
-    });
-  }
-
 
   // Ngày của mỗi tin nhắn
   extractUniqueDates(messages: Messagee[]): string[] {
@@ -574,7 +608,6 @@ export class ChattingComponent implements OnInit {
         text: this.messageText || '',
         media: [],
         files: [],
-        replyToMessage: this.replyingTo?._id || null,
       };
 
       formData.append('chatId', chatRoom);
@@ -594,7 +627,7 @@ export class ChattingComponent implements OnInit {
 
       if (this.replyingTo) {
 
-        formData.append('replyToMessage', this.replyingTo._id);
+        formData.append('_id', this.replyingTo._id);
         console.log("Gửi reply media/file, replyTo ID:", this.replyingTo?._id);
         this.http.post<Messagee>(`${this.baseApiUrl}/message/reply/`, formData, {
           headers: this.getHeaders()
@@ -645,25 +678,40 @@ export class ChattingComponent implements OnInit {
     };
   }
 
-
+  thongBao: string = '';
   leaveChatRoom(): void {
     if (this.chatRoomIdDuocChon) {
       this.chatRoomService.roiPhongChat(this.chatRoomIdDuocChon).subscribe({
-        next: (res) => {
-          console.log('Đã rời khỏi phòng chat:', res);
-          this.chatRooms = this.chatRooms.filter(room => room._id !== this.chatRoomIdDuocChon);
-          if (this.chatRoomIdDuocChon)
+        next: (res: ChatRoom) => {
+          console.log('✅ Đã rời khỏi phòng chat:', res);
+
+          // ✅ Cập nhật danh sách chatRooms: xóa room vừa rời
+          this.chatRooms = this.chatRooms.filter(
+            room => room._id !== this.chatRoomIdDuocChon
+          );
+
+          this.updateCalled = true;
+          this.layPhongChat(res._id);
+          // ✅ Dọn dẹp trạng thái
+          if (this.chatRoomIdDuocChon) {
             this.socketService.roiPhongChat(this.chatRoomIdDuocChon);
+          }
           this.chatRoomIdDuocChon = null;
           this.selectedRoom = undefined;
           this.messagees = [];
         },
         error: (err) => {
-          console.error('Lỗi khi rời phòng chat:', err);
+          // ✅ Nếu là admin, không được rời phòng
+          console.error('❌ Lỗi khi rời phòng chat:', err);
+          this.thongBao = '⚠️ Bạn là admin. Vui lòng chuyển quyền trước khi rời phòng.';
+          setTimeout(() => {
+            this.thongBao = '';
+          }, 3000);
         }
       });
     }
   }
+
   /**----------------Xử lý update nhóm---------------- */
   changedAdmin: string = '';
   editingName: boolean = false;
@@ -766,13 +814,8 @@ export class ChattingComponent implements OnInit {
       chatRoomId: this.selectedRoom?._id
     };
 
-
     if (this.editingName && this.editedRoomName && this.editedRoomName !== this.selectedRoom?.chatRoomName) {
       updateData.chatRoomName = this.editedRoomName;
-    }
-
-    if (this.addedMembers.length > 0) {
-      updateData.members = this.addedMembers;
     }
 
     if (this.changedImage) {
@@ -787,22 +830,13 @@ export class ChattingComponent implements OnInit {
     if (Object.keys(updateData).length > 1) { // Vì luôn có chatRoomId
       this.chatRoomService.updateChatRoom(updateData).subscribe({
         next: (updatedRoom) => {
-
-          const index = this.chatRooms.findIndex(r => r._id === updatedRoom._id);
-          if (index !== -1) {
-            this.chatRooms[index] = updatedRoom;
-          }
-          // this.selectedRoom = updatedRoom;
           this.layPhongChat(updatedRoom._id);
-          if (this.selectedRoom) {
-            this.socketService.capNhatPhongChat(this.selectedRoom._id, this.selectedRoom);
-          }
+          this.updateCalled = true;
 
           // Reset form values/UI states
-          this.showAddMembersModal = false;
+          this.showMembers = false;
           this.editingName = false;
           this.editingImage = false;
-          this.addedMembers = [];
           this.changedImage = '';
           this.changedAdmin = '';
           this.tempImageFile = null;
@@ -816,7 +850,6 @@ export class ChattingComponent implements OnInit {
       // Reset UI nếu không có thay đổi
       this.editingName = false;
       this.editingImage = false;
-
 
     }
   }
@@ -838,9 +871,7 @@ export class ChattingComponent implements OnInit {
     this.chatRoomService.addMembersChatRoom(updateData).subscribe({
       next: (updatedRoom: ChatRoom) => {
         this.layPhongChat(updatedRoom._id);
-        if (this.selectedRoom) {
-          this.socketService.capNhatPhongChat(this.selectedRoom._id, this.selectedRoom);
-        }
+        this.updateCalled = true;
         // Reset form values/UI states
         this.showAddMembersModal = false;
         this.addedMembers = [];
@@ -851,6 +882,7 @@ export class ChattingComponent implements OnInit {
       }
     });
   }
+
 
   addMemChatRoom(): void {
     const updateData: any = {
@@ -862,15 +894,9 @@ export class ChattingComponent implements OnInit {
     }
 
     this.chatRoomService.inviteToChatRoom(updateData).subscribe({
-      next: (updatedRoom) => {
+      next: (updatedRoom: ChatRoom) => {
         console.log("🚀 ~ ChattingComponent ~ this.chatRoomService.inviteToChatRoom ~ updatedRoom:", updatedRoom)
-        this.membersList = this.filteredMembers(updatedRoom); // ✅ Update members list if needed
-        if (this.selectedRoom) {
-          this.socketService.capNhatPhongChat(this.selectedRoom._id, this.selectedRoom);
-        }
-        // Reset form values/UI states
-        this.showAddMembersModal = false;
-        this.addedMembers = [];
+        this.layPhongChat(updatedRoom._id)
       },
       error: (err) => {
         console.error('Update failed', err);
@@ -879,16 +905,13 @@ export class ChattingComponent implements OnInit {
     });
   }
 
+
   getId(admin: any): string {
     return typeof admin === 'string' ? admin : admin?._id;
   }
 
   removeMember(memberId: string): void {
     if (!this.selectedRoom) return;
-
-    // Confirm before removing
-    // const confirmDelete = confirm('Bạn có chắc chắn muốn xóa thành viên này khỏi nhóm không?');
-    // if (!confirmDelete) return;
 
     // Remove the member
     const updatedMembers = this.selectedRoom.members
@@ -902,17 +925,8 @@ export class ChattingComponent implements OnInit {
 
     this.chatRoomService.updateChatRoom(updateData).subscribe({
       next: (updatedRoom) => {
-        // alert('Đã xóa thành viên khỏi nhóm');
-        const index = this.chatRooms.findIndex(r => r._id === updatedRoom._id);
-        if (index !== -1) {
-          this.chatRooms[index] = updatedRoom;
-        }
-        this.selectedRoom = updatedRoom; // 🔄 Refresh selectedRoom
-        this.membersList = this.filteredMembers(updatedRoom); // ✅ Update members list if you're using this
-        console.log('chatRoom sau khi xoa', updatedRoom)
-        if (this.selectedRoom) {
-          this.socketService.capNhatPhongChat(this.selectedRoom._id, this.selectedRoom);
-        }
+        this.layPhongChat(updatedRoom._id);
+        this.updateCalled = true;
       },
       error: (err) => {
         console.error('Xóa thành viên thất bại:', err);
@@ -960,9 +974,7 @@ export class ChattingComponent implements OnInit {
     console.log(code);
 
     if (code === 2) {
-      this.http.post<Messagee>(`${this.baseApiUrl}/message/recall/${code}`, { _id: idMsg }, {
-        headers: this.getHeaders()
-      }).subscribe({
+      this.messageService.recallMessage(code, idMsg).subscribe({
         next: (res: Messagee) => {
           console.log('Tin nhắn đẵ thu hồi voi code là 2', res);
           msg.recall = '2';
@@ -976,9 +988,7 @@ export class ChattingComponent implements OnInit {
         }
       });
     } else if (code === 1) {
-      this.http.post<Messagee>(`${this.baseApiUrl}/message/recall/${code}`, { _id: idMsg }, {
-        headers: this.getHeaders()
-      }).subscribe({
+      this.messageService.recallMessage(code, idMsg).subscribe({
         next: (res: Messagee) => {
           console.log('Tin nhắn đẵ thu hồi với code là 1', res);
           msg.recall = '1';
@@ -1012,10 +1022,6 @@ export class ChattingComponent implements OnInit {
       return user.name;
     }
   }
-  // getReplySenderId(sendID: any): string {
-  //   // If it's an object, return the _id, otherwise return the value directly
-  //   return typeof sendID === 'object' && sendID !== null ? sendID._id : sendID;
-  // }
 
   selectedMessageIndex: number | null = null;
   replyingTo: Messagee | null = null;
@@ -1034,6 +1040,47 @@ export class ChattingComponent implements OnInit {
     this.closeMessageOptions();
   }
 
+  //Chuyển tiếp tin nhắn
+  showForwardModal: boolean = false;
+  toggleForwardModal() {
+    this.showForwardModal = !this.showForwardModal;
+  }
+  selectedUsersToFW: string[] = [];
+
+  forwardMsgToUsers(): void {
+    if (!this.forwardTo || this.selectedUsersToFW.length === 0) {
+      alert("Vui lòng chọn người nhận hoặc tin nhắn cần chuyển tiếp.");
+      return;
+    }
+
+    this.selectedUsersToFW.forEach(userId => {
+      // const messageData = {
+      //   content: this.forwardTo?.content,
+      //   type: this.forwardTo?.type,
+      //   from: this.currentUserId,
+      //   to: userId,
+      //   forwarded: true
+      // };
+
+      // // Gửi tin nhắn qua socket hoặc API
+      // this.socketService.sendPrivateMessage(messageData);
+      // console.log("Đã forward tin nhắn đến userId:", userId);
+    });
+
+    this.selectedUsersToFW = [];
+    this.toggleForwardModal();
+  }
+
+
+  forwardTo: Messagee | undefined;
+  forwardMessage(index: number) {
+    this.forwardTo = this.messagees[index];
+    console.log("Đang chuyển đến:", this.forwardTo);
+    this.toggleForwardModal();
+    this.closeMessageOptions();
+  }
+
+
   cancelReply(): void {
     this.replyingTo = null;
   }
@@ -1051,10 +1098,6 @@ export class ChattingComponent implements OnInit {
   getUserFromId(userId: string): User | undefined {
     return this.nguoiDung.find(user => user._id === userId);
   }
-  // getUserName(userId: string): string {
-  //   const user = this.getUserFromId(userId);
-  //   return user ? user.name : 'Unknown User';
-  // }
 
   processIncomingMessage(msg: any): void {
     console.log('Processing incoming message:', msg);
@@ -1133,5 +1176,6 @@ export class ChattingComponent implements OnInit {
       }
     }
   }
+
 
 }

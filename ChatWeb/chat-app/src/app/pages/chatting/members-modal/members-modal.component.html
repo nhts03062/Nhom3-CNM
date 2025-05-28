@@ -13,7 +13,7 @@
           <!-- Search Input -->
           <input
             type="text"
-            placeholder="Search..."
+            placeholder="Tìm . . ."
             [(ngModel)]="searchTermGroup"
             class="friends-searchbar"
           />
@@ -32,6 +32,7 @@
                   type="checkbox"
                   [checked]="isSelected(room)"
                   style="display: none"
+                  (click)="groupSelection(room)"
                 />
                 <label class="cbx" [for]="'cbx-15-' + i">
                   <span>
@@ -89,7 +90,6 @@
                   [checked]="
                     selecteds.includes(user._id) || isInChatRoom(user._id)
                   "
-                  (click)="$event.stopPropagation()"
                   [disabled]="isInChatRoom(user._id)"
                   style="display: none"
                 />
@@ -144,6 +144,7 @@
                   [id]="'cbx-15-' + i"
                   type="checkbox"
                   [checked]="selectedNewAdmin === user._id"
+                  (click)="toggleSelectionAdmin(user._id)"
                   style="display: none"
                 />
                 <label
@@ -177,13 +178,137 @@
             Không tìm thấy người dùng
           </div>
         </ng-container>
+
+        <!-- Section 4: Choose user to forward message -->
+        <ng-container *ngIf="modalView === 3">
+          <div class="modal-tabs">
+            <button
+              [class.active]="activeTab === 'friend'"
+              (click)="setTab('friend')"
+            >
+              Bạn
+            </button>
+            <button
+              [class.active]="activeTab === 'group'"
+              (click)="setTab('group')"
+            >
+              Nhóm
+            </button>
+          </div>
+          
+          <ng-container *ngIf="activeTab === 'friend'">
+            <!-- Search Input -->
+            <input
+              type="text"
+              placeholder="Tìm . . ."
+              [(ngModel)]="searchUserToFW"
+              class="friends-searchbar"
+            />
+
+            <!-- Show only filtered -->
+            <ng-container *ngFor="let user of filteredUsersFW; let i = index">
+              <div
+                class="left-section friends"
+                [class.active]="selecteds.includes(user._id)"
+                (click)="toggleSelectionUsersFW(user._id)"
+              >
+                <div class="checkbox-wrapper-15">
+                  <input
+                    class="inp-cbx"
+                    [id]="'cbx-15-' + i"
+                    type="checkbox"
+                    [checked]="selecteds.includes(user._id)"
+                    style="display: none"
+                    (click)="toggleSelectionUsersFW(user._id)"
+                  />
+                  <label class="cbx" [for]="'cbx-15-' + i">
+                    <span>
+                      <svg width="12px" height="9px" viewBox="0 0 12 9">
+                        <polyline points="1 5 4 8 11 1"></polyline>
+                      </svg>
+                    </span>
+                  </label>
+                </div>
+
+                <div
+                  class="photo"
+                  [style.backgroundImage]="'url(' + user.avatarUrl + ')'"
+                ></div>
+                <div class="desc-contact">
+                  <p class="name">{{ user.name }}</p>
+                </div>
+              </div>
+            </ng-container>
+
+            <!-- Optional: No matches -->
+            <div
+              class="no-results"
+              *ngIf="searchUserToFW && filteredUsersFW.length === 0"
+            >
+              Không tìm thấy người dùng
+            </div>
+          </ng-container>
+
+          <ng-container *ngIf="activeTab === 'group'">
+            <!-- Search Input -->
+            <input
+              type="text"
+              placeholder="Tìm . . ."
+              [(ngModel)]="searchTermGroupFW"
+              class="friends-searchbar"
+            />
+
+            <!-- Show only filtered -->
+            <ng-container *ngFor="let group of filteredGroupChatsToFW; let i = index">
+              <div
+                class="left-section friends"
+                [class.active]="selecteds.includes(group._id)"
+                (click)="toggleSelectionGroupsFW(group._id)"
+              >
+                <div class="checkbox-wrapper-15">
+                  <input
+                    class="inp-cbx"
+                    [id]="'cbx-15-' + i"
+                    type="checkbox"
+                    [checked]="selecteds.includes(group._id)"
+                    style="display: none"
+                    (click)="toggleSelectionGroupsFW(group._id)"
+                  />
+                  <label class="cbx" [for]="'cbx-15-' + i">
+                    <span>
+                      <svg width="12px" height="9px" viewBox="0 0 12 9">
+                        <polyline points="1 5 4 8 11 1"></polyline>
+                      </svg>
+                    </span>
+                  </label>
+                </div>
+
+                <div
+                  class="photo"
+                  [style.backgroundImage]="'url(' + group.image + ')'"
+                ></div>
+                <div class="desc-contact">
+                  <p class="name">{{ group.chatRoomName }}</p>
+                </div>
+              </div>
+            </ng-container>
+
+            <!-- Optional: No matches -->
+            <div
+              class="no-results"
+              *ngIf="searchTermGroupFW && filteredGroupChatsToFW.length === 0"
+            >
+              Không tìm thấy nhóm
+            </div>
+          </ng-container>
+        </ng-container>
       </section>
 
       <footer class="modal-container-footer">
         <button class="button is-ghost" (click)="close()">Cancel</button>
         <button
           class="button is-primary"
-          (click)="modalView === 0 ? inviteToGroup() : (modalView === 1 ? onConfirm() : updateChatRoom?.())"
+          (click)="modalView === 0 ? inviteToGroup() : (modalView === 1 ? onConfirm() : bindingFunction?.())"
         >
           Chọn
         </button>

@@ -261,7 +261,7 @@
               <!-- Search Input -->
               <input
                 type="text"
-                placeholder="Tìm kiếm thành viên nhóm..."
+                placeholder="Tìm kiếm . . ."
                 [(ngModel)]="searchTermMember"
                 class="members-searchbar"
               />
@@ -342,14 +342,20 @@
               </ng-container>
               <div
                 class="mb-1 w-100"
-                *ngIf="selectedRoom.admin === idNguoiDungHienTai"
+                *ngIf="
+                  selectedRoom.admin === idNguoiDungHienTai ||
+                  selectedRoom.admin._id === idNguoiDungHienTai
+                "
               >
                 <div data-content="Owner & admin" class="divider-text"></div>
               </div>
 
               <div
                 class="role d-flex flex-column align-items-center text-center w-100"
-                *ngIf="selectedRoom.admin === idNguoiDungHienTai"
+                *ngIf="
+                  selectedRoom.admin === idNguoiDungHienTai ||
+                  selectedRoom.admin._id === idNguoiDungHienTai
+                "
               >
                 <button
                   class="btn w-100 border-0"
@@ -453,7 +459,6 @@
             [isOpen]="showGroupsToInvite"
             [modalView]="0"
             (closeModal)="toggleGroupsToInviteModal()"
-            (confirmUpdate)="addMemChatRoom()"
             [chatRooms]="chatRooms"
             [selectedRoom]="selectedRoom"
           >
@@ -467,7 +472,6 @@
             [modalView]="1"
             (closeModal)="toggleAddMembersModal()"
             (changedMembers)="addedMembers = $event"
-            [updateChatRoom]="updateChatRoom.bind(this)"
             [selectedRoom]="selectedRoom"
             (confirmUpdate)="onConfirmUpdate($event)"
           >
@@ -481,9 +485,8 @@
             [modalView]="2"
             (closeModal)="toggleMembersModal()"
             (newAdminSelected)="changedAdmin = $event"
-            [updateChatRoom]="updateChatRoom.bind(this)"
+            [bindingFunction]="updateChatRoom.bind(this)"
             [selectedRoom]="selectedRoom"
-            (confirmUpdate)="updateChatRoom()"
           >
           </app-members-modal>
         </div>
@@ -582,7 +585,7 @@
           class="timer"
           *ngIf="room.latestMessage?.content?.type !== 'first'"
         >
-          {{ room.timeAgo }}
+          {{ room.timeAgo || room.createdAt }}
         </div>
       </ng-container>
     </div>
@@ -760,6 +763,7 @@
               >
                 <ul>
                   <li (click)="replyToMessage(i)">Trả lời</li>
+                  <li (click)="forwardMessage(i)">Chuyển tiếp tin nhắn</li>
                 </ul>
               </div>
             </div>
@@ -772,7 +776,7 @@
               "
             >
               <div class="reply-preview" *ngIf="msg.replyToMessage">
-                <p class="reply-info">Reply to</p>
+                <p class="reply-info">Trả lời</p>
                 <p *ngIf="msg.replyToMessage.content.text" class="reply-text">
                   "{{ msg.replyToMessage.content.text }}"
                 </p>
@@ -843,11 +847,26 @@
                     Thu hồi tin nhắn
                   </li>
                   <li (click)="replyToMessage(i)">Trả lời tin nhắn</li>
+                  <li (click)="forwardMessage(i)">Chuyển tiếp tin nhắn</li>
                 </ul>
               </div>
             </div>
           </div>
         </ng-container>
+
+        <!-- Forward message modal -->
+        <app-members-modal
+          *ngIf="showForwardModal"
+          [isOpen]="showForwardModal"
+          [modalView]="3"
+          (closeModal)="toggleForwardModal()"
+          [selectedRoom]="selectedRoom"
+          [chatRooms]="chatRooms"
+          (selectedUsersChange)="selectedUsersToFW = $event"
+          [bindingFunction]="forwardMsgToUsers.bind(this)"
+        >
+        </app-members-modal>
+
         <!-- 🧷 Khung reply phía dưới input -->
         <div class="reply-box" *ngIf="replyingTo">
           <p>
@@ -1051,4 +1070,7 @@
       <img src="../../../assets/let's-chat.png" class="no-chat-img" />
     </div>
   </section>
+  <div class="alert fail" *ngIf="thongBao">
+    {{ thongBao }}
+  </div>
 </div>

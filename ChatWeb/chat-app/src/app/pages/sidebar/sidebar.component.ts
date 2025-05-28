@@ -4,6 +4,7 @@ import { Router, RouterModule, NavigationEnd } from '@angular/router';
 import { filter, Subscription } from 'rxjs';
 import { User } from '../../models/user.model';
 import { UserService } from '../../services/user.service';
+import { defaultAvatarUrl } from '../../contants';
 
 @Component({
   selector: 'app-sidebar',
@@ -17,7 +18,7 @@ export class SidebarComponent implements OnInit, OnDestroy {
   activeIndex = 0;
   user?: User;
   userId: string = sessionStorage.getItem('userId')!;
-  defaultAvatarUrl = 'https://i1.rgstatic.net/ii/profile.image/1039614412341248-1624874799001_Q512/Meryem-Laval.jpg';
+  defaultAvatarUrl = defaultAvatarUrl;
 
   private routerEventsSub!: Subscription;
 

@@ -45,6 +45,7 @@ export class ModalProfileComponent {
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['user'] && changes['user'].currentValue) {
       this.kiemTraBanHayDaGuiYeuCauKetBan(this.user!._id);
+      console.log("🚀 ~ ModalProfileComponent ~ ngOnChanges ~ this.kiemTraBanHayDaGuiYeuCauKetBan(this.user!._id);:", this.kiemTraBanHayDaGuiYeuCauKetBan(this.user!._id))
     }
 
   }
@@ -52,7 +53,7 @@ export class ModalProfileComponent {
   ngOnInit(): void {
 
     this.socketService.nhanskThemBan((data: any) => {
-      
+
       console.log('[Socket] nhanskThemBan received data:', data, 'this.user:', this.user);
       if (data._id === this.user?._id) {
         this.trangThaiKetBan = 'daGuiYeuCau'; // hoặc cập nhật lại đúng logic
@@ -181,6 +182,7 @@ export class ModalProfileComponent {
             }
           });
         }
+        this.reloadUserProfile();
 
       },
       error: (err) => {
@@ -196,6 +198,7 @@ export class ModalProfileComponent {
         // this.reloadUserProfile();
         this.socketService.huyKetBan(userId);
         console.log("Cancel request sent to:", this.user);
+        this.reloadUserProfile();
       },
       error: (err) => {
         console.error('Lỗi khi hủy yêu cầu kết bạn:', err);
@@ -206,11 +209,14 @@ export class ModalProfileComponent {
 
 
   reloadUserProfile(): void {
-    if (!this.user?._id) return;
+    if (!this.user?._id) {
+      console.log("⚠️ Không có user._id để reload");
+      return;
+    }
 
     this.userService.getUserById(this.user._id).subscribe({
       next: (resUser) => {
-        this.user = resUser; 
+        this.user = resUser;
         // cập nhật luôn currentUser
         if (this.currentUserId) {
           this.userService.getUserById(this.currentUserId).subscribe({

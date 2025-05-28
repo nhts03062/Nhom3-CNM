@@ -34,7 +34,7 @@ export class MessageService {
     return this.http.get<Messagee[]>(this.apiService.getApiUrl(`message/${chatId}`), { headers });
   }
 
-  recallMessage(code: string, messageId: string): Observable<Messagee> {
+  recallMessage(code: number, messageId: string): Observable<Messagee> {
     const headers = this.getHeaders();
     const body = { _id: messageId };
     return this.http.post<Messagee>(this.apiService.getApiUrl(`message/recall/${code}`), body, { headers });

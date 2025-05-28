@@ -11,13 +11,12 @@ import {
 } from '@angular/core';
 import { UserService } from '../../services/user.service';
 import { FormsModule } from '@angular/forms';
-import { forkJoin, map, Observable, filter } from 'rxjs';
-import { ModalProfileComponent } from '../profile/modal-profile/modal-profile.component';
 import { User } from '../../models/user.model';
 import { ChatRoomService } from '../../services/chatRoom.service';
 import { Router } from '@angular/router';
 import { SocketService } from '../../socket.service';
 import { UploadService } from '../../services/upload.service';
+import { defaulGrouptAvatarUrl,defaultAvatarUrl } from '../../contants';
 
 @Component({
   selector: 'app-modal',
@@ -36,10 +35,8 @@ export class ModalComponent implements OnInit {
   // selectedEmail: string | null = null;
   showProfileModal: boolean = false;
   users!: User[];
-  defaultAvatarUrl =
-    'https://i1.rgstatic.net/ii/profile.image/1039614412341248-1624874799001_Q512/Meryem-Laval.jpg';
-  defaulGrouptAvatarUrl =
-    'https://static.vecteezy.com/system/resources/previews/026/019/617/original/group-profile-avatar-icon-default-social-media-forum-profile-photo-vector.jpg';
+  defaultAvatarUrl =defaultAvatarUrl;
+  defaulGrouptAvatarUrl =defaulGrouptAvatarUrl;
   user: User | undefined;
   trangThaiKetBan: string | undefined;
 
