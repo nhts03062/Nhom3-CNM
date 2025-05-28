@@ -10,7 +10,7 @@
 //     friends:string[];
 //   }
   
-export interface User {
+export interface Userr {
   _id: string;
   name: string;
   email: string;
@@ -27,4 +27,6 @@ export interface User {
   // requestfriends: User[];
   createdAt: string;
   updatedAt: string;
+    __v?: number;
+  online?: boolean;
 }
