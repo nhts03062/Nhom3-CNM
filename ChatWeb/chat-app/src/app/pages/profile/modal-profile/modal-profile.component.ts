@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ChatRoomService } from '../../../services/chatRoom.service';
 import { ChatRoom } from '../../../models/chatRoom.model';
 import { UserService } from '../../../services/user.service';
-import { User } from '../../../models/user.model';
+import { Userr } from '../../../models/user.model';
 import { Observable } from 'rxjs';
 import { Router } from '@angular/router';
 import { Messagee } from '../../../models/message.model';
@@ -20,9 +20,9 @@ import { SocketService } from '../../../socket.service';
 export class ModalProfileComponent {
 
   @Input() isOpen: boolean = false;
-  @Input() user: User | undefined;
-  @Input() currentUser: User | undefined;
-  // @Input() trangThaiKetBan: string = '';
+  @Input() user: Userr | undefined;
+  @Input() currentUser: Userr | undefined;
+  @Input() trangThaiKetBan: string = '';
   @Output() closeModal: EventEmitter<void> = new EventEmitter<void>();
   chatRoom: ChatRoom | undefined;
   currentUserId: string = sessionStorage.getItem('userId')!;
@@ -31,7 +31,7 @@ export class ModalProfileComponent {
   receiveRequest: boolean = false;
   defaulGroupAvatarUrl = 'https://static.vecteezy.com/system/resources/previews/026/019/617/original/group-profile-avatar-icon-default-social-media-forum-profile-photo-vector.jpg';
   messagees: Messagee[] = [];
-  trangThaiKetBan: string = '';
+  // trangThaiKetBan: string = '';
 
   constructor(private chatRoomService: ChatRoomService,
     private userService: UserService,
@@ -172,7 +172,7 @@ export class ModalProfileComponent {
         if (this.currentUserId) {
           // Tìm kiếm thông tin người dùng hiện tại
           this.userService.getUserById(this.currentUserId).subscribe({
-            next: (res: User) => {
+            next: (res: Userr) => {
               const currentUser = res;
               // socket
               this.socketService.themBan(userId, currentUser);
