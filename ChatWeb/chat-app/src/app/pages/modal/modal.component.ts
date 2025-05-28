@@ -11,7 +11,7 @@ import {
 } from '@angular/core';
 import { UserService } from '../../services/user.service';
 import { FormsModule } from '@angular/forms';
-import { User } from '../../models/user.model';
+import { Userr } from '../../models/user.model';
 import { ChatRoomService } from '../../services/chatRoom.service';
 import { Router } from '@angular/router';
 import { SocketService } from '../../socket.service';
@@ -34,17 +34,17 @@ export class ModalComponent implements OnInit {
   @ViewChild('imageInput') imageInput!: ElementRef<HTMLInputElement>;
   // selectedEmail: string | null = null;
   showProfileModal: boolean = false;
-  users!: User[];
+  users!: Userr[];
   defaultAvatarUrl =defaultAvatarUrl;
   defaulGrouptAvatarUrl =defaulGrouptAvatarUrl;
-  user: User | undefined;
+  user: Userr | undefined;
   trangThaiKetBan: string | undefined;
 
   // tab của kết bạn
   searchError: string | null = null;
   danhSachNguoiDungSauKhiTimKiem: any[] = [];
   isSearching = false;
-  userNguoiDungHienTai: User | null = null;
+  userNguoiDungHienTai: Userr | null = null;
 
   activeTab: 'friend' | 'group' = 'friend';
   searchTerm: string = '';
@@ -193,9 +193,9 @@ export class ModalComponent implements OnInit {
     this.showProfileModal = !this.showProfileModal;
   }
 
-  selectedUser: User | undefined;
+  selectedUser: Userr | undefined;
 
-  selectUser(user: User): void {
+  selectUser(user: Userr): void {
     this.selectedUser = user;
     if (this.selectedUser) {
       this.trangThaiKetBan = this.kiemTraBanHayDaGuiYeuCauKetBan(
@@ -273,7 +273,7 @@ export class ModalComponent implements OnInit {
             (user: any) => user._id !== this.userIdNguoiDungHienTai
           );
           this.danhSachNguoiDungSauKhiTimKiem =
-            this.danhSachNguoiDungSauKhiTimKiem.map((user: User) => ({
+            this.danhSachNguoiDungSauKhiTimKiem.map((user: Userr) => ({
               ...user,
               trangThaiKetBan: this.kiemTraBanHayDaGuiYeuCauKetBan(user),
             }));
@@ -375,10 +375,10 @@ export class ModalComponent implements OnInit {
 
   /**--------------Xử lý sự kiện tạo nhóm------------------*/
   // Tải danh sách bạn bè
-  friendsList: User[] = [];
+  friendsList: Userr[] = [];
   loadFriends(): void {
     this.userService.getFriends().subscribe({
-      next: (friends: User[]) => {
+      next: (friends: Userr[]) => {
         this.friendsList = friends;
       },
       error: (err) => {
@@ -388,7 +388,7 @@ export class ModalComponent implements OnInit {
   }
 
   //Lọc danh sách bạn bè được chọn trên htmlhtml
-  get filteredFriends(): User[] {
+  get filteredFriends(): Userr[] {
     return this.friendsList.filter((friend) =>
       friend.name.toLowerCase().includes(this.searchTerm.toLowerCase())
     );
