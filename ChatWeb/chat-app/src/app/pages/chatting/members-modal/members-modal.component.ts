@@ -299,6 +299,7 @@ ngOnChanges(changes: SimpleChanges): void {
         userId,
         chatRoomId: room._id
       };
+      console.log("🚀 ~ MembersModalComponent ~ this.selectedGroup.forEach ~ data:", data)
       this.chatRoomService.inviteToChatRoom(data).subscribe({
         next: () => {
 

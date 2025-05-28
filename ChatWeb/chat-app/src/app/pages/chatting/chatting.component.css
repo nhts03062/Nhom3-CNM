@@ -660,7 +660,6 @@ emoji-mart {
 .message-options li:hover {
   background-color: #f0f0f0;
 }
-/* này nhóenhóe */
 /* Đẩy ảnh cuối (nếu lẻ) sang bên phải */
 .response .image-preview img:last-child:nth-child(odd) {
   grid-column: 2;

@@ -213,7 +213,7 @@ export class ChattingComponent implements OnInit {
           this.selectedRoom.members = [...this.selectedRoom.members, invitedUser];
 
         }
-        this.updateChatRoomsList(this.selectedRoom, this.idNguoiDungHienTai);
+        // this.updateChatRoomsList(this.selectedRoom, this.idNguoiDungHienTai);
       }
       console.log('🆕 User đã được mời:', invitedUser);
       this.getChatRooms();
@@ -713,12 +713,11 @@ export class ChattingComponent implements OnInit {
           console.log('✅ Đã rời khỏi phòng chat:', res);
 
           // ✅ Cập nhật danh sách chatRooms: xóa room vừa rời
-          this.chatRooms = this.chatRooms.filter(
-            room => room._id !== this.chatRoomIdDuocChon
-          );
+          // this.chatRooms = this.chatRooms.filter(
+          //   room => room._id !== this.chatRoomIdDuocChon
+          // );
+          this.updateChatRoomsList(res, this.idNguoiDungHienTai);
 
-          this.updateCalled = true;
-          this.layPhongChat(res._id);
           // ✅ Dọn dẹp trạng thái
           if (this.chatRoomIdDuocChon) {
             this.socketService.roiPhongChat(this.chatRoomIdDuocChon);
