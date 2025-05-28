@@ -152,6 +152,7 @@ const PersonalScreen = () => {
                 _id: user._id
             };
 
+            // Always try to get the latest data from AsyncStorage
             const userDataString = await AsyncStorage.getItem('user');
             if (userDataString) {
                 try {
@@ -164,20 +165,26 @@ const PersonalScreen = () => {
                         avatarUrl: parsedUserData.avatarUrl || finalUserData.avatarUrl,
                         _id: finalUserData._id
                     };
-                } catch (parseError) { }
+                    console.log('Updated user data from AsyncStorage:', finalUserData);
+                } catch (parseError) {
+                    console.error('Error parsing user data:', parseError);
+                }
             }
 
             setUserData(finalUserData);
 
+            // Update AuthContext if data has changed
             if (updateUserContext && (
                 user.name !== finalUserData.name ||
                 user.avatarUrl !== finalUserData.avatarUrl ||
                 user.phone !== finalUserData.phone ||
-                user.address !== finalUserData.address
+                user.address !== finalUserData.address ||
+                user.email !== finalUserData.email
             )) {
                 updateUserContext(finalUserData);
             }
         } catch (error) {
+            console.error('Error fetching user data:', error);
         } finally {
             setLoading(false);
         }
@@ -187,10 +194,14 @@ const PersonalScreen = () => {
         fetchUserData();
     }, [fetchUserData]);
 
+    // Use useFocusEffect to refresh data when screen comes into focus
     useFocusEffect(
         useCallback(() => {
+            console.log('PersonalScreen focused - refreshing user data');
             fetchUserData();
-            return () => { };
+            return () => {
+                console.log('PersonalScreen unfocused');
+            };
         }, [fetchUserData])
     );
 
@@ -225,9 +236,10 @@ const PersonalScreen = () => {
                     updateUserContext(updatedUserData);
                 }
                 Alert.alert('Thành công', 'Cập nhật hồ sơ thành công');
-                fetchUserData();
+                fetchUserData(); // Refresh data after update
             }
         } catch (error) {
+            console.error('Update profile error:', error);
             if (error.response) {
                 Alert.alert('Cập nhật thất bại', `Lỗi máy chủ: ${error.response.status}`);
             } else if (error.request) {
@@ -239,14 +251,20 @@ const PersonalScreen = () => {
     };
 
     const getAvatarSource = () => {
+        // Check if we have a valid avatar URL
         if (userData.avatarUrl &&
             userData.avatarUrl.trim() !== "" &&
+            userData.avatarUrl.startsWith('http') &&
             userData.avatarUrl !== "https://bookvexe.vn/wp-content/uploads/2023/04/chon-loc-25-avatar-facebook-mac-dinh-chat-nhat_2.jpg") {
+            console.log('Using avatar URL:', userData.avatarUrl);
             return { uri: userData.avatarUrl };
         }
+
+        // Fallback to generated avatar based on name
         const userName = userData.name || user?.name || 'User';
         const encodedName = encodeURIComponent(userName.trim());
         const fallbackUrl = `https://ui-avatars.com/api/?name=${encodedName}&background=0999fa&color=fff&size=128&format=png&rounded=true`;
+        console.log('Using fallback avatar for:', userName);
         return { uri: fallbackUrl };
     };
 
@@ -279,6 +297,14 @@ const PersonalScreen = () => {
                         <Image
                             source={getAvatarSource()}
                             style={styles.avatar}
+                            onError={(e) => {
+                                console.log('Avatar load error:', e.nativeEvent.error);
+                                // Force refresh user data to get fallback avatar
+                                fetchUserData();
+                            }}
+                            onLoad={() => {
+                                console.log('Avatar loaded successfully');
+                            }}
                         />
                     </TouchableOpacity>
                     <View style={{ flex: 1 }}>

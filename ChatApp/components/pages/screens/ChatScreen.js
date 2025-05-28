@@ -19,6 +19,7 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useRoute, useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
@@ -269,12 +270,69 @@ const ChatScreen = () => {
             }
         });
 
+        // Trong phần useEffect xử lý sự kiện socket
+        socket.on('user-left', (chatRoomId, userData) => {
+            console.log('Received user-left event:', chatRoomId, userData); // Thêm log để xem dữ liệu nhận được
+
+            if (chatRoomId === chatRoom._id) {
+                // Xử lý tên người dùng - đảm bảo luôn có giá trị
+                let displayName = "Người dùng";
+                if (userData) {
+                    // Kiểm tra nếu userData là object hay string
+                    if (typeof userData === 'object') {
+                        displayName = userData.userName || userData.name || "Người dùng";
+                    } else if (typeof userData === 'string') {
+                        // Nếu backend gửi về ID người dùng thay vì object
+                        // Có thể tìm kiếm tên từ danh sách thành viên
+                        const member = chatRoom.members?.find(m => m._id === userData);
+                        displayName = member?.name || "Người dùng";
+                    }
+                }
+
+                // Tạo system message
+                const leaveMessage = {
+                    _id: `leave_${typeof userData === 'object' ? userData.userId : userData}_${Date.now()}`,
+                    chatId: chatRoom._id,
+                    system: true,
+                    systemType: 'userLeft',
+                    content: {
+                        type: 'system',
+                        text: `${displayName} rời khỏi nhóm.`
+                    },
+                    createdAt: (typeof userData === 'object' && userData.timestamp) || new Date().toISOString()
+                };
+
+                // Thêm tin nhắn vào danh sách
+                setMessages(prev => [...prev, leaveMessage]);
+
+                // Lưu vào AsyncStorage để tin nhắn vẫn còn khi quay lại
+                saveSystemMessage(chatRoom._id, leaveMessage);
+            }
+        });
+
         return () => {
             socket.off('join');
             socket.off('message-created');
             socket.off('message-deleted');
+            socket.off('user-left');
         };
     }, [socket, chatRoom, user._id, selectedMessage]);
+
+    const saveSystemMessage = async (chatRoomId, message) => {
+        try {
+            // Get existing system messages for this chat room
+            const existingMessagesJson = await AsyncStorage.getItem(`system_messages_${chatRoomId}`);
+            let existingMessages = existingMessagesJson ? JSON.parse(existingMessagesJson) : [];
+
+            // Add new message
+            existingMessages.push(message);
+
+            // Save updated messages
+            await AsyncStorage.setItem(`system_messages_${chatRoomId}`, JSON.stringify(existingMessages));
+        } catch (error) {
+            console.error('Error saving system message:', error);
+        }
+    };
 
     useEffect(() => {
         const loadChatRoom = async () => {
@@ -311,7 +369,24 @@ const ChatScreen = () => {
             const response = await axios.get(`${API_URL}/message/${chatId}`, {
                 headers: { Authorization: token }
             });
-            setMessages(response.data);
+
+            // Get system messages from AsyncStorage
+            let systemMessages = [];
+            try {
+                const systemMessagesJson = await AsyncStorage.getItem(`system_messages_${chatId}`);
+                if (systemMessagesJson) {
+                    systemMessages = JSON.parse(systemMessagesJson);
+                }
+            } catch (error) {
+                console.error('Error loading system messages:', error);
+            }
+
+            // Combine API messages with system messages and sort by date
+            const allMessages = [...response.data, ...systemMessages].sort((a, b) =>
+                new Date(a.createdAt) - new Date(b.createdAt)
+            );
+
+            setMessages(allMessages);
             setNewMessages(new Set());
             setTimeout(() => {
                 scrollViewRef.current?.scrollToEnd({ animated: false });
@@ -663,6 +738,52 @@ const ChatScreen = () => {
     };
 
     const renderMessage = (msg, index) => {
+        if (msg.system) {
+            let systemText = msg.content.text;
+            let name = '';
+            let afterName = '';
+
+            if (systemText && systemText.endsWith('rời khỏi nhóm.')) {
+                const index = systemText.lastIndexOf(' rời khỏi nhóm.');
+                if (index > 0) {
+                    name = systemText.substring(0, index);
+                    afterName = systemText.substring(index);
+                } else {
+                    name = systemText;
+                }
+            } else {
+                name = '';
+                afterName = systemText;
+            }
+
+            return (
+                <View key={msg._id} style={styles.systemMessageContainer}>
+                    <Text style={styles.systemMessageDate}>
+                        <Text style={styles.systemMessageTime}>
+                            {new Date(msg.createdAt).toLocaleTimeString([], {
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            })}
+                        </Text>
+                        {' '}
+                        {new Date(msg.createdAt).toLocaleDateString()}
+                    </Text>
+                    <View style={styles.systemMessageContent}>
+                        <Text style={styles.systemMessageText}>
+                            {name !== '' ? (
+                                <>
+                                    <Text style={{ fontWeight: 'bold' }}>{name}</Text>
+                                    {afterName}
+                                </>
+                            ) : (
+                                afterName
+                            )}
+                        </Text>
+                    </View>
+                </View>
+            );
+        }
+
         const senderId = typeof msg.sendID === 'object' ? msg.sendID._id : msg.sendID;
         const isOwnMessage = senderId === user._id;
         const showAvatar = !isOwnMessage && shouldShowAvatar(index);
@@ -2044,6 +2165,37 @@ const styles = StyleSheet.create({
         backgroundColor: '#FFF7B2', // Màu vàng nhẹ
         borderRadius: 6,
         padding: 2,
+    },
+    systemMessageContainer: {
+        alignItems: 'center',
+        marginVertical: 12,
+        paddingHorizontal: 16,
+    },
+    systemMessageDate: {
+        fontSize: 12,
+        color: '#ffffff',
+        backgroundColor: '#ccc',
+        paddingVertical: 3,
+        paddingHorizontal: 10,
+        borderRadius: 17,
+        marginBottom: 6,
+        overflow: 'hidden',
+    },
+    systemMessageContent: {
+        backgroundColor: '#fff',
+        borderRadius: 17,
+        paddingVertical: 5,
+        alignItems: 'center',
+        paddingHorizontal: 10,
+    },
+    systemMessageText: {
+        fontSize: 14,
+        color: '#666',
+        textAlign: 'center',
+    },
+    systemMessageTime: {
+        color: '#fff',
+        marginTop: 4,
     },
 });
 

@@ -304,11 +304,30 @@ const ChatRoomListScreen = () => {
             });
         });
 
+        socket.on('user-left', (chatRoomId, userData) => {
+            // If this user is the one who left, no need to update UI
+            if (userData.userId === user._id) return;
+
+            // Update UI to show that a user left the group
+            setChatRooms(prev => {
+                const updatedRooms = prev.map(room => {
+                    if (room._id === chatRoomId) {
+                        // If there's a latest message, don't overwrite it
+                        // Just update members if needed (could be done on next fetch)
+                        return room;
+                    }
+                    return room;
+                });
+                return updatedRooms;
+            });
+        });
+
         return () => {
             socket.off('join');
             socket.off('message-created');
             socket.off('message-deleted');
             socket.off('message-deleted-permanently');
+            socket.off('user-left');
         };
     }, [socket, user]);
 

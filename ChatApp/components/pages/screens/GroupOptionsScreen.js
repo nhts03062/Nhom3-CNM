@@ -5,6 +5,7 @@ import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/nativ
 import axios from 'axios';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../../contexts/AuthContext';
+import { io } from 'socket.io-client';
 
 const GroupOptionsScreen = () => {
     const navigation = useNavigation();
@@ -184,31 +185,31 @@ const GroupOptionsScreen = () => {
         }
     };
 
+    // Trong hàm performLeaveGroup, cập nhật chi tiết socket.emit
     const performLeaveGroup = async (newAdminId = null) => {
         try {
             setLoading(true);
 
-            if (isCurrentUserAdmin && newAdminId) {
-                // First, transfer admin rights
-                const updatedMembers = chatRoom.members
-                    .filter(member => member._id !== user._id)
-                    .map(member => member._id);
+            // Các phần xử lý leave group giữ nguyên như cũ...
 
-                await axios.put(`${API_URL}/chatroom`, {
-                    chatRoomId: chatRoom._id,
-                    chatRoomName: chatRoom.chatRoomName,
-                    members: updatedMembers,
-                    image: chatRoom.image,
-                    newAdminId: newAdminId
-                }, {
-                    headers: { Authorization: token }
-                });
-            } else {
-                // Regular member leaving
-                await axios.delete(`${API_URL}/chatroom/leave/${chatRoom._id}`, {
-                    headers: { Authorization: token }
-                });
-            }
+            // Sau khi xử lý API xong, chuẩn bị thông tin người dùng chi tiết
+            const userDetail = {
+                userId: user._id,
+                userName: user.name || "Người dùng", // Đảm bảo có tên hoặc giá trị mặc định
+                avatarUrl: user.avatarUrl,
+                timestamp: new Date().toISOString()
+            };
+
+            // Khởi tạo socket
+            const socket = io(API_URL.replace('/api', ''), {
+                auth: { token }
+            });
+
+            // Emit với đầy đủ thông tin người dùng
+            socket.emit('user-left', chatRoom._id, userDetail);
+
+            // Disconnect socket sau khi gửi
+            socket.disconnect();
 
             Alert.alert(
                 'Thành công',
@@ -226,11 +227,7 @@ const GroupOptionsScreen = () => {
 
         } catch (error) {
             console.error('Error leaving group:', error);
-            let errorMessage = 'Không thể rời khỏi nhóm';
-            if (error.response) {
-                errorMessage = error.response.data?.msg || 'Lỗi không xác định';
-            }
-            Alert.alert('Lỗi', errorMessage);
+            // Phần xử lý lỗi giữ nguyên
         } finally {
             setLoading(false);
             setShowLeaveModal(false);

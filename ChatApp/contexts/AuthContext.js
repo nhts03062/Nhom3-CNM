@@ -1,4 +1,3 @@
-// ChatApp/contexts/AuthContext.js
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
@@ -7,10 +6,8 @@ import io from 'socket.io-client';
 
 const API_BASE_URL = require('../services/api');
 
-// Create the context
 const AuthContext = createContext();
 
-// Provider component
 export function AuthProvider({ children }) {
     const [state, setState] = useState({
         isLoading: true,
@@ -20,7 +17,6 @@ export function AuthProvider({ children }) {
     });
     const [socket, setSocket] = useState(null);
 
-    // Initialize socket connection
     useEffect(() => {
         if (state.token) {
             const newSocket = io(API_BASE_URL.replace('/api', ''), {
@@ -34,7 +30,6 @@ export function AuthProvider({ children }) {
         }
     }, [state.token]);
 
-    // Load stored auth data when app starts
     useEffect(() => {
         const loadAuthData = async () => {
             try {
@@ -52,7 +47,6 @@ export function AuthProvider({ children }) {
                         isAuthenticated: true,
                     });
 
-                    // Set axios default header
                     axios.defaults.headers.common['Authorization'] = token;
                 } else {
                     setState({
@@ -91,7 +85,6 @@ export function AuthProvider({ children }) {
             const token = response.data.token;
             const user = response.data.userDaLoc;
 
-            // Save to AsyncStorage
             await AsyncStorage.setItem('token', token);
             await AsyncStorage.setItem('user', JSON.stringify(user));
 
@@ -103,10 +96,8 @@ export function AuthProvider({ children }) {
                 await AsyncStorage.removeItem('savedEmail');
             }
 
-            // Set axios default header
             axios.defaults.headers.common['Authorization'] = token;
 
-            // Update state
             setState({
                 isLoading: false,
                 token,
@@ -114,7 +105,6 @@ export function AuthProvider({ children }) {
                 isAuthenticated: true,
             });
 
-            // Emit socket event to notify online status after login
             if (socket) {
                 socket.emit('join', user._id);
             }
@@ -126,23 +116,18 @@ export function AuthProvider({ children }) {
         }
     };
 
-    // Logout function
     const logout = async () => {
         try {
-            // Notify server user is going offline before clearing token
-            if (socket && state.user) {
-                socket.emit('disconnect');
+            if (socket && socket.connected) {
                 socket.disconnect();
+                setSocket(null);
             }
 
-            // Clear AsyncStorage
             await AsyncStorage.removeItem('token');
             await AsyncStorage.removeItem('user');
 
-            // Remove axios header
             delete axios.defaults.headers.common['Authorization'];
 
-            // Update state
             setState({
                 isLoading: false,
                 token: null,
@@ -153,11 +138,27 @@ export function AuthProvider({ children }) {
             return true;
         } catch (error) {
             console.error('Logout error:', error);
-            return false;
+
+            try {
+                await AsyncStorage.removeItem('token');
+                await AsyncStorage.removeItem('user');
+                delete axios.defaults.headers.common['Authorization'];
+
+                setState({
+                    isLoading: false,
+                    token: null,
+                    user: null,
+                    isAuthenticated: false,
+                });
+
+                return true;
+            } catch (forceError) {
+                console.error('Force logout error:', forceError);
+                return false;
+            }
         }
     };
 
-    // Update user function
     const updateUser = async (userData) => {
         try {
             const updatedUser = { ...state.user, ...userData };
@@ -175,13 +176,16 @@ export function AuthProvider({ children }) {
         }
     };
 
+    const updateUserContext = updateUser;
+
     return (
         <AuthContext.Provider
             value={{
                 ...state,
                 login,
                 logout,
-                updateUser
+                updateUser,
+                updateUserContext
             }}
         >
             {children}
@@ -189,7 +193,6 @@ export function AuthProvider({ children }) {
     );
 }
 
-// Custom hook to use the auth context
 export function useAuth() {
     const context = useContext(AuthContext);
     if (!context) {
