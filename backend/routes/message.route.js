@@ -62,4 +62,12 @@ router.post('/recall/:code',authMiddelware, MessageController.recall)
 //Người gửi nhận về tin nhắn trả lời qua api
 router.post('/reply/',authMiddelware,uploadFileOrMedia, MessageController.replyTo)
 
+//Chuyển tiếp tin nhắn
+// Endpoint: POST /api/message/forward
+// Body: {
+//   "messageId": "<ID của tin nhắn gốc>",
+//   "chatId": "<ID của phòng chat đích>"
+// }
+router.post('/forward', authMiddelware, MessageController.forward)
+
 module.exports = router
