@@ -10,6 +10,7 @@ import { UserService } from '../../../services/user.service';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SocketService } from '../../../socket.service';
+import { Messagee } from '../../../models/message.model';
 @Component({
   selector: 'app-members-modal',
   imports: [CommonModule, FormsModule],
@@ -30,7 +31,7 @@ export class MembersModalComponent implements OnInit {
   @Input() selectedRoom: ChatRoom | undefined;
   @Input() bindingFunction: (() => void) | undefined;
   @Output() confirmUpdate = new EventEmitter<string[]>(); // Truyền danh sách userId
-  @Output() selectedUsersChange = new EventEmitter<string[]>();
+  @Input() forwardMessage : Messagee| undefined;
 
 
   showModal = false;
@@ -124,47 +125,75 @@ export class MembersModalComponent implements OnInit {
     this.changedMembers.emit(this.addedMembers);
   }
 
-
+ngOnChanges(changes: SimpleChanges): void {
+  if (changes['chatRooms'] || changes['currentUserId']) {
+    this.buildUserChatRoomMap();
+  }}
+  
   // Dành cho forward tin nhắn
-  seletedUsersToFW: string[] = [];
-  searchGroupToFW: string[] = [];
+  seletedUsersToFW: User[] = [];
+  selectedGroupsToFW: ChatRoom[] = [];
   searchTermGroupFW: string = '';
+  userChatRoomMap: { [userId: string]: string } = {}; // userId -> chatRoomId
+  @Output() selectedIdRoom = new EventEmitter<string[]>();
+  _allPrivateUsers: User[] =[];
+
   toggleSelectionUsersFW(userId: string): void {
-    const index = this.seletedUsersToFW.indexOf(userId);
+    const chatRoomId = this.userChatRoomMap[userId];
+    if (!chatRoomId) return;
+
+    const index = this.seletedUsersToFW.findIndex(u => u._id === userId);
     if (index > -1) {
       this.seletedUsersToFW.splice(index, 1);
     } else {
-      this.seletedUsersToFW.push(userId);
+      const user = this.filteredUsersFW.find(u => u._id === userId);
+      if (user) this.seletedUsersToFW.push(user);
     }
+      console.log("🚀 ~ MembersModalComponent ~ toggleSelectionUsersFW ~ this.seletedUsersToFW:", this.seletedUsersToFW)
 
-    // Emit danh sách mới
-    this.selectedUsersChange.emit(this.seletedUsersToFW);
+    this.emitSelectedChatRoomIds();
   }
-  toggleSelectionGroupsFW(groupId: string): void {
-    const index = this.searchGroupToFW.indexOf(groupId);
+  toggleSelectionGroupsFW(group: ChatRoom): void {
+    const index = this.selectedGroupsToFW.findIndex(g => g._id === group._id);
     if (index > -1) {
-      this.searchGroupToFW.splice(index, 1);
+      this.selectedGroupsToFW.splice(index, 1);
     } else {
-      this.searchGroupToFW.push(groupId);
+      this.selectedGroupsToFW.push(group);
     }
+      console.log("🚀 ~ MembersModalComponent ~ toggleSelectionGroupsFW ~ this.selectedGroupsToFW:", this.selectedGroupsToFW)
 
-    // Emit danh sách mới
-    this.selectedUsersChange.emit(this.searchGroupToFW);
+    this.emitSelectedChatRoomIds();
   }
-  get filteredUsersFW(): User[] {
+  emitSelectedChatRoomIds(): void {
+    const userRoomIds = this.seletedUsersToFW.map(u => this.userChatRoomMap[u._id]);
+    const groupRoomIds = this.selectedGroupsToFW.map(g => g._id);
+    const combined = Array.from(new Set([...userRoomIds, ...groupRoomIds]));
+    this.selectedIdRoom.emit(combined);
+  }
+
+
+  buildUserChatRoomMap(): void {
+    this.userChatRoomMap = {};
     const userMap: { [key: string]: User } = {};
 
     this.chatRooms.forEach(room => {
-      room.members.forEach((member: User) => {
-        const memberId = member._id.toString();
-        const currentId = this.currentUserId?.toString();
-        if (memberId !== currentId) {
-          userMap[memberId] = member;
-        }
-      });
+      if (!room.isGroupChat) {
+        room.members.forEach((member: User) => {
+          const memberId = member._id.toString();
+          const currentId = this.currentUserId?.toString();
+
+          if (memberId !== currentId) {
+            userMap[memberId] = member;
+            this.userChatRoomMap[memberId] = room._id;
+          }
+        });
+      }
     });
 
-    return Object.values(userMap).filter(user =>
+    this._allPrivateUsers = Object.values(userMap);
+  }
+  get filteredUsersFW(): User[] {
+    return this._allPrivateUsers.filter(user =>
       user.name.toLowerCase().includes(this.searchUserToFW.trim().toLowerCase() || '')
     );
   }

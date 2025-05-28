@@ -45,4 +45,15 @@ export class MessageService {
     const headers = this.getHeaders();
     return this.http.post<Messagee>(this.apiService.getApiUrl('message/reply/'), body, { headers });
   }
+
+  forwardMessage(messageId: string, chatId: string) {
+    const body = {
+      messageId,
+      chatId,
+    };
+
+    return this.http.post(this.apiService.getApiUrl('message/forward/'), body, {
+      headers: this.getHeaders(),
+    });
+  }
 }

@@ -195,7 +195,7 @@
               Nhóm
             </button>
           </div>
-          
+
           <ng-container *ngIf="activeTab === 'friend'">
             <!-- Search Input -->
             <input
@@ -210,7 +210,6 @@
               <div
                 class="left-section friends"
                 [class.active]="selecteds.includes(user._id)"
-                (click)="toggleSelectionUsersFW(user._id)"
               >
                 <div class="checkbox-wrapper-15">
                   <input
@@ -219,7 +218,7 @@
                     type="checkbox"
                     [checked]="selecteds.includes(user._id)"
                     style="display: none"
-                    (click)="toggleSelectionUsersFW(user._id)"
+                    (change)="toggleSelectionUsersFW(user._id)"
                   />
                   <label class="cbx" [for]="'cbx-15-' + i">
                     <span>
@@ -259,11 +258,12 @@
             />
 
             <!-- Show only filtered -->
-            <ng-container *ngFor="let group of filteredGroupChatsToFW; let i = index">
+            <ng-container
+              *ngFor="let group of filteredGroupChatsToFW; let i = index"
+            >
               <div
                 class="left-section friends"
                 [class.active]="selecteds.includes(group._id)"
-                (click)="toggleSelectionGroupsFW(group._id)"
               >
                 <div class="checkbox-wrapper-15">
                   <input
@@ -272,7 +272,7 @@
                     type="checkbox"
                     [checked]="selecteds.includes(group._id)"
                     style="display: none"
-                    (click)="toggleSelectionGroupsFW(group._id)"
+                    (change)="toggleSelectionGroupsFW(group)"
                   />
                   <label class="cbx" [for]="'cbx-15-' + i">
                     <span>
@@ -301,6 +301,37 @@
               Không tìm thấy nhóm
             </div>
           </ng-container>
+
+          <!-- Tin nhắn cần forward -->
+          <div
+            class="forward-message"
+            *ngIf="forwardMessage?.content as content"
+          >
+            <h6>Tin nhắn chuyển tiếp:</h6>
+
+            <!-- TEXT -->
+            <p *ngIf="content.text" class="reply-text">"{{ content.text }}"</p>
+
+            <!-- IMAGE PREVIEW -->
+            <div class="image-preview" *ngIf="content.media?.length">
+              <img
+                *ngFor="let img of content.media"
+                [src]="img"
+                class="message-image"
+                alt="forwarded image"
+              />
+            </div>
+
+            <!-- FILE PREVIEW -->
+            <div class="file-preview" *ngIf="content.files?.length">
+              <div *ngFor="let file of content.files" class="message-file">
+                <a [href]="file" target="_blank">
+                  <i class="fa-solid fa-file"></i>
+                  {{ file.split("/").pop() }}
+                </a>
+              </div>
+            </div>
+          </div>
         </ng-container>
       </section>
 

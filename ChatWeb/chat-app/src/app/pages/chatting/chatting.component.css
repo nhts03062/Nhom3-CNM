@@ -660,68 +660,7 @@ emoji-mart {
 .message-options li:hover {
   background-color: #f0f0f0;
 }
-.reply-preview {
-  background-color: #f2f2f2;
-  border-left: 4px solid #007bff;
-  padding: 5px 10px;
-  margin-bottom: 5px;
-  font-size: 0.85em;
-}
-
-.reply-line {
-  height: 100%;
-  width: 3px;
-  background: #007bff;
-  position: absolute;
-  left: 0;
-}
-
-.reply-box {
-  background-color: #eee;
-  border-left: 4px solid #007bff;
-  padding: 10px;
-  margin: 10px 0;
-  font-size: 0.9em;
-  display: flex;
-  flex-direction: column;
-  position: fixed;
-  width: 56%;
-  bottom: 85px;
-}
-.reply-preview {
-  background: #f1f1f1;
-  padding: 5px 10px;
-  border-left: 3px solid #5ea8e3;
-  border-radius: 8px;
-  margin-bottom: 5px;
-  margin-left: 10px;
-}
-
-.reply-image {
-  max-width: 80px;
-  max-height: 80px;
-  border-radius: 6px;
-  margin-top: 5px;
-}
-
-.reply-file {
-  font-style: italic;
-  color: #555;
-  margin-top: 5px;
-}
-
-.image-preview {
-  margin-left: 20px;
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  margin-left: auto;
-  gap: 2px;
-  padding-left: 15px;
-  &.single {
-    display: block;
-  }
-}
-
+/* này nhóenhóe */
 /* Đẩy ảnh cuối (nếu lẻ) sang bên phải */
 .response .image-preview img:last-child:nth-child(odd) {
   grid-column: 2;

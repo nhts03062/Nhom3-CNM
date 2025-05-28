@@ -17,7 +17,7 @@ import { defaultAvatarUrl, apiUrl, defaulGrouptAvatarUrl } from '../../contants'
 import { ModalProfileComponent } from '../profile/modal-profile/modal-profile.component';
 import { MembersModalComponent } from "./members-modal/members-modal.component";
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
-import { startWith, Subscription } from 'rxjs';
+import { forkJoin, startWith, Subscription } from 'rxjs';
 
 
 @Component({
@@ -93,7 +93,7 @@ export class ChattingComponent implements OnInit {
   ngOnInit(): void {
     this.getChatRooms();
     this.loadUser();
-
+    this.scrollToBottom();
     //Xử lý khi có tin nhắn mới socket
 
     this.socketService.onNewMessage(msg => {
@@ -440,6 +440,32 @@ export class ChattingComponent implements OnInit {
     }
 
   }
+  //Scroll xuống cuối khi mở phòng chat
+  @ViewChild('bottomAnchor') bottomAnchor!: ElementRef;
+
+  private shouldScroll = false;
+
+  ngOnChanges(changes: SimpleChanges) {
+    if (changes['messagees']) {
+      this.shouldScroll = true;
+    }
+  }
+
+  ngAfterViewChecked() {
+    if (this.shouldScroll) {
+      this.scrollToBottom();
+      this.shouldScroll = false;
+    }
+  }
+  @ViewChild('messagesChatContainer') messagesChatContainer!: ElementRef;
+
+  scrollToBottom() {
+    if (this.messagesChatContainer) {
+      this.messagesChatContainer.nativeElement.scrollTop = this.messagesChatContainer.nativeElement.scrollHeight;
+    }
+  }
+
+
 
   selectedMember: User | undefined;
 
@@ -494,6 +520,7 @@ export class ChattingComponent implements OnInit {
         this.messagees = res;
         console.log('tin nhắn: ', this.messagees);
         this.ngayHienThi = this.extractUniqueDates(this.messagees);
+        setTimeout(() => this.scrollToBottom(), 0); // chờ DOM update rồi mới scroll
         // Log toàn bộ sendID
         // const allSendIDs = this.messagees.map(msg => msg.sendID);
         // console.log('🔍 Tất cả sendID:', allSendIDs);
@@ -1045,31 +1072,45 @@ export class ChattingComponent implements OnInit {
   toggleForwardModal() {
     this.showForwardModal = !this.showForwardModal;
   }
-  selectedUsersToFW: string[] = [];
+  selectedIdRoomToFW: string[] = [];
 
-  forwardMsgToUsers(): void {
-    if (!this.forwardTo || this.selectedUsersToFW.length === 0) {
+  forwardMsgToUsers(chatIds: string[]): void {
+    if (!this.forwardTo || chatIds.length === 0) {
       alert("Vui lòng chọn người nhận hoặc tin nhắn cần chuyển tiếp.");
       return;
     }
 
-    this.selectedUsersToFW.forEach(userId => {
-      // const messageData = {
-      //   content: this.forwardTo?.content,
-      //   type: this.forwardTo?.type,
-      //   from: this.currentUserId,
-      //   to: userId,
-      //   forwarded: true
-      // };
+    const senderId = this.forwardTo?._id;
+    if (!senderId) {
+      alert("Không xác định được người gửi.");
+      return;
+    }
+    const requests = chatIds.map(chatId =>
+      this.messageService.forwardMessage(senderId, chatId)
+    );
+    console.log("🚀 ~ ChattingComponent ~ forwardMsgToUsers ~ chatIds:", chatIds)
 
-      // // Gửi tin nhắn qua socket hoặc API
-      // this.socketService.sendPrivateMessage(messageData);
-      // console.log("Đã forward tin nhắn đến userId:", userId);
+    forkJoin(requests).subscribe({
+      next: () => {
+        console.log('Đã forward tới tất cả phòng');
+        this.toggleForwardModal();
+      },
+      error: err => {
+        console.error('Forward thất bại:', err);
+        alert("Có lỗi khi gửi tin nhắn.");
+      }
     });
-
-    this.selectedUsersToFW = [];
-    this.toggleForwardModal();
   }
+
+  selectedRoomIdsToForward: string[] = [];
+
+  onSelectedChatRoomIds(ids: string[]) {
+    this.selectedRoomIdsToForward = ids;
+  }
+  forwardToSelectedRooms = (): void => {
+    this.forwardMsgToUsers(this.selectedRoomIdsToForward);
+  };
+
 
 
   forwardTo: Messagee | undefined;

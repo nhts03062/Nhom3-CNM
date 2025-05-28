@@ -598,8 +598,8 @@
 
   <section class="Right-section">
     <div *ngIf="selectedRoom?._id && idNguoiDungHienTai && selectedRoom">
-      <div class="messages-chat">
-        <ng-container *ngFor="let msg of messagees; let i = index">
+      <div class="messages-chat"  #messagesChatContainer>
+        <ng-container *ngFor="let msg of messagees; let i = index" >
           <div *ngIf="isNewDate(i)" class="date-wrapper">
             <div class="date-divider">{{ formatDate(msg.createdAt) }}</div>
           </div>
@@ -852,6 +852,7 @@
               </div>
             </div>
           </div>
+          <div #bottomAnchor></div>
         </ng-container>
 
         <!-- Forward message modal -->
@@ -862,8 +863,9 @@
           (closeModal)="toggleForwardModal()"
           [selectedRoom]="selectedRoom"
           [chatRooms]="chatRooms"
-          (selectedUsersChange)="selectedUsersToFW = $event"
-          [bindingFunction]="forwardMsgToUsers.bind(this)"
+          (selectedIdRoom)="onSelectedChatRoomIds($event)"
+          [bindingFunction]="forwardToSelectedRooms"
+          [forwardMessage]="forwardTo">
         >
         </app-members-modal>
 
@@ -1064,6 +1066,7 @@
           ></i>
         </div>
       </div>
+
     </div>
 
     <div *ngIf="!selectedRoom?._id" class="no-chat-selected">

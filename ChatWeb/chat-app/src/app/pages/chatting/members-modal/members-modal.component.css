@@ -1,3 +1,4 @@
+
 .modal-backdrop {
     position: fixed;
     top: 0;
@@ -103,7 +104,7 @@
 }
 
 .modal-container-body {
-	padding: 4px 32px 51px;
+	padding: 4px 32px 31px;
 	overflow-y: auto;
 }
 .fa-camera-retro{
@@ -240,10 +241,12 @@
 .left-section {
     height:65px;
     justify-content: start;
+
     &.active{
         background-color: #dee2e6;
         border-bottom: solid 1px #E0E0E0;
     }
+	
 }
 .friends{
     display: flex;
@@ -353,4 +356,11 @@
 	50% {
 	  transform: scale(1.2);
 	}
+  }
+
+  .forward-message{
+	background-color: #f0f0f0;
+    border-radius: 10px;
+    padding: 15px 15px 10px;
+	margin-top:20px !important;
   }
