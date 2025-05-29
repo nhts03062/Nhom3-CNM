@@ -519,16 +519,11 @@
   <!--start------Phần hiển thị chat Room-->
 
   <section class="Left-section">
-    <div
-      *ngFor="let room of chatRooms"
-      class="left-section message"
-      [class.message-active]="room._id === selectedRoom?._id"
-      (click)="getRoom(room._id)"
-    >
-      <ng-container>
-        <div
-          class="photo"
-          [style.backgroundImage]="
+  <div *ngFor="let room of chatRooms" class="left-section message"
+    [class.message-active]="room._id === selectedRoom?._id" (click)="getRoom(room._id)">
+    <ng-container>
+      <div class="photo-wrapper">
+        <div class="photo" [style.backgroundImage]="
             'url(' +
             (room.isGroupChat
               ? room.image || defaulGrouptAvatarUrl
@@ -536,86 +531,63 @@
               ? room.otherMembers[0].avatarUrl
               : defaultAvatarUrl) +
             ')'
-          "
-        ></div>
-        <div class="desc-contact">
-          <div class="username">
-            <p
-              class="name"
-              *ngIf="
-                room.isGroupChat === false &&
-                room.otherMembers &&
-                room.otherMembers.length > 0
-              "
-            >
-              {{ room.otherMembers[0].name }}
-            </p>
-            <p class="name" *ngIf="room.isGroupChat === true">
-              {{ room.chatRoomName }}
-            </p>
-          </div>
-
-          <!-- Hiển thị tin nhắn đã thu hồi với chính mình -->
-          <div
-            class="message"
-            *ngIf="
-              room.latestMessage?.recall === '1' &&
-              (room.latestMessage?.sendID?._id ||
-                room.latestMessage?.sendID) === idNguoiDungHienTai
-            "
-          >
-            <i>Thu hồi với chính mình</i>
-          </div>
-
-          <!-- Hiển thị tin nhắn cuối cùng -->
-          <div
-            class="message"
-            *ngIf="room.latestMessage?.content?.type === 'text'"
-          >
+          "></div>
+        <div class="online-status" *ngIf="!room.isGroupChat && room.otherMembers?.[0]" [ngClass]="{
+            'online': room.otherMembers[0].online === true,
+            'offline': room.otherMembers[0].online === false
+          }"></div>
+      </div>
+      <div class="desc-contact">
+        <div class="username">
+          <p class="name" *ngIf="
+              room.isGroupChat === false &&
+              room.otherMembers &&
+              room.otherMembers.length > 0
+            ">
+            {{ room.otherMembers[0].name }}
+          </p>
+          <p class="name" *ngIf="room.isGroupChat === true">
+            {{ room.chatRoomName }}
+          </p>
+        </div>
+        <div class="message" [ngClass]="{'bold': room.unreadCount && room.unreadCount > 0}" *ngIf="
+            room.latestMessage?.recall === '1' &&
+            (room.latestMessage?.sendID?._id ||
+              room.latestMessage?.sendID) === idNguoiDungHienTai
+          ">
+          <i>Thu hồi với chính mình</i>
+        </div>
+        <div class="message" [ngClass]="{'bold': room.unreadCount && room.unreadCount > 0}" *ngIf="room.latestMessage?.content?.type === 'text'">
+          {{ room.latestMessage?.content?.text }}
+        </div>
+        <div class="message" [ngClass]="{'bold': room.unreadCount && room.unreadCount > 0}" *ngIf="room.latestMessage?.content?.type === 'file'">
+          [Tệp tin]
+          <span *ngIf="room.latestMessage?.content?.text">
             {{ room.latestMessage?.content?.text }}
-          </div>
-
-          <!-- Hiển thị tin nhắn cuối cùng nhiều file -->
-          <div
-            class="message"
-            *ngIf="room.latestMessage?.content?.type === 'file'"
-          >
-            [Tệp tin]
-            <span *ngIf="room.latestMessage?.content?.text">
-              {{ room.latestMessage?.content?.text }}
-            </span>
-          </div>
-
-          <!-- Hiển thị tin nhắn cuối cùng nhiều ảnh -->
-          <div
-            class="message"
-            *ngIf="room.latestMessage?.content?.type === 'media'"
-          >
-            [Hình ảnh]
-            <span *ngIf="room.latestMessage?.content?.text">
-              {{ room.latestMessage?.content?.text }}
-            </span>
-          </div>
-
-          <!-- Hiển thị tin nhắn đã thu hồi với tất cả -->
-          <div class="message" *ngIf="room.latestMessage?.recall === '2'">
-            <i>Tin nhắn đã bị thu hồi.</i>
-          </div>
+          </span>
         </div>
-        <!-- Thời gian sau khi nhận được tin nhắn mới nhất -->
-        <div
-          class="timer"
-          *ngIf="room.latestMessage?.content?.type !== 'first'"
-        >
-          {{ room.timeAgo || room.createdAt }}
+        <div class="message" [ngClass]="{'bold': room.unreadCount && room.unreadCount > 0}" *ngIf="room.latestMessage?.content?.type === 'media'">
+          [Hình ảnh]
+          <span *ngIf="room.latestMessage?.content?.text">
+            {{ room.latestMessage?.content?.text }}
+          </span>
         </div>
-      </ng-container>
-    </div>
-
-    <div *ngIf="chatRooms.length === 0" class="no-conversations">
-      Không có cuộc hội thoại nào hãy bắt đầu
-    </div>
-  </section>
+        <div class="message" [ngClass]="{'bold': room.unreadCount && room.unreadCount > 0}" *ngIf="room.latestMessage?.recall === '2'">
+          <i>Tin nhắn đã bị thu hồi.</i>
+        </div>
+      </div>
+      <div class="timer" *ngIf="room.latestMessage?.content?.type !== 'first'">
+        {{ room.timeAgo || room.createdAt }}
+      </div>
+      <div class="unread-count" *ngIf="room.unreadCount && room.unreadCount > 0">
+        <span class="badge">{{ room.unreadCount }}</span>
+      </div>
+    </ng-container>
+  </div>
+  <div *ngIf="chatRooms.length === 0" class="no-conversations">
+    Không có cuộc hội thoại nào hãy bắt đầu
+  </div>
+</section>
   <!--end-----Phần hiển thị chat Room-->
 
   <section class="Right-section">
