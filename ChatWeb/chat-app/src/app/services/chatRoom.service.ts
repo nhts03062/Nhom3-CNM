@@ -110,4 +110,12 @@ export class ChatRoomService {
     this.roomIdSubject.next(null);
   }
 
+  markAsRead(chatRoomId: string): Observable<ChatRoom> {
+    return this.http.put<ChatRoom>(
+      this.apiService.getApiUrl(`chatroom/lastseen/${chatRoomId}`),
+      {},
+      { headers: this.getHeaders() }
+    );
+  }
+
 }

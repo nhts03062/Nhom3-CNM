@@ -580,14 +580,14 @@ export class ChattingComponent implements OnInit {
         }));
     }
   }
-getOriginalFileName(url: any): string {
-  if (typeof url !== 'string') return '';
+  getOriginalFileName(url: any): string {
+    if (typeof url !== 'string') return '';
 
-  const encoded = url.split('/').pop() || '';
-  const decoded = decodeURIComponent(encoded);
-  const parts = decoded.split('-');
-  return parts.length >= 3 ? parts.slice(2).join('-') : decoded;
-}
+    const encoded = url.split('/').pop() || '';
+    const decoded = decodeURIComponent(encoded);
+    const parts = decoded.split('-');
+    return parts.length >= 3 ? parts.slice(2).join('-') : decoded;
+  }
 
 
   xoaFile(type: 'image' | 'doc', index: number) {
@@ -973,9 +973,9 @@ getOriginalFileName(url: any): string {
             console.error('Không thể tạo system message:', err);
           }
         });
-
-        this.layPhongChat(updatedRoom._id);
         this.updateCalled = true;
+        this.layPhongChat(updatedRoom._id);
+
         this.showAddMembersModal = false;
         this.addedMembers = [];
       },

@@ -1077,3 +1077,25 @@ emoji-mart {
   background-color: rgba(237, 154, 154, 0.917);
   z-index: 100;
 }
+
+/* Trong chatting.component.css */
+.bold {
+  font-weight: bold;
+}
+
+.unread-count {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.badge {
+  display: inline-block;
+  background-color: #ff4d4f;
+  color: white;
+  border-radius: 50%;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: bold;
+}
