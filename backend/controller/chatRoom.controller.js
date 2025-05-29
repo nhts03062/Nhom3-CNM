@@ -311,28 +311,47 @@ chatRoomController.updateLastSeen = async (req, res) => {
     const { chatRoomId } = req.params;
     const userId = req.user._id;
 
-    const chatRoom = await ChatRoom
-      .findById(chatRoomId)
-      .populate("members", "name email avatarUrl");
+    const chatRoom = await ChatRoom.findById(
+      chatRoomId)
+      .populate('members', 'name email avatarUrl');
+
     if (!chatRoom) {
-      return res.status(404).json("Không tìm thấy phòng chat");
+      return res.status(404).json({ msg: 'Không tìm thấy phòng chat' });
     }
+
     const lastSeen = chatRoom.lastSeenAt.find(
       (item) => item.user.toString() === userId.toString()
     );
     if (lastSeen) {
-      lastSeen.lastSeen = Date.now();
+      lastSeen.lastSeen = new Date();
     } else {
-      chatRoom.lastSeenAt.push({ user: userId, lastSeen: Date.now() });
+      chatRoom.lastSeenAt.push({ user: userId, lastSeen: new Date() });
     }
     await chatRoom.save();
-    return res.status(200).json(chatRoom);
+
+    // Tính lại unreadCount
+    const unreadCount = await Message.countDocuments({
+      chatId: chatRoomId,
+      createdAt: { $gt: lastSeen ? lastSeen.lastSeen : new Date(0) },
+      sendID: { $ne: userId }
+    });
+
+    const populatedChatRoom = await ChatRoom.findById(chatRoomId)
+      .populate('members', 'name email avatarUrl')
+      .populate('latestMessage')
+      .lean();
+
+    populatedChatRoom.unreadCount = unreadCount;
+
+    // Gửi sự kiện cập nhật phòng qua WebSocket
+    req.io.to(chatRoomId.toString()).emit('chatRoom-updated', populatedChatRoom);
+
+    return res.status(200).json(populatedChatRoom);
+  } catch (err) {
+    console.error('Error updating last seen:', err);
+    res.status(500).json({ msg: 'Lỗi cập nhật trạng thái đã đọc' });
   }
-  catch (err) {
-    console.log("Lỗi cập nhật trạng thái đã đọc", err);
-    res.status(500).json({ msg: "Lỗi cập nhật trạng thái đã đọc" });
-  }
-}
+};
 
 
 module.exports = chatRoomController;
