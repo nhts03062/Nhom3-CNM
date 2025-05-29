@@ -222,7 +222,6 @@ export class ContactsComponent implements OnInit {
               next: (room) => {
                 console.log('Đã tạo phòng chat:', room);
                 this.socketService.taoPhongChat(room._id, room); // Gửi sự kiện tạo phòng chat
-                this.getFriendRequestsList();
                 // console.log('chatRoom duoc gui qua soket',room)
                 console.log('Đã gửi sk socket mời vào phòng chat');
               },
@@ -269,7 +268,7 @@ export class ContactsComponent implements OnInit {
       next: (res: any) => {
         this.user = res;
         this.socketService.huyKetBan(userId);
-        alert("✅ Đã hủy yêu cầu kết bạn!");
+              this.sentRequests = this.sentRequests.filter(user => user._id !== userId);
         console.log("Cancel request sent to:", this.user);
       },
       error: (err) => {

@@ -839,6 +839,11 @@ emoji-mart {
   padding: 5px 15px;
   border-radius: 25px;
 }
+.notifi{
+  font-size: 15px;
+  text-align: center;
+  color: #777;
+}
 
 .search-dropdown {
   max-width: 450px; /* Tăng từ 400px để hiển thị tên dài hơn */

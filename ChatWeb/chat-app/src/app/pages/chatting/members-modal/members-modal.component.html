@@ -73,7 +73,7 @@
           />
 
           <!-- Show only filtered -->
-          <ng-container *ngFor="let user of filteredUsers; let i = index">
+          <!-- <ng-container *ngFor="let user of filteredUsers; let i = index">
             <div
               class="left-section friends"
               [class.active]="selecteds.includes(user._id)"
@@ -92,6 +92,42 @@
                   "
                   [disabled]="isInChatRoom(user._id)"
                   style="display: none"
+                />
+                <label class="cbx" [for]="'cbx-15-' + i">
+                  <span>
+                    <svg width="12px" height="9px" viewBox="0 0 12 9">
+                      <polyline points="1 5 4 8 11 1"></polyline>
+                    </svg>
+                  </span>
+                </label>
+              </div>
+
+              <div
+                class="photo"
+                [style.backgroundImage]="'url(' + user.avatarUrl + ')'"
+              ></div>
+              <div class="desc-contact">
+                <p class="name">{{ user.name }}</p>
+              </div>
+            </div>
+          </ng-container> -->
+          <ng-container *ngFor="let user of filteredUsers; let i = index">
+            <div
+              class="left-section friends"
+              [class.active]="addedMembers.includes(user._id)"
+              [class.disabled]="isInChatRoom(user._id)"
+            >
+              <div class="checkbox-wrapper-15">
+                <input
+                  class="inp-cbx"
+                  [id]="'cbx-15-' + i"
+                  type="checkbox"
+                  [checked]="
+                    addedMembers.includes(user._id) || isInChatRoom(user._id)
+                  "
+                  [disabled]="isInChatRoom(user._id)"
+                  (change)="toggleSelectionMembers(user._id)"
+                  style="opacity: 0; position: absolute; left: -9999px"
                 />
                 <label class="cbx" [for]="'cbx-15-' + i">
                   <span>
@@ -328,7 +364,7 @@
               <div *ngFor="let file of content.files" class="message-file">
                 <a [href]="file" target="_blank">
                   <i class="fa-solid fa-file"></i>
-                  {{ file.split("/").pop() }}
+                   {{ getOriginalFileName(file) }}
                 </a>
               </div>
             </div>

@@ -45,22 +45,21 @@ export class ModalProfileComponent {
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['user'] && changes['user'].currentValue) {
       this.kiemTraBanHayDaGuiYeuCauKetBan(this.user!._id);
-      console.log("🚀 ~ ModalProfileComponent ~ ngOnChanges ~ this.kiemTraBanHayDaGuiYeuCauKetBan(this.user!._id);:", this.kiemTraBanHayDaGuiYeuCauKetBan(this.user!._id))
+      console.log("🚀 ~ ModalProfileComponent ~ ngOnChanges ~ this.user!:", this.user!)
     }
+
 
   }
 
   ngOnInit(): void {
-
     this.socketService.nhanskThemBan((data: any) => {
+      console.log('[Socket] nhanskThemBan received data:', data);
 
-      console.log('[Socket] nhanskThemBan received data:', data, 'this.user:', this.user);
       if (data._id === this.user?._id) {
-        this.trangThaiKetBan = 'daGuiYeuCau'; // hoặc cập nhật lại đúng logic
-        this.cdr.detectChanges();
+        console.log('➡️ Gọi reloadUserProfile sau khi nhận nhanskThemBan');
+        this.reloadUserProfile();
       }
     });
-
 
     this.socketService.nhanskHuyKetBan((data: any) => {
       console.log('[Socket] nhanskHuyKetBan received data:', data, 'this.user:', this.user);
@@ -146,6 +145,8 @@ export class ModalProfileComponent {
     console.log("Navigating to chat room:", chatRoomId);
     //navigate to chat page
     this.chatRoomService.setRoomId(chatRoomId);
+        console.log("🚀 ~ ModalProfileComponent ~ navigateToChatRoom ~ chatRoomId:", chatRoomId)
+
     this.router.navigate(['/chat']);
   }
 

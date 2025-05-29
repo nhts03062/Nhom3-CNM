@@ -56,4 +56,26 @@ export class MessageService {
       headers: this.getHeaders(),
     });
   }
+
+  createSystemMessage(
+    chatRoomId: string,
+    actionText: string,
+    displayName: string = 'Ai đó'
+  ): Observable<Messagee> {
+    const systemMessage = {
+      chatId: chatRoomId,
+      content: {
+        type: 'notifi',
+        text: `${displayName} ${actionText}` // ví dụ: "Hòa Nguyễn đã rời khỏi nhóm"
+      }
+    };
+
+    return this.http.post<Messagee>(
+      this.apiService.getApiUrl('message'),
+      systemMessage,
+      { headers: this.getHeaders() }
+    );
+  }
+
+
 }

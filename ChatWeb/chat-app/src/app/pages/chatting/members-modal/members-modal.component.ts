@@ -31,7 +31,7 @@ export class MembersModalComponent implements OnInit {
   @Input() selectedRoom: ChatRoom | undefined;
   @Input() bindingFunction: (() => void) | undefined;
   @Output() confirmUpdate = new EventEmitter<string[]>(); // Truyền danh sách userId
-  @Input() forwardMessage : Messagee| undefined;
+  @Input() forwardMessage: Messagee | undefined;
 
 
   showModal = false;
@@ -109,34 +109,49 @@ export class MembersModalComponent implements OnInit {
       this.selecteds.push(data);
     }
   }
+  getOriginalFileName(url: any): string {
+    if (typeof url !== 'string') return '';
+
+    const encoded = url.split('/').pop() || '';
+    const decoded = decodeURIComponent(encoded);
+    const parts = decoded.split('-');
+    return parts.length >= 3 ? parts.slice(2).join('-') : decoded;
+  }
+
+
 
 
   seletedMemsId: string[] = [];
+
   toggleSelectionMembers(userId: string): void {
     const index = this.addedMembers.indexOf(userId);
     if (index > -1) {
       this.addedMembers.splice(index, 1);
     } else {
-
-      this.addedMembers = [...this.memberListFromChatRoom.map(user => user._id),
-      ...(this.currentUserId ? [this.currentUserId] : []), userId];
-      this.seletedMemsId = [...this.addedMembers];
+      this.addedMembers = [...this.addedMembers, userId];
     }
+    this.seletedMemsId = [...this.addedMembers];
+    console.log("🚀 ~ MembersModalComponent ~ toggleSelectionMembers ~ this.seletedMemsId:", this.seletedMemsId)
     this.changedMembers.emit(this.addedMembers);
   }
 
-ngOnChanges(changes: SimpleChanges): void {
-  if (changes['chatRooms'] || changes['currentUserId']) {
-    this.buildUserChatRoomMap();
-  }}
-  
+
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['chatRooms'] || changes['currentUserId']) {
+      console.log('🟢 nhận chatRooms mới:', changes['chatRooms'].currentValue);
+      this.buildUserChatRoomMap();
+      this.filteredChatRoomsToInvite();
+    }
+  }
+
   // Dành cho forward tin nhắn
   seletedUsersToFW: User[] = [];
   selectedGroupsToFW: ChatRoom[] = [];
   searchTermGroupFW: string = '';
   userChatRoomMap: { [userId: string]: string } = {}; // userId -> chatRoomId
   @Output() selectedIdRoom = new EventEmitter<string[]>();
-  _allPrivateUsers: User[] =[];
+  _allPrivateUsers: User[] = [];
 
   toggleSelectionUsersFW(userId: string): void {
     const chatRoomId = this.userChatRoomMap[userId];
@@ -149,7 +164,7 @@ ngOnChanges(changes: SimpleChanges): void {
       const user = this.filteredUsersFW.find(u => u._id === userId);
       if (user) this.seletedUsersToFW.push(user);
     }
-      console.log("🚀 ~ MembersModalComponent ~ toggleSelectionUsersFW ~ this.seletedUsersToFW:", this.seletedUsersToFW)
+    console.log("🚀 ~ MembersModalComponent ~ toggleSelectionUsersFW ~ this.seletedUsersToFW:", this.seletedUsersToFW)
 
     this.emitSelectedChatRoomIds();
   }
@@ -160,7 +175,7 @@ ngOnChanges(changes: SimpleChanges): void {
     } else {
       this.selectedGroupsToFW.push(group);
     }
-      console.log("🚀 ~ MembersModalComponent ~ toggleSelectionGroupsFW ~ this.selectedGroupsToFW:", this.selectedGroupsToFW)
+    console.log("🚀 ~ MembersModalComponent ~ toggleSelectionGroupsFW ~ this.selectedGroupsToFW:", this.selectedGroupsToFW)
 
     this.emitSelectedChatRoomIds();
   }
@@ -297,12 +312,13 @@ ngOnChanges(changes: SimpleChanges): void {
         userId,
         chatRoomId: room._id
       };
-      console.log("🚀 ~ MembersModalComponent ~ this.selectedGroup.forEach ~ data:", data)
+
       this.chatRoomService.inviteToChatRoom(data).subscribe({
         next: () => {
-
           this.socketService.moiVaoPhongChat(room._id, userId);
-          this.filteredChatRoomsToInvite()
+          console.log("🚀 ~ MembersModalComponent ~ this.selectedGroup.forEach ~ data:", data)
+          this.selectedGroup = [];  // **Reset danh sách đã chọn**
+          this.close();
         },
         error: (err) => {
           console.error('Lỗi khi gửi lời mời vào room:', err);
@@ -311,8 +327,6 @@ ngOnChanges(changes: SimpleChanges): void {
       });
     });
 
-    this.selectedGroup = [];  // **Reset danh sách đã chọn**
-    this.close();
   }
 
   getFriends() {

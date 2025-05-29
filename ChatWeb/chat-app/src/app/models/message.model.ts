@@ -4,7 +4,7 @@ export interface Messagee {
   sendID: ISenderId;
   replyToMessage?: Messagee | null;
   content: {
-    type: 'text' | 'file' | 'media'|'first';
+    type: 'text' | 'file' | 'media'|'first'|'notifi';
     text: string;
     media: string[]; // array of URLs
     files: string[]; // array of file names/URLs
@@ -21,3 +21,5 @@ export interface ISenderId{
     email:string,
     avatarUrl:string
 }
+
+
