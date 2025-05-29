@@ -1,6 +1,6 @@
 const ChatRoom = require('../models/Chatroom')
 const Message = require('../models/Message')
-const {uploadFile} = require("../services/file.services")
+const {uploadFile, uploadFileAndName} = require("../services/file.services")
 const MessageUtil = require('../utils/message-util')
 
 const messageController = {}
@@ -59,7 +59,7 @@ messageController.create = async(req,res) =>{
             //Nếu req.files?.file là undefined (tức không có gì được upload) thì trả về mảng rỗng [] để tránh lỗi khi .map()
             //Promise.all promise là biến gồm 2 trạng thái chờ và đã có kết quả ,all là dảm bảo tất cả kết quả dc dảm bảobảo
             const fileArrayURL = await Promise.all(
-                (req.files?.file || [] ).map(file => uploadFile(file) )
+                (req.files?.file || [] ).map(file => uploadFileAndName(file) )
             )
            
             const contentfile = {
@@ -269,7 +269,7 @@ messageController.forward = async (req,res) =>{
 
             try{
                 const chatRoom = await ChatRoom.findById(chatId)
-                chatRoom.latestMessage = messageId
+                chatRoom.latestMessage = message._id
                 await chatRoom.save()
             }catch(err){
                 console.log('Lỗi cập nhật latestMessage trong chatRoom:', err);
