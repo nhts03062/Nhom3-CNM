@@ -119,8 +119,6 @@ export class MembersModalComponent implements OnInit {
   }
 
 
-
-
   seletedMemsId: string[] = [];
 
   toggleSelectionMembers(userId: string): void {
