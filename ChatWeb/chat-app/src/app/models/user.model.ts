@@ -9,7 +9,7 @@
 //     phone:string;
 //     friends:string[];
 //   }
-  
+
 export interface User {
   _id: string;
   name: string;
@@ -27,4 +27,6 @@ export interface User {
   // requestfriends: User[];
   createdAt: string;
   updatedAt: string;
+  __v?: number;
+  online?: boolean;
 }

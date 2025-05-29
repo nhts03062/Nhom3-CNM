@@ -4,70 +4,62 @@
     <div class="search">
       <div class="searchbar">
         <i class="fa fa-search" aria-hidden="true"></i>
-        <!-- Search Input -->
         <input
           type="text"
-          placeholder="Tìm kiếm tin nhắn..."
+          placeholder="Tìm kiếm phòng chat..."
           [(ngModel)]="searchTerm"
         />
-
-        <!-- Filtered Conversations -->
         <div
-          class="search-dropdown"
-          *ngIf="searchTerm && filteredChats.length > 0"
+          class="search-dropdown left"
+          *ngIf="searchTerm && filteredChatRooms.length > 0"
         >
           <div
-            *ngFor="let chat of filteredChats"
+            *ngFor="let chat of filteredChatRooms"
             class="left-section chat-conversation"
             [class.message-active]="chat._id === selectedRoom?._id"
             (click)="getRoom(chat._id)"
           >
-            <ng-container *ngIf="selectedRoom">
-              <div>
-                <div
-                  class="photo"
-                  [style.backgroundImage]="
-                    'url(' +
-                    (selectedRoom.isGroupChat
-                      ? selectedRoom.image
-                      : selectedRoom.otherMembers &&
-                        selectedRoom.otherMembers.length > 0
-                      ? selectedRoom.otherMembers[0].avatarUrl
-                      : defaultAvatarUrl) +
-                    ')'
-                  "
-                ></div>
-                <div class="desc-contact">
-                  <div class="username">
-                    <p
-                      class="name"
-                      *ngIf="
-                        selectedRoom.isGroupChat === false &&
-                        selectedRoom.otherMembers &&
-                        selectedRoom.otherMembers.length > 0
-                      "
-                    >
-                      {{ selectedRoom.otherMembers[0].name }}
-                    </p>
-                    <p class="name" *ngIf="selectedRoom.isGroupChat === true">
-                      {{ selectedRoom.chatRoomName }}
-                    </p>
-                  </div>
+            <div class="d-flex align-items-center w-100">
+              <div
+                class="photo"
+                [style.backgroundImage]="
+                  'url(' +
+                  (chat.isGroupChat
+                    ? chat.image || defaulGrouptAvatarUrl
+                    : chat.otherMembers && chat.otherMembers.length > 0
+                    ? chat.otherMembers[0].avatarUrl
+                    : defaultAvatarUrl) +
+                  ')'
+                "
+              ></div>
+              <div class="desc-contact flex-grow-1">
+                <div class="username">
+                  <p
+                    class="name"
+                    *ngIf="
+                      chat.isGroupChat === false &&
+                      chat.otherMembers &&
+                      chat.otherMembers.length > 0
+                    "
+                  >
+                    {{ chat.otherMembers[0].name }}
+                  </p>
+                  <p class="name" *ngIf="chat.isGroupChat === true">
+                    {{ chat.chatRoomName }}
+                  </p>
                 </div>
-                <p class="message">
-                  {{ selectedRoom.latestMessage?.content?.text }}
-                </p>
               </div>
-            </ng-container>
+              <span class="timer">
+                {{ chat.latestMessage?.createdAt | date : "shortTime" }}
+              </span>
+            </div>
           </div>
         </div>
-
-        <!-- Optional: No matches -->
         <div
-          class="search-dropdown"
-          *ngIf="searchTerm && filteredChats.length === 0"
+          class="search-dropdown left"
+          *ngIf="searchTerm && filteredChatRooms.length === 0"
         >
-          <p class="no-results">No matching friends</p>
+          <p class="no-results">Không tìm thấy phòng chat nào</p>
         </div>
       </div>
 
@@ -86,12 +78,6 @@
           <p class="message-time">{{ msg.createdAt | date : "short" }}</p>
         </div>
       </div>
-      <div
-        class="search-dropdown"
-        *ngIf="searchTerm && filteredMessages.length === 0"
-      >
-        <p class="no-results">Không tìm thấy tin nhắn nào</p>
-      </div>
 
       <button class="add-friend" (click)="toggleModal()">
         <i class="fa-solid fa-user-plus create clickable"></i>
@@ -99,7 +85,7 @@
       <app-modal
         [isOpen]="showModal"
         (closeModal)="toggleModal()"
-        title="Add Friend"
+        title="Thêm bạn"
       ></app-modal>
     </div>
 
@@ -139,11 +125,45 @@
           </ng-container>
         </ng-template>
 
-        <i
-          class="icon clickable fa-solid fa-bars right"
-          aria-hidden="true"
-          (click)="toggleSidebar($event)"
-        ></i>
+        <div class="d-flex justify-content-between align-items-center gap-4 ms-auto me-3 sub-rightheader">
+          <!-- Thêm thanh tìm kiếm tin nhắn -->
+          <div class="message-searchbar">
+            <i class="fa fa-search" aria-hidden="true"></i>
+            <input
+              type="text"
+              placeholder="Tìm kiếm tin nhắn..."
+              [(ngModel)]="messageSearchTerm"
+            />
+            <!-- Dropdown hiển thị tin nhắn tìm được -->
+            <div
+              class="search-dropdown"
+              *ngIf="messageSearchTerm && filteredMessages.length > 0"
+            >
+              <div
+                *ngFor="let msg of filteredMessages"
+                (click)="goToMessage(msg)"
+                class="message-item"
+              >
+                <p class="message-author">{{ msg.sendID.name }}</p>
+                <p class="message-preview">{{ msg.content.text }}</p>
+                <p class="message-time">{{ msg.createdAt | date : "short" }}</p>
+              </div>
+            </div>
+            <div
+              class="search-dropdown"
+              *ngIf="messageSearchTerm && filteredMessages.length === 0"
+            >
+              <p class="no-results">Không tìm thấy tin nhắn nào</p>
+            </div>
+          </div>
+          <i class="fa-solid fa-phone"></i>
+          <i class="fa-solid fa-video"></i>
+          <i
+            class="icon clickable fa-solid fa-bars right"
+            aria-hidden="true"
+            (click)="toggleSidebar($event)"
+          ></i>
+        </div>
         <div
           class="sidebar"
           [class.open]="isSidebarOpen"
@@ -261,11 +281,12 @@
               <!-- Search Input -->
               <input
                 type="text"
-                placeholder="Tìm kiếm . . ."
+                placeholder="Tìm kiếm thành viên nhóm..."
                 [(ngModel)]="searchTermMember"
                 class="members-searchbar"
               />
 
+              <!-- Danh sách thành viên tìm kiếm -->
               <ul
                 class="member-list"
                 *ngIf="
@@ -283,7 +304,7 @@
                 </li>
               </ul>
 
-              <!-- Tuỳ chọn: nếu không tìm thấy ai -->
+              <!-- Thông báo không tìm thấy khi tìm kiếm -->
               <p
                 *ngIf="
                   searchTermMember.trim() !== '' &&
@@ -293,52 +314,53 @@
                 Không tìm thấy thành viên nào.
               </p>
 
-              <!-- Show only filtered members -->
-              <ng-container *ngFor="let mem of membersList">
-                <div
-                  class="left-section friends d-flex justify-content-between align-items-center"
-                  [class.active]="selectedMember?._id === mem._id"
-                  (click)="selectMember(mem)"
-                >
-                  <div class="d-flex align-items-center w-100">
-                    <div
-                      class="photo"
-                      [style.backgroundImage]="'url(' + mem.avatarUrl + ')'"
-                    >
-                      <!-- <div class="online" *ngIf="friend.online === true"></div> -->
-                    </div>
-                    <div class="desc-contact">
-                      <div class="username">
-                        <p class="name mb-0">{{ mem.name }}</p>
+              <!-- Danh sách toàn bộ thành viên, chỉ hiển thị khi không tìm kiếm -->
+              <ng-container *ngIf="searchTermMember.trim() === ''">
+                <ng-container *ngFor="let mem of membersList">
+                  <div
+                    class="left-section friends d-flex justify-content-between align-items-center"
+                    [class.active]="selectedMember?._id === mem._id"
+                    (click)="selectMember(mem)"
+                  >
+                    <div class="d-flex align-items-center w-100">
+                      <div
+                        class="photo"
+                        [style.backgroundImage]="'url(' + mem.avatarUrl + ')'"
+                      >
+                        <!-- <div class="online" *ngIf="friend.online === true"></div> -->
+                      </div>
+                      <div class="desc-contact">
+                        <div class="username">
+                          <p class="name mb-0">{{ mem.name }}</p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <!-- Nếu mem là admin thì luôn hiển thị chữ "Admin" cho tất cả -->
-                  <ng-container
-                    *ngIf="getId(mem) === getId(selectedRoom?.admin)"
-                    class="m-0"
-                  >
-                    <i
-                      class="fa-solid fa-user-tie right ms-2"
-                      style="font-size: 21px"
-                    ></i>
-                  </ng-container>
-
-                  <!-- Nếu mem không phải là admin và người dùng hiện tại là admin thì hiển thị nút xoá -->
-                  <ng-container
-                    *ngIf="
-                      getId(mem) !== getId(selectedRoom?.admin) &&
-                      getId(selectedRoom?.admin) === getId(idNguoiDungHienTai)
-                    "
-                  >
-                    <i
-                      class="icon clickable fa-solid fa-square-xmark right ms-2"
-                      aria-hidden="true"
-                      (click)="removeMember(mem._id); $event.stopPropagation()"
+                    <!-- Nếu mem là admin -->
+                    <ng-container
+                      *ngIf="getId(mem) === getId(selectedRoom?.admin)"
                     >
-                    </i>
-                  </ng-container>
-                </div>
+                      <i
+                        class="fa-solid fa-user-tie right ms-2"
+                        style="font-size: 21px"
+                      ></i>
+                    </ng-container>
+                    <!-- Nếu mem không phải admin và người dùng hiện tại là admin -->
+                    <ng-container
+                      *ngIf="
+                        getId(mem) !== getId(selectedRoom?.admin) &&
+                        getId(selectedRoom?.admin) === getId(idNguoiDungHienTai)
+                      "
+                    >
+                      <i
+                        class="icon clickable fa-solid fa-square-xmark right ms-2"
+                        aria-hidden="true"
+                        (click)="
+                          removeMember(mem._id); $event.stopPropagation()
+                        "
+                      ></i>
+                    </ng-container>
+                  </div>
+                </ng-container>
               </ng-container>
               <div
                 class="mb-1 w-100"
@@ -598,8 +620,8 @@
 
   <section class="Right-section">
     <div *ngIf="selectedRoom?._id && idNguoiDungHienTai && selectedRoom">
-      <div class="messages-chat"  #messagesChatContainer>
-        <ng-container *ngFor="let msg of messagees; let i = index" >
+      <div class="messages-chat" #messagesChatContainer>
+        <ng-container *ngFor="let msg of messagees; let i = index">
           <div *ngIf="isNewDate(i)" class="date-wrapper">
             <div class="date-divider">{{ formatDate(msg.createdAt) }}</div>
           </div>
@@ -865,8 +887,9 @@
           [chatRooms]="chatRooms"
           (selectedIdRoom)="onSelectedChatRoomIds($event)"
           [bindingFunction]="forwardToSelectedRooms"
-          [forwardMessage]="forwardTo">
+          [forwardMessage]="forwardTo"
         >
+          >
         </app-members-modal>
 
         <!-- 🧷 Khung reply phía dưới input -->
@@ -1066,7 +1089,6 @@
           ></i>
         </div>
       </div>
-
     </div>
 
     <div *ngIf="!selectedRoom?._id" class="no-chat-selected">

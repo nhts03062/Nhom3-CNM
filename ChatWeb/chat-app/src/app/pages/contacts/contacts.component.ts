@@ -222,6 +222,7 @@ export class ContactsComponent implements OnInit {
               next: (room) => {
                 console.log('Đã tạo phòng chat:', room);
                 this.socketService.taoPhongChat(room._id, room); // Gửi sự kiện tạo phòng chat
+                this.getFriendRequestsList();
                 // console.log('chatRoom duoc gui qua soket',room)
                 console.log('Đã gửi sk socket mời vào phòng chat');
               },

@@ -8,7 +8,7 @@ export class SocketService {
   private socket: Socket;
 
   constructor() {
-    this.socket = io('https://chat.fff3l.click');
+    this.socket = io('http://47.129.240.146:5000');
     
     this.socket.on('connect', () => {
       console.log('Socket connected successfully!');
@@ -180,4 +180,22 @@ offNhanskRoiPhongChat():void{
     this.socket.off('unfriended');
   }
   /**--------------------Kết bạn socket -------------*/
+  // Lắng nghe người khác online
+  onUserOnline(callback: (userId: string) => void) {
+    this.socket.on('onlined', callback);
+  }
+
+  // Lắng nghe người khác offline
+  onUserOffline(callback: (userId: string) => void) {
+    this.socket.on('offlined', callback);
+  }
+
+  // Tắt lắng nghe (nếu cần)
+  offUserOnline() {
+    this.socket.off('onlined');
+  }
+
+  offUserOffline() {
+    this.socket.off('offlined');
+  }
 }

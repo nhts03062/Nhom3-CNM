@@ -208,8 +208,6 @@ ngOnChanges(changes: SimpleChanges): void {
   }
 
 
-
-
   titleHeader: string = '';
 
   chooseTitle(): void {
@@ -353,4 +351,3 @@ ngOnChanges(changes: SimpleChanges): void {
 
 
 }
-

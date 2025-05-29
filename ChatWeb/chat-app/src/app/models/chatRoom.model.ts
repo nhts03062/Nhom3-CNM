@@ -26,4 +26,5 @@ export interface ChatRoom {
   updatedAt: string;
   otherMembers:User[];
   timeAgo:string;
+   unreadCount?: number;
 }

@@ -54,6 +54,7 @@ export class ChattingComponent implements OnInit {
   showEmojiPicker: boolean = false;
   showModal = false;
   searchTerm: string = '';
+  messageSearchTerm: string = ''; // Thêm cho tìm kiếm tin nhắn
   selectedRoom?: ChatRoom | undefined;
   otherUsersChat: User[] = [];
   isSidebarOpen: boolean = false;
@@ -93,6 +94,11 @@ export class ChattingComponent implements OnInit {
   ngOnInit(): void {
     this.getChatRooms();
     this.loadUser();
+
+    this.socketService.onUserOnline((userId: string) => {
+    console.log(`User ${userId} is online`);
+    this.updateUserOnlineStatus(userId, true);
+  });
     this.scrollToBottom();
     //Xử lý khi có tin nhắn mới socket
 
@@ -213,7 +219,7 @@ export class ChattingComponent implements OnInit {
           this.selectedRoom.members = [...this.selectedRoom.members, invitedUser];
 
         }
-        // this.updateChatRoomsList(this.selectedRoom, this.idNguoiDungHienTai);
+        this.updateChatRoomsList(this.selectedRoom, this.idNguoiDungHienTai);
       }
       console.log('🆕 User đã được mời:', invitedUser);
       this.getChatRooms();
@@ -1093,6 +1099,7 @@ export class ChattingComponent implements OnInit {
       next: () => {
         console.log('Đã forward tới tất cả phòng');
         this.toggleForwardModal();
+        this.getChatRooms();
       },
       error: err => {
         console.error('Forward thất bại:', err);
@@ -1181,41 +1188,65 @@ export class ChattingComponent implements OnInit {
     return `${diffDay} ngày trước`;
   }
 
-  get filteredMessages(): Messagee[] {
+  get filteredChatRooms(): ChatRoom[] {
     const term = this.searchTerm?.trim().toLowerCase();
-    if (!term || !Array.isArray(this.messagees)) return [];
+    if (!term) return [];
+    return this.chatRooms.filter(chatRoom => {
+      if (chatRoom.isGroupChat) {
+        return chatRoom.chatRoomName?.toLowerCase().includes(term);
+      } else {
+        return chatRoom.otherMembers?.[0]?.name.toLowerCase().includes(term);
+      }
+    });
+  }
 
+  get filteredMessages(): Messagee[] {
+    const term = this.messageSearchTerm?.trim().toLowerCase();
+    if (!term || !Array.isArray(this.messagees)) return [];
     return this.messagees.filter(
       (msg) => msg.content?.type === 'text' && msg.content.text?.toLowerCase().includes(term)
     );
   }
 
-  goToMessage(msg: Messagee): void {
-    const el = document.getElementById('msg-' + msg._id);
+goToMessage(msg: Messagee): void {
+  const el = document.getElementById('msg-' + msg._id);
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.add('highlighted-message');
+
+    // Xóa class sau 2 giây
+    setTimeout(() => el.classList.remove('highlighted-message'), 2000);
+  }
+}
+
+searchedMembers(room: ChatRoom): User[] {
+  const members = this.filteredMembers(room); // giữ nguyên xử lý của bạn
+  return members.filter(member =>
+    member.name.toLowerCase().includes(this.searchTermMember.toLowerCase())
+  );
+}
+
+scrollToMessage() {
+  if (this.selectedHighlightMessageId) {
+    const el = document.getElementById('msg-' + this.selectedHighlightMessageId);
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      el.classList.add('highlighted-message');
-
-      // Xóa class sau 2 giây
-      setTimeout(() => el.classList.remove('highlighted-message'), 2000);
     }
   }
+}
 
-  searchedMembers(room: ChatRoom): User[] {
-    const members = this.filteredMembers(room); // giữ nguyên xử lý của bạn
-    return members.filter(member =>
-      member.name.toLowerCase().includes(this.searchTermMember.toLowerCase())
-    );
-  }
-
-  scrollToMessage() {
-    if (this.selectedHighlightMessageId) {
-      const el = document.getElementById('msg-' + this.selectedHighlightMessageId);
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+// Hàm cập nhật trạng thái online/offline
+private updateUserOnlineStatus(userId: string, isOnline: boolean): void {
+  this.chatRooms.forEach(room => {
+    if (!room.isGroupChat && room.otherMembers?.length > 0) {
+      const member = room.otherMembers[0];
+      if (member._id === userId) {
+        member.online = isOnline;
       }
     }
-  }
-
+  });
+  // Cập nhật lại giao diện nếu cần
+  this.chatRooms = [...this.chatRooms]; // Trigger change detection
+}
 
 }

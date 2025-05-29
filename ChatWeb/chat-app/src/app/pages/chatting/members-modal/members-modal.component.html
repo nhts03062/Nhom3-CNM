@@ -144,6 +144,7 @@
                   [id]="'cbx-15-' + i"
                   type="checkbox"
                   [checked]="selectedNewAdmin === user._id"
+                  (change)="toggleSelectionAdmin(user._id)"
                   (click)="toggleSelectionAdmin(user._id)"
                   style="display: none"
                 />
