@@ -17,9 +17,16 @@ const MessageSchema = new mongoose.Schema({
         type: {type: String, enum:['text','file','media','first', 'notifi'],default: 'text'},
         text:{type:String,default: ''},
         media: [{type: String, default: null}], // Vì muốn mỗi phần từ là phần tử bình thường thì thêm [] vào trong string với default là []
-        files: [
-            {type: String, default: null}
-        ], //nếu không thì với type là string, default là [] thì nó hiểu mỗi phần từ là một mảng kiểu string 
+       files: [
+               {
+                   url: {
+                       type: String, default: null
+                   },
+                   name: {
+                       type: String, default: null
+                   },
+               },
+           ], //nếu không thì với type là string, default là [] thì nó hiểu mỗi phần từ là một mảng kiểu string 
     },
     recall: {type: String,enum:['0','1','2'], default: '0'}
     // seen: [{type: mongoose.Schema.Types.ObjectId, ref: "User"}]
